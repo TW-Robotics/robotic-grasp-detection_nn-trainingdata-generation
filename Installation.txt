@@ -1,0 +1,7 @@
+Master-Thesis Git:
+	git clone https://github.com/JRauer/mt
+	ln -s "$(pwd)/mt" ~/catkin_ws/src/mt
+
+Aruco-Markers:
+	git clone https://github.com/UbiquityRobotics/fiducials
+	-> Copy aruco_detect into mt
