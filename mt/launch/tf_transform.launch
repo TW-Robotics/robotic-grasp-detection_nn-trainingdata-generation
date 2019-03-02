@@ -1,0 +1,4 @@
+<launch>
+	<!-- Static transforms for camera_link, camera_frame and gripper -->
+	<node pkg="tf" type="static_transform_publisher" name="testpub" args="0 0 0 0 0 0 1 base_link object 100" />
+</launch>
