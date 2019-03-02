@@ -5,3 +5,6 @@ Master-Thesis Git:
 Aruco-Markers:
 	git clone https://github.com/UbiquityRobotics/fiducials
 	-> Copy aruco_detect into mt
+
+Pyrender:
+	pip install pyrender
