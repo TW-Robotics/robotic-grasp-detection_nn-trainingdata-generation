@@ -6,7 +6,7 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 from math import tan
 
-fuze_trimesh = trimesh.load('../cad/product.obj')
+fuze_trimesh = trimesh.load('../cad/fuze.obj')
 mesh = pyrender.Mesh.from_trimesh(fuze_trimesh)
 scene = pyrender.Scene()
 scene.add(mesh)
@@ -22,9 +22,9 @@ c = np.array([
 
 s = np.sqrt(2)/2
 camera_pose = np.array([
-		[0.0, -s,   s,   3],
+		[0.0, -s,   s,   0.3],
 		[1.0,  0, 0.0, 0],
-		[0.0,  s,   s,   3.5],
+		[0.0,  s,   s,   0.35],
 		[0.0,  0.0, 0.0, 1.0],
 		])
 scene.add(camera, pose=camera_pose)
@@ -49,7 +49,7 @@ for i in range(len(points)):
 	f.write(str(points[i][0]) + " " + str(points[i][1]) + " " + str(points[i][2]) + "\n")
 f.close()
 
-'''
+
 plt.figure()
 plt.subplot(1,2,1)
 plt.axis('off')
@@ -57,4 +57,4 @@ plt.imshow(color)
 plt.subplot(1,2,2)
 plt.axis('off')
 plt.imshow(depth, cmap=plt.cm.gray_r)
-plt.show()'''
+plt.show()
