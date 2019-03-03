@@ -8,6 +8,7 @@ import rospy
 import tf
 from geometry_msgs.msg import Pose
 import math
+from geometry_msgs.msg import Quaternion
 
 def sample_spherical(npoints, ndim=3):
     vec = np.random.randn(ndim, npoints)
@@ -43,37 +44,17 @@ def main(args):
 	# Init tf-broadcaster to forward pose to tf
 	br = tf.TransformBroadcaster()
 
-	px = 0.5
-	py = 0.5
-	pz = 0.5
-
-	ox = 0
-	oy = 0
-	oz = 0
-
-	vx = ox - px
-	vy = oy - py
-	vz = oz - pz
-
-	#print vx, vy, vz
-
+	# From v1 to v2 pointing
 	v1 = np.array([0.5, 0.5, 0.5])
-	v2 = np.array([1., 0, 0])
+	v2 = np.array([-1, 0, 0])
 
+	# Calculate Quaternions
 	a = np.cross(v1, v2)
-	print a
-	l1 = np.linalg.norm(v1, ord=2)
-	l2 = np.linalg.norm(v2, ord=2)
-	w = math.sqrt(l1*l2) + v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
-	print w
-
-	#q = tf.normalized(a[0], a[1], a[2], w)
-	#print q
-	q = np.array([0, 0.3134257, -0.3134257, 0.8963976])
-
-	'''vector a = crossproduct(v1, v2);
-	q.xyz = a
-	q.w = sqrt((v1.Length ^ 2) * (v2.Length ^ 2)) + dotproduct(v1, v2)'''
+	w = math.sqrt(np.linalg.norm(v1, ord=2) * np.linalg.norm(v2, ord=2)) + v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
+	# Normalize Quaternions
+	qNorm = math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2] + w*w)
+	q = [a[0]/qNorm, a[1]/qNorm, a[2]/qNorm, w/qNorm]
+	print q
 
 	# Do at a frequency of 10 Hz
 	rate = rospy.Rate(10)
@@ -85,11 +66,16 @@ def main(args):
 							 rospy.Time.now(),
 							 "p" + str(i),
 							 "object")'''
-		br.sendTransform((px, py, pz),
+		br.sendTransform((v1[0], v1[1], v1[2]),
 						 (q[0], q[1], q[2], q[3]),
 						 rospy.Time.now(),
-						 "p" + str(i),
+						 "p1",
 						 "object")
+		br.sendTransform((v2[0], v2[1], v2[2]),
+						 (0, 0, 0, 1),
+						 rospy.Time.now(),
+						 "p0",
+						 "object")		
 		rate.sleep()
 
 if __name__ == '__main__':
