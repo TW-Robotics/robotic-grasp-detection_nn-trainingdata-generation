@@ -44,16 +44,47 @@ def main(args):
 	# Init tf-broadcaster to forward pose to tf
 	br = tf.TransformBroadcaster()
 
-	# From v1 to v2 pointing
-	v1 = np.array([0.5, 0.5, 0.5])
-	v2 = np.array([-1, 0, 0])
+	# From v1 to v0 pointing
+	v0 = np.array([1, 0.5, -0.5])
+	v1 = np.array([1, 1.5, 0.5])
+
+	v10 = -v1
+	print v10
+
+	xyLength = math.sqrt(v10[0]*v10[0] + v10[1]*v10[1])
+	vecLength = math.sqrt(v10[0]*v10[0] + v10[1]*v10[1] + v10[2]*v10[2])
+
+	if xyLength == 0:
+		if v10[0] > 0:
+			zAngle = math.pi/2
+		else:
+			zAngle = -math.pi/2
+	else:
+		zAngle = math.acos(v10[1] / xyLength)
+	
+	xAngle = math.acos(xyLength / vecLength)
+	print xAngle, zAngle, xyLength, vecLength
+
+	q = tf.transformations.quaternion_from_euler(xAngle, 0, zAngle, 'rxyz')
+	q1 = tf.transformations.quaternion_from_euler(-math.pi/2, 0, 0, 'rxyz')
+	q = tf.transformations.quaternion_multiply(q, q1)
+
+	'''q = [0., 0, 0, 0]
+	angle = math.atan2( v10[2], v10[0] )
+	q[0] = v0[0] * math.sin( angle/2)
+	q[1] = v0[1] * math.sin( angle/2)
+	q[2] = v0[2] * math.sin( angle/2)
+	q[3] = math.cos( angle/2 )
+
+	qNorm = math.sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3])
+	q = [q[0]/qNorm, q[1]/qNorm, q[2]/qNorm, q[3]/qNorm]'''
 
 	# Calculate Quaternions
-	a = np.cross(v1, v2)
-	w = math.sqrt(np.linalg.norm(v1, ord=2) * np.linalg.norm(v2, ord=2)) + v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
+	'''a = np.cross(v1, v10)
+	w = math.sqrt(np.linalg.norm(v1, ord=2) * np.linalg.norm(v10, ord=2)) + v1[0]*v10[0] + v1[1]*v10[1] + v1[2]*v10[2]
 	# Normalize Quaternions
 	qNorm = math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2] + w*w)
-	q = [a[0]/qNorm, a[1]/qNorm, a[2]/qNorm, w/qNorm]
+	#q = [a[0]/qNorm, a[1]/qNorm, a[2]/qNorm, w/qNorm]'''
 	print q
 
 	# Do at a frequency of 10 Hz
@@ -70,8 +101,8 @@ def main(args):
 						 (q[0], q[1], q[2], q[3]),
 						 rospy.Time.now(),
 						 "p1",
-						 "object")
-		br.sendTransform((v2[0], v2[1], v2[2]),
+						 "p0")
+		br.sendTransform((v0[0], v0[1], v0[2]),
 						 (0, 0, 0, 1),
 						 rospy.Time.now(),
 						 "p0",
