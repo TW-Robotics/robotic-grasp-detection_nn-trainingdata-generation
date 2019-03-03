@@ -45,29 +45,37 @@ def main(args):
 	br = tf.TransformBroadcaster()
 
 	# From v1 to v0 pointing
-	v0 = np.array([1, 0.5, -0.5])
-	v1 = np.array([1, 1.5, 0.5])
+	v0 = np.array([0, 0, 0])
+	v1 = np.array([-0.02372714335579641, 0.15962260421743776, 0.6811443656751603])
+	v1 = np.array([1, 1, 1])
 
 	v10 = -v1
 	print v10
 
 	xyLength = math.sqrt(v10[0]*v10[0] + v10[1]*v10[1])
 	vecLength = math.sqrt(v10[0]*v10[0] + v10[1]*v10[1] + v10[2]*v10[2])
-
+	print xyLength, vecLength
 	if xyLength == 0:
 		if v10[0] > 0:
-			zAngle = math.pi/2
+			zAngle = 0#math.pi/2
 		else:
-			zAngle = -math.pi/2
+			zAngle = 0#-math.pi/2
 	else:
 		zAngle = math.acos(v10[1] / xyLength)
 	
 	xAngle = math.acos(xyLength / vecLength)
-	print xAngle, zAngle, xyLength, vecLength
+	if v10[0] > 0:
+		print "zCorr"
+		zAngle = -zAngle
+	if (v10[2] > 0 and v10[1] < 0) or (v10[2] < 0 and v10[1] > 0):
+		print "xCorr"
+		xAngle = -xAngle
+
+	print xAngle*180/math.pi, zAngle*180/math.pi
 
 	q = tf.transformations.quaternion_from_euler(xAngle, 0, zAngle, 'rxyz')
-	q1 = tf.transformations.quaternion_from_euler(-math.pi/2, 0, 0, 'rxyz')
-	q = tf.transformations.quaternion_multiply(q, q1)
+	#q1 = tf.transformations.quaternion_from_euler(-math.pi/2, 0, 0, 'rxyz')
+	#q = tf.transformations.quaternion_multiply(q, q1)
 
 	'''q = [0., 0, 0, 0]
 	angle = math.atan2( v10[2], v10[0] )
@@ -85,7 +93,7 @@ def main(args):
 	# Normalize Quaternions
 	qNorm = math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2] + w*w)
 	#q = [a[0]/qNorm, a[1]/qNorm, a[2]/qNorm, w/qNorm]'''
-	print q
+	#print q
 
 	# Do at a frequency of 10 Hz
 	rate = rospy.Rate(10)
