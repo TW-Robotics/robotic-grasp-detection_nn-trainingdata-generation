@@ -42,7 +42,7 @@ def main(args):
 							 (t.transform.rotation.x, t.transform.rotation.y, t.transform.rotation.z, t.transform.rotation.w),
 							 rospy.Time.now(),
 							 "marker_" + str(t.fiducial_id),
-							 "camera")
+							 "camera_color_optical_frame")
 			if t.object_error < minObjError:
 				minObjError = t.object_error
 				mID = t.fiducial_id

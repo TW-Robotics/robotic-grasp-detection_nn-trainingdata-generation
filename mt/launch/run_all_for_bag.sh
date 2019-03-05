@@ -1,6 +1,16 @@
 #!/bin/bash
-#xterm -hold -e "roscore" &
-#sleep 3
+xterm -hold -e "roscore" &
+sleep 3
+
+# camera
+xterm -hold -e "roslaunch mt rs_aligned_depth.launch" &
+# marker detection
+xterm -hold -e "roslaunch aruco_detect aruco_detect.launch" &
+# marker tf
+xterm -hold -e "rosrun mt tf_broadcaster.py" &
+# Camera at eef
+xterm -hold -e "roslaunch mt tf_transform.launch" &
+
 echo "Connecting to UR5 and launching path-planner..."
 xterm -hold -e "roslaunch ur_modern_driver ur5_bringup.launch limited:=true robot_ip:=192.168.12.52" &
 sleep 2
