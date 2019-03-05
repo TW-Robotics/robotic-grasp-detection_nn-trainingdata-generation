@@ -1,0 +1,43 @@
+<launch>
+    <arg name="namespace_prefix" default="ur5_kinect_handeyecalibration" />
+
+    <arg name="robot_ip" doc="The IP address of the UR5 robot" />
+
+    <arg name="marker_size" doc="Size of the ArUco marker used, in meters" />
+    <arg name="marker_id" doc="The ID of the ArUco marker used" />
+
+    <!-- start the camera -->
+    <include file="$(find realsense2_camera)/launch/rs_calib.launch"/>
+
+    <!-- aruco marker detect - set marker ID and size here!-->
+    <include file="$(find aruco_detect)/launch/aruco_detect_calib.launch"/>
+    <node pkg="mt" name="aruco_detect_tf_publisher" type="tf_calib_broadcaster.py"/>
+    <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+        <remap from="image" to="/fiducial_images"/>
+    </node> 
+
+    <!-- start the robot -->
+    <include file="$(find ur_modern_driver)/launch/ur5_bringup.launch">
+        <arg name="limited" value="true" />
+        <arg name="robot_ip" value="192.168.12.52" />
+    </include>
+    <include file="$(find ur5_moveit_config)/launch/ur5_moveit_planning_execution.launch">
+        <arg name="limited" value="true" />
+    </include>
+
+    <!-- start easy_handeye -->
+    <include file="$(find easy_handeye)/launch/calibrate.launch" >
+        <arg name="namespace_prefix" value="$(arg namespace_prefix)" />
+        <arg name="eye_on_hand" value="true" />
+
+        <arg name="tracking_base_frame" value="camera_link" />
+        <arg name="tracking_marker_frame" value="camera_marker" />
+        <arg name="robot_base_frame" value="base_link" />
+        <arg name="robot_effector_frame" value="tool0_controller" />
+
+        <arg name="freehand_robot_movement" value="false" />
+        <arg name="robot_velocity_scaling" value="0.5" />
+        <arg name="robot_acceleration_scaling" value="0.2" />
+    </include>
+
+</launch>
