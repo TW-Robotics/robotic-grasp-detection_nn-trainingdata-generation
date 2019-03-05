@@ -5,6 +5,8 @@ Master-Thesis Git:
 Aruco-Markers:
 	git clone https://github.com/UbiquityRobotics/fiducials
 	-> Copy aruco_detect into mt
+	sudo apt-get install ros-kinetic-fiducial-msgs
+	sudo apt-get install ros-kinettic-aruco*
 
 Pyrender:
 	pip install pyrender
