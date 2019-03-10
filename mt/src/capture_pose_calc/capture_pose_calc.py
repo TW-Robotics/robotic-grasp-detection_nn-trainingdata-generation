@@ -47,10 +47,14 @@ def main(args):
 	# From v1 to v0 pointing
 	v0 = np.array([0, 0, 0])
 	v1 = np.array([-0.02372714335579641, 0.15962260421743776, 0.6811443656751603])
-	v1 = np.array([1, 1, 1])
+	v1 = np.array([0.5, 0.8, 0.7])
 
 	v10 = -v1
 	print v10
+	a = np.linalg.norm(v10)
+	v10 = v10/a
+	print v10
+	print v1
 
 	xyLength = math.sqrt(v10[0]*v10[0] + v10[1]*v10[1])
 	vecLength = math.sqrt(v10[0]*v10[0] + v10[1]*v10[1] + v10[2]*v10[2])
@@ -64,18 +68,22 @@ def main(args):
 		zAngle = math.acos(v10[1] / xyLength)
 	
 	xAngle = math.acos(xyLength / vecLength)
+	if v10[2] < 0:
+		print "xCorr"
+		xAngle = -xAngle
 	if v10[0] > 0:
 		print "zCorr"
 		zAngle = -zAngle
-	if (v10[2] > 0 and v10[1] < 0) or (v10[2] < 0 and v10[1] > 0):
-		print "xCorr"
-		xAngle = -xAngle
 
 	print xAngle*180/math.pi, zAngle*180/math.pi
 
 	q = tf.transformations.quaternion_from_euler(xAngle, 0, zAngle, 'rxyz')
+	q = tf.transformations.quaternion_from_euler(-zAngle, 0, -xAngle, 'rzyx')
+	q = tf.transformations.quaternion_from_euler(xAngle, 0, zAngle)
 	#q1 = tf.transformations.quaternion_from_euler(-math.pi/2, 0, 0, 'rxyz')
 	#q = tf.transformations.quaternion_multiply(q, q1)
+
+	print q
 
 	'''q = [0., 0, 0, 0]
 	angle = math.atan2( v10[2], v10[0] )
@@ -109,12 +117,12 @@ def main(args):
 						 (q[0], q[1], q[2], q[3]),
 						 rospy.Time.now(),
 						 "p1",
-						 "p0")
+						 "base_link")
 		br.sendTransform((v0[0], v0[1], v0[2]),
 						 (0, 0, 0, 1),
 						 rospy.Time.now(),
 						 "p0",
-						 "object")		
+						 "base_link")		
 		rate.sleep()
 
 if __name__ == '__main__':
