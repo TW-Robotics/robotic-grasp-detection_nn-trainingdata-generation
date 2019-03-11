@@ -34,8 +34,8 @@ debug = False
 class ur5Controler():
 	def __init__(self):
 		# Set Robot paramters: position over floor, speed and acceloration [0, 1] (only 0.1 steps)
-		self.speed = 0.1
-		self.acceleration = 0.1
+		self.speed = 1#0.1
+		self.acceleration = 1#0.1
 		self.speedScalingFactor = 0.05		# For timing of path-planning-points [very small eg 0.01, 1]
 		self.floor_to_UR = 0 				# Distance = 0 because planning frame is base-footprint
 
@@ -56,9 +56,10 @@ class ur5Controler():
 		self.scene = moveit_commander.PlanningSceneInterface()
 		self.group.set_end_effector_link("tool0")
 		self.group.set_pose_reference_frame("/base_link")
+		print self.robot.get_planning_frame()
 
-		rospy.Subscriber("/tf_objToBase", Pose, self.baseToObj_callback, queue_size=1)	# get transformation from object to base for R1-Move and planning
-		rospy.Subscriber("/tf_objToCam", Pose, self.camToObj_callback, queue_size=1)	# get transformation from object to cam for R4-Move
+		#rospy.Subscriber("/tf_objToBase", Pose, self.baseToObj_callback, queue_size=1)	# get transformation from object to base for R1-Move and planning
+		#rospy.Subscriber("/tf_objToCam", Pose, self.camToObj_callback, queue_size=1)	# get transformation from object to cam for R4-Move
 
 		# Wait for init of subscribers
 		rospy.sleep(1)
