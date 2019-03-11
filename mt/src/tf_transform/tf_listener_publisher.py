@@ -5,9 +5,6 @@ from geometry_msgs.msg import Pose
 import sys
 from math import pi
 
-''' Listen to transformation between object and base of robot
-	to make it turn correctly to object while searching it'''
-
 # Convert lists to pose-obect so a standard pose message can be published
 def listToPose(trans, rot):
 	pose = Pose()
@@ -36,7 +33,7 @@ def main(args):
 	while not rospy.is_shutdown():
 		#try:
 			# Get transformation and publish it rearranged to a list
-			(trans, rot) = listener.lookupTransform('/base_footprint', '/obj_center_pose', rospy.Time(0))
+			(trans, rot) = listener.lookupTransform('/base_link', '/object', rospy.Time(0))
 			objToBasePub.publish(listToPose(trans, rot))
 		#except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
 		#	rospy.loginfo("Warning!")

@@ -56,7 +56,7 @@ class ur5Controler():
 		self.scene = moveit_commander.PlanningSceneInterface()
 		self.group.set_end_effector_link("tool0")
 		self.group.set_pose_reference_frame("/base_link")
-		print self.robot.get_planning_frame()
+		#print self.robot.get_planning_frame()
 
 		#rospy.Subscriber("/tf_objToBase", Pose, self.baseToObj_callback, queue_size=1)	# get transformation from object to base for R1-Move and planning
 		#rospy.Subscriber("/tf_objToCam", Pose, self.camToObj_callback, queue_size=1)	# get transformation from object to cam for R4-Move

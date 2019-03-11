@@ -8,6 +8,7 @@ import random
 import rospy
 import tf
 from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseArray
 import math
 from geometry_msgs.msg import Quaternion
 from ur5_control import ur5_control
@@ -30,15 +31,23 @@ def calc_cartesian(r, phi, theta):	# phi: horizontal, theta: vertical
 	vec[2] = r * math.cos(theta)
 	return vec
 
+objPose = Pose()
+def objPose_callback(data):
+	global objPose
+	objPose = data
+
 def main(args):
 	rospy.init_node('capture_pose_calc', anonymous=True, disable_signals=True)
+
+	pub = rospy.Publisher('/capturePoses', PoseArray, queue_size=10)
+	rospy.Subscriber("/tf_objToBase", Pose, objPose_callback, queue_size=1)
 
 	ur5 = ur5_control.ur5Controler()
 
 	# Object frame publisher for testing
-	v0 = np.array([0.3, 0.4, -0.15])#np.array([0., 0., -0.2])#
-	v1 = np.array([-0.5, 0.2, 0.25])	# point chosen by user
-	v01 = np.array([v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]])
+	#v0 = np.array([0.3, 0.4, -0.15])#np.array([0., 0., -0.2])#
+	v1 = np.array([0.5, 0.25, 0.45])	# point chosen by user
+	v01 = np.array([v1[0]-objPose.position.x, v1[1]-objPose.position.y, v1[2]-objPose.position.z])
 	
 	# Calc polar coordinates of start point
 	r, phi01, theta01 = calc_polar(v01)
@@ -60,6 +69,10 @@ def main(args):
 	pointsy = []
 	pointsz = []
 
+	pointsx.append(v01[0])
+	pointsy.append(v01[1])
+	pointsz.append(v01[2])
+
 	phi = phi01
 	theta = theta01
 
@@ -70,9 +83,9 @@ def main(args):
 	rotateRMin = -65./180.*math.pi
 	rotateRMax = 65./180.*math.pi
 
-	for i in range(20):
-		if i%15 == 0:
-			theta = theta - thetaInc
+	for i in range(50):
+		if i%15 == 0 and i != 0:
+			theta = theta + thetaInc
 			phiInc = -phiInc
 		else:
 			phi = phi + phiInc
@@ -84,7 +97,7 @@ def main(args):
 		pointsy.append(vec[1])
 		pointsz.append(vec[2])
 
-	goals = []
+	goals = PoseArray()
 
 	#return
 
@@ -112,9 +125,9 @@ def main(args):
 		q = tf.transformations.quaternion_from_euler(xAngle-math.pi/2, zAngle, 0, 'sxzx')
 		
 		goal = Pose()
-		goal.position.x = pointsx[i] + v0[0]
-		goal.position.y = pointsy[i] + v0[1]			
-		goal.position.z = pointsz[i] + v0[2]
+		goal.position.x = pointsx[i] + objPose.position.x
+		goal.position.y = pointsy[i] + objPose.position.y			
+		goal.position.z = pointsz[i] + objPose.position.z
 		goal.orientation.x = q[0]
 		goal.orientation.y = q[1]
 		goal.orientation.z = q[2]
@@ -123,27 +136,34 @@ def main(args):
 		if ur5.isReachable(goal):
 			print "YES " + str(i)
 
-			goals.append(goal)
-	print len(goals)
+			goals.poses.append(goal)
+	print len(goals.poses)
 	
+	rate = rospy.Rate(10)
+	while not rospy.is_shutdown():
+		pub.publish(goals)
+		for i in range(len(goals.poses)):
+			ur5.execute_move(goals.poses[i])
+		rate.sleep()
+
 	# Init tf-broadcaster to forward pose to tf
-	br = tf.TransformBroadcaster()
+	'''br = tf.TransformBroadcaster()
 	# Do at a frequency of 10 Hz
 	rate = rospy.Rate(10)
 	#while not rospy.is_shutdown():
-	br.sendTransform((v0[0], v0[1], v0[2]),
-					 (0, 0, 0, 1),
-					 rospy.Time.now(),
-					 "object",
-					 "world")
-	for i in range(len(goals)):
-		br.sendTransform((goals[i].position.x - v0[0], goals[i].position.y - v0[1], goals[i].position.z - v0[2]),
-							 (goals[i].orientation.x, goals[i].orientation.y, goals[i].orientation.z, goals[i].orientation.w),
+	#br.sendTransform((v0[0], v0[1], v0[2]),
+	#				 (0, 0, 0, 1),
+	#				 rospy.Time.now(),
+	#				 "object",
+	#				 "world")
+	for i in range(len(goals.poses)):
+		br.sendTransform((goals.poses[i].position.x - v0[0], goals.poses[i].position.y - v0[1], goals.poses[i].position.z - v0[2]),
+							 (goals.poses[i].orientation.x, goals.poses[i].orientation.y, goals.poses[i].orientation.z, goals.poses[i].orientation.w),
 							 rospy.Time.now(),
 							 "p" + str(i),
 							 "object")
-		ur5.execute_move(goals[i])
-		#rate.sleep()
+		ur5.execute_move(goals.poses[i])
+		#rate.sleep()'''
 
 if __name__ == '__main__':
 	main(sys.argv)
