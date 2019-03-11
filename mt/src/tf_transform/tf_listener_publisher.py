@@ -31,14 +31,14 @@ def main(args):
 	# Do at a frequency of 10 Hz
 	rate = rospy.Rate(10.0)
 	while not rospy.is_shutdown():
-		#try:
+		try:
 			# Get transformation and publish it rearranged to a list
 			(trans, rot) = listener.lookupTransform('/base_link', '/object', rospy.Time(0))
 			objToBasePub.publish(listToPose(trans, rot))
-		#except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-		#	rospy.loginfo("Warning!")
-		#	continue
-			rate.sleep()
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+			rospy.loginfo("Warning!")
+			continue
+		rate.sleep()
 
 if __name__ == '__main__':
 	main(sys.argv)

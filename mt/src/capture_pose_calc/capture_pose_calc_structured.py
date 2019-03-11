@@ -36,6 +36,40 @@ def objPose_callback(data):
 	global objPose
 	objPose = data
 
+def get_pose(vec):
+	# Negate Coordinates for correct orientation of vector
+	vi = [-vec[0], -vec[1], -vec[2]]
+
+	# Calculate lengths and angles
+	xyLength = math.sqrt(vi[0]*vi[0] + vi[1]*vi[1])
+	vecLength = math.sqrt(vi[0]*vi[0] + vi[1]*vi[1] + vi[2]*vi[2])
+	zAngle = math.acos(vi[1] / xyLength)
+	xAngle = math.acos(xyLength / vecLength)
+
+	# Correct angles in special cases
+	if vi[2] < 0:
+		#print "xCorr"
+		xAngle = -xAngle
+	if vi[0] > 0:
+		#print "zCorr"
+		zAngle = -zAngle
+	#print xAngle*180/math.pi, zAngle*180/math.pi
+
+	# Calculate Quaternion representation of angles and broadcast transforms
+	#rotateRand = random.uniform(rotateRMin, rotateRMax)
+	q = tf.transformations.quaternion_from_euler(xAngle-math.pi/2, zAngle, 0, 'sxzx')
+	
+	goal = Pose()
+	goal.position.x = vec[0] + objPose.position.x
+	goal.position.y = vec[1] + objPose.position.y			
+	goal.position.z = vec[2] + objPose.position.z
+	goal.orientation.x = q[0]
+	goal.orientation.y = q[1]
+	goal.orientation.z = q[2]
+	goal.orientation.w = q[3]
+
+	return goal
+
 def main(args):
 	rospy.init_node('capture_pose_calc', anonymous=True, disable_signals=True)
 
@@ -74,69 +108,60 @@ def main(args):
 	pointsz.append(v01[2])
 
 	phi = phi01
-	theta = theta01
+	theta = thetaInc
 
-	rRMin = 0#-0.1
-	rRMax = 0#0.1
-	phiRMin = 0#-5./180.*math.pi
-	phiRMax = 0#5./180.*math.pi
+	rRMin = -0.1
+	rRMax = 0.1
+	dMin = -0.05
+	dMax = 0.05
+	phiRMin = -phiInc / 2.
+	phiRMax = phiInc / 2.
+	thetaRMin = -thetaInc / 2.
+	thetaRMax = thetaInc / 2.
 	rotateRMin = -65./180.*math.pi
 	rotateRMax = 65./180.*math.pi
 
-	for i in range(50):
+	goals = PoseArray()
+
+	i = 0
+	while True:
 		if i%15 == 0 and i != 0:
 			theta = theta + thetaInc
 			phiInc = -phiInc
 		else:
 			phi = phi + phiInc
-		rRand = random.uniform(rRMin, rRMax)
-		phiRand = random.uniform(phiRMin, phiRMax)
 
-		vec = calc_cartesian(r+rRand, phi+phiRand, theta)
-		pointsx.append(vec[0])
-		pointsy.append(vec[1])
-		pointsz.append(vec[2])
+		if theta > 85./180.*math.pi:
+			break
 
-	goals = PoseArray()
-
-	#return
-
-	for i in range(len(pointsx)):
-		# Negate Coordinates for correct orientation of vector
-		vi = [-pointsx[i], -pointsy[i], -pointsz[i]]
-
-		# Calculate lengths and angles
-		xyLength = math.sqrt(vi[0]*vi[0] + vi[1]*vi[1])
-		vecLength = math.sqrt(vi[0]*vi[0] + vi[1]*vi[1] + vi[2]*vi[2])
-		zAngle = math.acos(vi[1] / xyLength)
-		xAngle = math.acos(xyLength / vecLength)
-
-		# Correct angles in special cases
-		if vi[2] < 0:
-			#print "xCorr"
-			xAngle = -xAngle
-		if vi[0] > 0:
-			#print "zCorr"
-			zAngle = -zAngle
-		#print xAngle*180/math.pi, zAngle*180/math.pi
-
-		# Calculate Quaternion representation of angles and broadcast transforms
-		rotateRand = random.uniform(rotateRMin, rotateRMax)
-		q = tf.transformations.quaternion_from_euler(xAngle-math.pi/2, zAngle, 0, 'sxzx')
-		
-		goal = Pose()
-		goal.position.x = pointsx[i] + objPose.position.x
-		goal.position.y = pointsy[i] + objPose.position.y			
-		goal.position.z = pointsz[i] + objPose.position.z
-		goal.orientation.x = q[0]
-		goal.orientation.y = q[1]
-		goal.orientation.z = q[2]
-		goal.orientation.w = q[3]
+		vec = calc_cartesian(r, phi, theta)
+		goal = get_pose(vec)
 
 		if ur5.isReachable(goal):
-			print "YES " + str(i)
-
+			#print "YES " + str(i)
 			goals.poses.append(goal)
+			for j in range(3):
+				rRand = random.uniform(rRMin, rRMax)
+				phiRand = random.uniform(phiRMin, phiRMax)
+				thetaRand = random.uniform(thetaRMin, thetaRMax)
+				vec = calc_cartesian(r+rRand, phi+phiRand, theta+thetaRand)
+				goal = get_pose(vec)
+				if ur5.isReachable(goal):
+					#print "YES " + str(i)
+					goals.poses.append(goal)
+					#goale = 
+					#for k in range(4):
+					#	goale[k] = goal.copy()
+					#	dRand = random.uniform(dMin, dMax)
+					#	goal.position.x = goal.position.x + dRand
+					#	dRand = random.uniform(dMin, dMax)
+					#	goal.position.x = goal.position.y + dRand
+					#	dRand = random.uniform(dMin, dMax)
+					#	goal.position.x = goal.position.z + dRand
+					#	if ur5.isReachable(goal):
+					#		#print "YES " + str(i)
+					#		goals.poses.append(goal)
+		i = i + 1
 	print len(goals.poses)
 	
 	rate = rospy.Rate(10)
