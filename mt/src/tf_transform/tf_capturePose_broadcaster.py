@@ -17,6 +17,7 @@ def main(args):
 
 	# Init subscriber to Pose of object relative to camera
 	rospy.Subscriber("/capturePoses", PoseArray, pose_callback, queue_size=1)
+	# TODO Subscribe to objectPose
 
 	v0 = np.array([0.3, 0.6, -0.15])
 

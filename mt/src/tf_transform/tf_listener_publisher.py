@@ -25,7 +25,7 @@ def main(args):
 	listener = tf.TransformListener()
 
 	# Init Publishers
-	objToBasePub = rospy.Publisher("/tf_objToBase", Pose, queue_size=1)		# For movement of R1-axis of UR when searching object
+	objToBasePub = rospy.Publisher("/tf_objToBase", Pose, queue_size=1)
 	rospy.sleep(1)
 
 	# Do at a frequency of 10 Hz

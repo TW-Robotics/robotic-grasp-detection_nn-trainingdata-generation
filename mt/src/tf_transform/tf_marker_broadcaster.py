@@ -48,7 +48,7 @@ def main(args):
 				mID = t.fiducial_id
 			#print mID
 		#br.sendTransform((0, 0, 0.2), (0, 0, 0, 1), rospy.Time.now(), "object", "marker_241")
-		br.sendTransform((mToObj[mID][0], mToObj[mID][1], mToObj[mID][2]), (mToObj[mID][3], mToObj[mID][4], mToObj[mID][5], mToObj[mID][6]), rospy.Time.now(), "object", "marker_" + str(mID))
+		#br.sendTransform((mToObj[mID][0], mToObj[mID][1], mToObj[mID][2]), (mToObj[mID][3], mToObj[mID][4], mToObj[mID][5], mToObj[mID][6]), rospy.Time.now(), "object", "marker_" + str(mID))
 		rate.sleep()
 
 if __name__ == '__main__':

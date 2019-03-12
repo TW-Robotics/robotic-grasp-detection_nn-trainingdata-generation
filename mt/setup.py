@@ -5,7 +5,7 @@ from catkin_pkg.python_setup import generate_distutils_setup
 
 # fetch values from package.xml
 setup_args = generate_distutils_setup(
-	packages=['ur5_control', 'data_caputre'],
+	packages=['ur5_control', 'data_caputre', 'get_gtPose'],
 	package_dir={'': 'src'},
 )
 
