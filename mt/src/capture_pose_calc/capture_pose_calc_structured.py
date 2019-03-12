@@ -42,12 +42,6 @@ class capturePoseSampler():
 		# Parameters for randomization
 		self.rRMin = -0.1 			# How far should poses be nearer/farer from object
 		self.rRMax = 0.1
-		self.rotateTiltRMin = -10 	# Joint 4: How far to rotate
-		self.rotateTiltRMax = 10
-		self.rotateUpRMin = -10 	# Joint 5: How far to rotate
-		self.rotateUpRMax = 10
-		self.rotateRMin = -65		# Joint 6: How far can EEF be rotated
-		self.rotateRMax = 65
 		self.numRandomGoals = 3		# How many random goals (delta r, phi, theta) should be created
 		##################################
 		# ## # # # # # # # # # # # # # # #
@@ -82,24 +76,6 @@ class capturePoseSampler():
 		vec[1] = r * math.sin(theta) * math.sin(phi)
 		vec[2] = r * math.cos(theta)
 		return vec
-
-	# Make random moves with last axis
-	def move_random(self):
-		# Sample random offsets
-		rotateUp = random.uniform(0, self.rotateUpRMax)
-		rotateDown = random.uniform(self.rotateUpRMin, 0)
-		rotateTiltL = random.uniform(0, self.rotateTiltRMax)
-		rotateTiltR = random.uniform(self.rotateTiltRMin, 0)
-
-		# Execute offsets
-		print_debug("RotUp" + str(rotateUp))
-		self.ur5.move_joint(4, rotateUp)
-		print_debug("RotD" + str(rotateDown))
-		self.ur5.move_joint(4, rotateDown - rotateUp)
-		print_debug("TiltL" + str(rotateTiltL))
-		self.ur5.move_joint(3, rotateTiltL)
-		print_debug("TiltR" + str(rotateTiltR))
-		self.ur5.move_joint(3, rotateTiltR - rotateTiltL)
 
 	# Calculate full pose to given point w.r.t. object pose
 	def get_pose(self, vec):
@@ -136,6 +112,67 @@ class capturePoseSampler():
 
 		return goal
 
+	def calc_poses(self):
+		# start-point chosen by user TODO -> Read in
+		v1 = np.array([0.5, 0.25, 0.45])
+
+		# Calc vector from object to start-point
+		v01 = np.array([v1[0]-self.objPose.position.x, v1[1]-self.objPose.position.y, v1[2]-self.objPose.position.z])
+		
+		# Calc polar coordinates of start point
+		r, phi01, theta01 = self.calc_polar(v01)
+		print_debug("Vector given by user: " + str(v01))
+		print_debug("Parameters of vector: " + str(r) + str(phi01*180/math.pi) + str(theta01*180/math.pi))
+
+		# Start-Angles for pose-generation
+		phi = phi01
+		theta = self.thetaInc
+
+		i = 0
+		# Generate Points
+		while True:
+			# Calculate angles for new point
+			if i % self.numHorizontal == 0 and i != 0:	# Change to next theta (row) after numHorizontal angles
+				theta = theta + self.thetaInc
+				self.phiInc = -self.phiInc 				# and change orientation of angle-increment to go backwards
+			else:
+				phi = phi + self.phiInc 				# Otherwise just go to next angle
+
+			if theta > self.thetaMax:					# Stop generating points if you reach the final theta angle thetaMax
+				break
+
+			# Convert new point into cartesian and calculate the full pose
+			vec = self.calc_cartesian(r, phi, theta)
+			goal = self.get_pose(vec)
+
+			# If the goal is reachable, add it to the goals and make additional random goals
+			if self.ur5.isReachable(goal):
+				print_debug("Added point " + str(i))
+				self.goals.poses.append(goal)
+				for j in range(self.numRandomGoals):
+					# Get random parameters
+					rRand = random.uniform(self.rRMin, self.rRMax)
+					phiRand = random.uniform(self.phiRMin, self.phiRMax)
+					thetaRand = random.uniform(self.thetaRMin, self.thetaRMax)
+					
+					# Calculate goal and add it to points if reachable
+					vec = self.calc_cartesian(r+rRand, phi+phiRand, theta+thetaRand)
+					goal = self.get_pose(vec)
+					if self.ur5.isReachable(goal):
+						print_debug("Added point " + str(i) + " random " + str(j))
+						self.goals.poses.append(goal)
+			i = i + 1
+		print "Number of goals generated: " + str(len(self.goals.poses)) + " = " + str(len(self.goals.poses) * 4 * 3 + len(self.goals.poses)) + " poses."	# 4xrandom + 3xrotated + 1 base
+		print "Store poses by typing 'rosbag record /capturePoses' and replay them by typing 'rosbag play -l'."
+
+		rate = rospy.Rate(10)
+		while not rospy.is_shutdown():
+			# Publish the goals
+			self.pub.publish(self.goals)
+			rate.sleep()
+
+		#return goals
+
 # Print debug messages
 def print_debug(dStr):
 	global debug
@@ -144,80 +181,7 @@ def print_debug(dStr):
 
 def main(args):
 	ps = capturePoseSampler()
-
-	# start-point chosen by user TODO -> Read in
-	v1 = np.array([0.5, 0.25, 0.45])
-
-	# Calc vector from object to start-point
-	v01 = np.array([v1[0]-ps.objPose.position.x, v1[1]-ps.objPose.position.y, v1[2]-ps.objPose.position.z])
-	
-	# Calc polar coordinates of start point
-	r, phi01, theta01 = ps.calc_polar(v01)
-	print_debug("Vector given by user: " + str(v01))
-	print_debug("Parameters of vector: " + str(r) + str(phi01*180/math.pi) + str(theta01*180/math.pi))
-
-	# Start-Angles for pose-generation
-	phi = phi01
-	theta = ps.thetaInc
-
-	i = 0
-	# Generate Points
-	while True:
-		# Calculate angles for new point
-		if i % ps.numHorizontal == 0 and i != 0:	# Change to next theta (row) after numHorizontal angles
-			theta = theta + ps.thetaInc
-			ps.phiInc = -ps.phiInc 				# and change orientation of angle-increment to go backwards
-		else:
-			phi = phi + ps.phiInc 				# Otherwise just go to next angle
-
-		if theta > ps.thetaMax:					# Stop generating points if you reach the final theta angle thetaMax
-			break
-
-		# Convert new point into cartesian and calculate the full pose
-		vec = ps.calc_cartesian(r, phi, theta)
-		goal = ps.get_pose(vec)
-
-		# If the goal is reachable, add it to the goals and make additional random goals
-		if ps.ur5.isReachable(goal):
-			print_debug("Added point " + str(i))
-			ps.goals.poses.append(goal)
-			for j in range(ps.numRandomGoals):
-				# Get random parameters
-				rRand = random.uniform(ps.rRMin, ps.rRMax)
-				phiRand = random.uniform(ps.phiRMin, ps.phiRMax)
-				thetaRand = random.uniform(ps.thetaRMin, ps.thetaRMax)
-				
-				# Calculate goal and add it to points if reachable
-				vec = ps.calc_cartesian(r+rRand, phi+phiRand, theta+thetaRand)
-				goal = ps.get_pose(vec)
-				if ps.ur5.isReachable(goal):
-					print_debug("Added point " + str(i) + " random " + str(j))
-					ps.goals.poses.append(goal)
-		i = i + 1
-	print "Number of goals generated: " + str(len(ps.goals.poses)) + " = " + str(len(ps.goals.poses) * 4 * 3 + len(ps.goals.poses)) + " poses."	# 4xrandom + 3xrotated + 1 base
-	
-	rate = rospy.Rate(10)
-	for i in range(10):
-		# Publish the goals
-		ps.pub.publish(ps.goals)
-		rate.sleep()
-
-	# Drive to the goals and make random moves
-	for i in range(len(ps.goals.poses)):
-		ps.ur5.execute_move(ps.goals.poses[i])			# Move to base-point
-		ps.move_random()								# Make random moves
-		ps.ur5.execute_move(ps.goals.poses[i])			# Move back to base-point
-
-		rotateRand = random.uniform(0, ps.rotateRMax)
-		print_debug("Rotating1 " + str(rotateRand))
-		ps.ur5.move_joint(5, rotateRand)				# Rotate the EEF
-		ps.move_random()								# Make random moves
-		ps.ur5.execute_move(ps.goals.poses[i])			# Move back to base-point
-
-		rotateRand = random.uniform(ps.rotateRMin, 0)
-		print_debug("Rotating2 " + str(rotateRand))
-		ps.ur5.move_joint(5, rotateRand)				# Rotate the EEF
-		ps.move_random()								# Make random moves
+	ps.calc_poses()
 
 if __name__ == '__main__':
 	main(sys.argv)

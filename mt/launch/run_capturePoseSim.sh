@@ -15,6 +15,9 @@ sleep 3
 xterm -hold -e "rosrun mt tf_capturePose_broadcaster.py"  &
 # Calculate transformation from base_link to the object and publish it as topic for capture_pose_calc_structured
 xterm -hold -e "rosrun mt tf_listener_publisher.py" &
+# Calculate capture poses and publish them
+sleep 2
+xterm -hold -e "rosrun mt capture_pose_calc_structured.py" &
 
 #xterm -hold -e "roslaunch mt tf_transform.launch" &
 #--------------------#
