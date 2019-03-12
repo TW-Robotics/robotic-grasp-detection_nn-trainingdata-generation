@@ -36,6 +36,32 @@ def objPose_callback(data):
 	global objPose
 	objPose = data
 
+def moveRand(ur5):
+	rotateUpMin = -10
+	rotateUpMax = 10
+	rotateTiltMin = -10
+	rotateTiltMax = 10
+
+	rotateUp = random.uniform(0, rotateUpMax)
+	rotateDown = random.uniform(rotateUpMin, 0)
+	rotateTiltL = random.uniform(0, rotateTiltMax)
+	rotateTiltR = random.uniform(rotateTiltMin, 0)
+
+	printDebug("RotUp" + str(rotateUp))
+	ur5.move_joint(4, rotateUp)
+	printDebug("RotD" + str(rotateDown))
+	ur5.move_joint(4, rotateDown - rotateUp)
+	printDebug("TiltL" + str(rotateTiltL))
+	ur5.move_joint(3, rotateTiltL)
+	printDebug("TiltR" + str(rotateTiltR))
+	ur5.move_joint(3, rotateTiltR - rotateTiltL)
+
+debug = False
+def printDebug(dStr):
+	global debug
+	if debug == True:
+		print dStr
+
 def get_pose(vec):
 	# Negate Coordinates for correct orientation of vector
 	vi = [-vec[0], -vec[1], -vec[2]]
@@ -118,8 +144,8 @@ def main(args):
 	phiRMax = phiInc / 2.
 	thetaRMin = -thetaInc / 2.
 	thetaRMax = thetaInc / 2.
-	rotateRMin = -65./180.*math.pi
-	rotateRMax = 65./180.*math.pi
+	rotateRMin = -65
+	rotateRMax = 65
 
 	goals = PoseArray()
 
@@ -169,6 +195,17 @@ def main(args):
 		pub.publish(goals)
 		for i in range(len(goals.poses)):
 			ur5.execute_move(goals.poses[i])
+			rotateRand = random.uniform(0, rotateRMax)
+			moveRand(ur5)
+			ur5.execute_move(goals.poses[i])
+			printDebug("Rotating1 " + str(rotateRand))
+			ur5.move_joint(5, rotateRand)
+			moveRand(ur5)
+			ur5.execute_move(goals.poses[i])
+			rotateRand = random.uniform(rotateRMin, 0)
+			printDebug("Rotating2 " + str(rotateRand))
+			ur5.move_joint(5, rotateRand)
+			moveRand(ur5)
 		rate.sleep()
 
 	# Init tf-broadcaster to forward pose to tf
