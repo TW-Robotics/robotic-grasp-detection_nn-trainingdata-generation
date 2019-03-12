@@ -13,6 +13,13 @@ import math
 from geometry_msgs.msg import Quaternion
 from ur5_control import ur5_control
 
+from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
+# ROS Image message -> OpenCV2 image converter
+from cv_bridge import CvBridge, CvBridgeError
+# OpenCV2 for saving an image
+import cv2
+
 #from capture_pose_calc import capture_pose_calc_structured as poseSampler
 
 debug = False		# Print Debug-Messages
@@ -23,16 +30,38 @@ class dataCapture():
 		rospy.init_node('capture_pose_calc', anonymous=True, disable_signals=True)
 
 		# Init variables
-		self.goals = Pose()			# Store pose fo object
+		self.goals = PoseArray()			# Store pose fo object
+		self.objPose = Pose()
+		self.rgb_image = Image()
+		self.d_image = Image()
+		self.actPoseID = 0
+		self.lastPoseID = 0
+		self.actStorage = -1
 
-		# Subscriber to Capture-Pose
-		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)
+		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
+		rospy.Subscriber("/tf_objToBase", Pose, self.objPose_callback, queue_size=1)		# Object-Pose w.r.t. robot
+		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)			# RGB-Image
+		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
+		self.rgb_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.cameraInfoRGB_callback, queue_size=1) 
+		self.d_info_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cameraInfoD_callback, queue_size=1) 
+		# TODO Subscribe to pointcloud rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image		
 
 		self.ur5 = ur5_control.ur5Controler()
+
+		# Instantiate CvBridge
+		self.bridge = CvBridge()
+
+		#rate = rospy.Rate(10)
+		#while not rospy.is_shutdown():
+		#	print "nothing"
+		#	rate.sleep()
 
 		##################################
 		# Give parameters in deg, meters #
 		##################################
+		# Path to store images and stuff
+		self.path = "/home/johannes/catkin_ws/src/mt/mt/src/data_capture/data/"
+
 		# Parameters for randomization
 		self.rotateTiltRMin = -10 	# Joint 4: How far to rotate
 		self.rotateTiltRMax = 10
@@ -44,9 +73,31 @@ class dataCapture():
 		# ## # # # # # # # # # # # # # # #
 		##################################
 
+	def cameraInfoD_callback(self, data):
+		f = open(str(self.path) + "depth-camera-info.txt", "w")
+		f.write(str(data))
+		f.close()
+		self.d_info_sub.unregister()
+
+	def cameraInfoRGB_callback(self, data):
+		f = open(str(self.path) + "rgb-camera-info.txt", "w")
+		f.write(str(data))
+		f.close()
+		self.rgb_info_sub.unregister()
+
 	# Subscribe to capture-poses
 	def pose_callback(self, data):
 		self.goals = data
+
+	def rgb_image_callback(self, data):
+		self.rgb_image = data
+
+	def d_image_callback(self, data):
+		self.d_image = data
+
+	# Subscribe to object pose
+	def objPose_callback(self, data):
+		self.objPose = data
 
 	# Make random moves with last axis
 	def move_random(self):
@@ -66,10 +117,45 @@ class dataCapture():
 		print_debug("TiltR" + str(rotateTiltR))
 		self.ur5.move_joint(3, rotateTiltR - rotateTiltL)
 
-	def capture(self):
+	def store_images(self):
+		# Source: https://gist.github.com/rethink-imcmahon/77a1a4d5506258f3dc1f
+		# TODO Convert depth? http://docs.ros.org/electric/api/rosbag_video/html/bag__to__video_8cpp_source.html
+
+		if self.lastPoseID == self.actPoseID:
+			self.actStorage = self.actStorage + 1
+		else:
+			self.lastPoseID = self.actPoseID
+			self.actStorage = 0
+
+		namePreFix = str(self.actPoseID) + "_" + str(self.actStorage)
+
+		try:
+			# Convert your ROS Image message to OpenCV2
+			rgb_img = self.bridge.imgmsg_to_cv2(self.rgb_image, "rgb8")
+			d_img = self.bridge.imgmsg_to_cv2(self.d_image, "16UC1")
+			printDebug("Images Stored " + str(namePreFix))
+			# Save your OpenCV2 image as a jpeg
+			cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.jpg", rgb_img)
+			cv2.imwrite(str(self.path) + str(namePreFix) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
+			#cv2.imshow("Grasp-Point", cv2_img)
+			#cv2.waitKey(1)
+		except CvBridgeError, e:
+			print(e)
+
+	def drive_to_pose(self, id):
+		self.ur5.execute_move(self.goals.poses[id])
+
+	def capture(self):	# TODO add StartID
 		# Drive to the goals and make random moves
-		for i in range(len(self.goals.poses)):
-			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
+		for i in range(5):
+			self.actPoseID = i
+			rospy.sleep(10)
+			self.store_images()
+			rospy.sleep(5)
+			self.store_images()
+			rospy.sleep(5)
+			self.store_images()			
+			'''self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
 			self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
@@ -82,7 +168,7 @@ class dataCapture():
 			rotateRand = random.uniform(self.rotateRMin, 0)
 			print_debug("Rotating2 " + str(rotateRand))
 			self.ur5.move_joint(5, rotateRand)				# Rotate the EEF
-			self.move_random()								# Make random moves
+			self.move_random()	'''							# Make random moves
 
 # Print debug messages
 def print_debug(dStr):
@@ -92,6 +178,9 @@ def print_debug(dStr):
 
 def main(args):
 	dc = dataCapture()
+
+	#dc.drive_to_pose(74)
+
 	dc.capture()
 
 if __name__ == '__main__':

@@ -29,7 +29,7 @@ class capturePoseSampler():
 
 		# Init variables
 		self.goals = PoseArray()	# Store all final poses
-		objPose = Pose()			# Store pose fo object
+		self.objPose = Pose()			# Store pose fo object
 
 		##################################
 		# Give parameters in deg, meters #
