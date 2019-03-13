@@ -15,6 +15,7 @@ from ur5_control import ur5_control
 
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
+from sensor_msgs.msg import PointCloud2
 # ROS Image message -> OpenCV2 image converter
 from cv_bridge import CvBridge, CvBridgeError
 # OpenCV2 for saving an image
@@ -22,45 +23,29 @@ import cv2
 
 #from capture_pose_calc import capture_pose_calc_structured as poseSampler
 
-debug = False		# Print Debug-Messages
+debug = True		# Print Debug-Messages
 
 class dataCapture():
 	def __init__(self):
 		# Init node
-		rospy.init_node('capture_pose_calc', anonymous=True, disable_signals=True)
+		rospy.init_node('data_capture', anonymous=True, disable_signals=True)
 
 		# Init variables
 		self.goals = PoseArray()			# Store pose fo object
 		self.objPose = Pose()
 		self.rgb_image = Image()
 		self.d_image = Image()
+		self.pc = PointCloud2()
 		self.actPoseID = 0
 		self.lastPoseID = 0
 		self.actStorage = -1
-
-		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
-		rospy.Subscriber("/tf_objToBase", Pose, self.objPose_callback, queue_size=1)		# Object-Pose w.r.t. robot
-		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)			# RGB-Image
-		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
-		self.rgb_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.cameraInfoRGB_callback, queue_size=1) 
-		self.d_info_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cameraInfoD_callback, queue_size=1) 
-		# TODO Subscribe to pointcloud rospy.Subscriber("/camera/depth/color/points", Image, self.d_image_callback)	# Depth-Image		
-
-		self.ur5 = ur5_control.ur5Controler()
-
-		# Instantiate CvBridge
-		self.bridge = CvBridge()
-
-		#rate = rospy.Rate(10)
-		#while not rospy.is_shutdown():
-		#	print "nothing"
-		#	rate.sleep()
 
 		##################################
 		# Give parameters in deg, meters #
 		##################################
 		# Path to store images and stuff
 		self.path = "/home/johannes/catkin_ws/src/mt/mt/src/data_capture/data/"
+		self.path = "/home/mluser/catkin_ws/src/mt/mt/src/data_capture/data/"
 
 		# Parameters for randomization
 		self.rotateTiltRMin = -10 	# Joint 4: How far to rotate
@@ -73,6 +58,24 @@ class dataCapture():
 		# ## # # # # # # # # # # # # # # #
 		##################################
 
+		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
+		rospy.Subscriber("/tf_objToBase", Pose, self.objPose_callback, queue_size=1)		# Object-Pose w.r.t. robot
+		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)			# RGB-Image
+		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
+		self.rgb_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.cameraInfoRGB_callback, queue_size=1) 
+		self.d_info_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cameraInfoD_callback, queue_size=1) 
+		rospy.Subscriber("/camera/depth/color/points", PointCloud2, self.pc_callback)		# Point Cloud		
+
+		self.ur5 = ur5_control.ur5Controler()
+
+		# Instantiate CvBridge
+		self.bridge = CvBridge()
+
+		#rate = rospy.Rate(10)
+		#while not rospy.is_shutdown():
+		#	print "nothing"
+		#	rate.sleep()
+
 	def cameraInfoD_callback(self, data):
 		f = open(str(self.path) + "depth-camera-info.txt", "w")
 		f.write(str(data))
@@ -84,6 +87,9 @@ class dataCapture():
 		f.write(str(data))
 		f.close()
 		self.rgb_info_sub.unregister()
+
+	def pc_callback(self, data):
+		self.pc = data
 
 	# Subscribe to capture-poses
 	def pose_callback(self, data):
@@ -133,7 +139,7 @@ class dataCapture():
 			# Convert your ROS Image message to OpenCV2
 			rgb_img = self.bridge.imgmsg_to_cv2(self.rgb_image, "rgb8")
 			d_img = self.bridge.imgmsg_to_cv2(self.d_image, "16UC1")
-			printDebug("Images Stored " + str(namePreFix))
+			print_debug("Images Stored " + str(namePreFix))
 			# Save your OpenCV2 image as a jpeg
 			cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.jpg", rgb_img)
 			cv2.imwrite(str(self.path) + str(namePreFix) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
@@ -146,6 +152,8 @@ class dataCapture():
 		self.ur5.execute_move(self.goals.poses[id])
 
 	def capture(self):	# TODO add StartID
+		self.actPoseID = 0
+		self.store_images()
 		# Drive to the goals and make random moves
 		for i in range(5):
 			self.actPoseID = i

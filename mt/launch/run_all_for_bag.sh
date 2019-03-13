@@ -18,7 +18,8 @@ xterm -hold -e "roslaunch aruco_detect aruco_detect.launch" &
 xterm -hold -e "rosrun mt tf_marker_broadcaster.py" &
 # Camera at eef
 xterm -hold -e "roslaunch mt tf_publishCam.launch" &
-
+# Pose von erkannten Markern während GT-Bestimmung
+xterm -hold -e "rosrun mt tf_gtPoseVGL_broadcaster.py" &
 #xterm -hold -e "roslaunch mt tf_transform.launch" &
 #--------------------#
 #--- We are done! ---#
