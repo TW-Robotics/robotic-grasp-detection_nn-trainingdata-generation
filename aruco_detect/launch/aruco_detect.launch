@@ -4,7 +4,7 @@
   <arg name="camera" default="/camera/color"/>
   <arg name="image" default="/image_raw"/>
   <arg name="transport" default="raw"/>
-  <arg name="fiducial_len" default="0.041"/>
+  <arg name="fiducial_len" default="0.0576"/>
   <arg name="dictionary" default="7"/>
   <arg name="do_pose_estimation" default="true"/>
   <arg name="ignore_fiducials" default="" />
