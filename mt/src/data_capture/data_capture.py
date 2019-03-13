@@ -44,7 +44,7 @@ class dataCapture():
 		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
 		self.rgb_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.cameraInfoRGB_callback, queue_size=1) 
 		self.d_info_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cameraInfoD_callback, queue_size=1) 
-		# TODO Subscribe to pointcloud rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image		
+		# TODO Subscribe to pointcloud rospy.Subscriber("/camera/depth/color/points", Image, self.d_image_callback)	# Depth-Image		
 
 		self.ur5 = ur5_control.ur5Controler()
 
