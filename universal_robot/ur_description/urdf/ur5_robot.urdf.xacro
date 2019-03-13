@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro"
+       name="ur5" >
+
+  <!-- common stuff -->
+  <xacro:include filename="$(find ur_description)/urdf/common.gazebo.xacro" />
+
+  <!-- ur5 -->
+  <xacro:include filename="$(find ur_description)/urdf/ur5.urdf.xacro" />
+
+  <!-- arm -->
+  <xacro:ur5_robot prefix="" joint_limited="false"/>
+
+  <!-- Controlbox -->
+  <xacro:include filename="$(find ur_description)/urdf/controlbox.urdf" />  
+  
+  <!-- EEF -->
+  <xacro:include filename="$(find ur_description)/urdf/eef.urdf" /> 
+
+  <link name="world" />
+
+  <joint name="world_joint" type="fixed">
+    <parent link="world" />
+    <child link = "base_link" />
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+  </joint>
+
+  <!-- Connection controlbox to MiR -->
+  <joint name="boxJoint" type="fixed">
+    <origin xyz="0.038 0 0.352" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="controlbox" />
+  </joint>
+
+  <!-- Connection UR to EEF -->
+  <joint name="eef_fixed_joint" type="fixed">
+    <parent link="wrist_3_link" />
+    <child link="eef" />
+    <origin xyz="0.0 0.0823  0.0" rpy="${pi/2.0} 0.0 ${pi/2.0}" /> <!-- 0.0823 = wrist_3_length -->
+  </joint>
+
+  <!-- Connection of gripper-frame to EEF to set TCP - reset by tf_transform but necessary here-->
+  <joint name="gripper_fixed_joint" type="fixed">
+    <parent link="tool0" />
+    <child link= "gripper" />
+    <origin xyz="0.0 ${0.0823 + 0.144} 0.0" rpy="0.0 0.0 ${pi/2.0}" />
+  </joint>
+
+</robot>
