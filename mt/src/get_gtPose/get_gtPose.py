@@ -26,6 +26,7 @@ class gtPose():
 
 		# Init Listener for tf-transformation
 		self.tfListener = tf.TransformListener()
+		self.br = tf.TransformBroadcaster()
 
 		# Init variables
 		self.markerPose = Pose()
@@ -124,6 +125,21 @@ def main(args):
 				sumPose.orientation.w = sumPose.orientation.w + poseCalculator.poses.poses[i].orientation.w
 			poseCalculator.pub.publish(poseCalculator.poses)
 			break
+	# Do at a frequency of 10 Hz
+	rate = rospy.Rate(10.0)
+	i = 1
+	while not rospy.is_shutdown():
+		#try:
+			poseCalculator.br.sendTransform((poseCalculator.poses.poses[i].position.x , poseCalculator.poses.poses[i].position.y , poseCalculator.poses.poses[i].position.z ),
+							 (poseCalculator.poses.poses[i].orientation.x, poseCalculator.poses.poses[i].orientation.y, poseCalculator.poses.poses[i].orientation.z, poseCalculator.poses.poses[i].orientation.w),
+							 rospy.Time.now(),
+							 "base_link",
+							 "object")
+		#except:
+		#	rospy.loginfo("Warning!")
+	#		continue
+			rate.sleep()
+
 	'''meanPose = Pose()
 	meanPose.position.x = sumPose.position.x / numPoses
 	meanPose.position.y = sumPose.position.y / numPoses

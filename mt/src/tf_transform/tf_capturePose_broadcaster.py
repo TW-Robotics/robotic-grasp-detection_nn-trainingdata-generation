@@ -41,7 +41,7 @@ def main(args):
 				br.sendTransform((capturePoses.poses[i].position.x , capturePoses.poses[i].position.y , capturePoses.poses[i].position.z ),
 								 (capturePoses.poses[i].orientation.x, capturePoses.poses[i].orientation.y, capturePoses.poses[i].orientation.z, capturePoses.poses[i].orientation.w),
 								 rospy.Time.now(),
-								 "p_" + str(i),
+								 "p_" + str(i),	# parent frame!
 								 "object")
 			except:
 				rospy.loginfo("Warning!")
