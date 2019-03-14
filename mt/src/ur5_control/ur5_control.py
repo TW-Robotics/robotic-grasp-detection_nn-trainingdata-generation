@@ -34,8 +34,8 @@ debug = False
 class ur5Controler():
 	def __init__(self):
 		# Set Robot paramters: position over floor, speed and acceloration [0, 1] (only 0.1 steps)
-		self.speed = 1#0.1
-		self.acceleration = 1#0.1
+		self.speed = 0.1
+		self.acceleration = 0.1
 		self.speedScalingFactor = 0.05		# For timing of path-planning-points [very small eg 0.01, 1]
 		self.floor_to_UR = 0 				# Distance = 0 because planning frame is base-footprint
 
@@ -54,7 +54,7 @@ class ur5Controler():
 		group_name = "manipulator"
 		self.group = moveit_commander.MoveGroupCommander(group_name)
 		self.scene = moveit_commander.PlanningSceneInterface()
-		self.group.set_end_effector_link("tool0")
+		self.group.set_end_effector_link("gripper")
 		self.group.set_pose_reference_frame("/base_link")
 		#print self.robot.get_planning_frame()
 

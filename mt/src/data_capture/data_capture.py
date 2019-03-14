@@ -30,11 +30,10 @@ class dataCapture():
 		# Init node
 		rospy.init_node('data_capture', anonymous=True, disable_signals=True)
 
-		self.listener = tf.TransformListener()
-
 		# Init variables
-		self.goals = PoseArray()			# Store pose fo object
-		self.objPose = Pose()
+		self.goals = PoseArray()
+		self.objBasePose = Pose()
+		self.objCamPose = Pose()
 		self.rgb_image = Image()
 		self.d_image = Image()
 		self.pc = PointCloud2()
@@ -46,8 +45,8 @@ class dataCapture():
 		# Give parameters in deg, meters #
 		##################################
 		# Path to store images and stuff
-		self.path = "/home/johannes/catkin_ws/src/mt/mt/src/data_capture/data/"
-		#self.path = "/home/mluser/catkin_ws/src/mt/mt/src/data_capture/data/"
+		#self.path = "/home/johannes/catkin_ws/src/mt/mt/src/data_capture/data/"
+		self.path = "/home/mluser/catkin_ws/src/data/"
 
 		# Parameters for randomization
 		self.rotateTiltRMin = -10 	# Joint 4: How far to rotate
@@ -61,14 +60,15 @@ class dataCapture():
 		##################################
 
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
-		rospy.Subscriber("/tf_objToBase", Pose, self.objPose_callback, queue_size=1)		# Object-Pose w.r.t. robot
+		rospy.Subscriber("/tf_objToBase", Pose, self.objBasePose_callback, queue_size=1)		# Object-Pose w.r.t. robot
+		rospy.Subscriber("/tf_objToCam", Pose, self.objCamPose_callback, queue_size=1)		# Object-Pose w.r.t. cam
 		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)			# RGB-Image
 		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
 		self.rgb_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.cameraInfoRGB_callback, queue_size=1) 
 		self.d_info_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cameraInfoD_callback, queue_size=1) 
 		rospy.Subscriber("/camera/depth/color/points", PointCloud2, self.pc_callback)		# Point Cloud		
 
-		#self.ur5 = ur5_control.ur5Controler()
+		self.ur5 = ur5_control.ur5Controler()
 
 		# Instantiate CvBridge
 		self.bridge = CvBridge()
@@ -92,10 +92,10 @@ class dataCapture():
 
 	def pc_callback(self, data):
 		self.pc = data
-		print "Got PC"
-		print type(self.pc)
-		print type(self.pc.data)
-		print self.pc.data
+		#print "Got PC"
+		#print type(self.pc)
+		#print type(self.pc.data)
+		#print self.pc.data
 
 	# Subscribe to capture-poses
 	def pose_callback(self, data):
@@ -103,24 +103,17 @@ class dataCapture():
 
 	def rgb_image_callback(self, data):
 		self.rgb_image = data
+		#print self.rgb_image.encoding
 
 	def d_image_callback(self, data):
 		self.d_image = data
 
 	# Subscribe to object pose
-	def objPose_callback(self, data):
-		self.objPose = data
+	def objBasePose_callback(self, data):
+		self.objBasePose = data
 
-	def listToPose(self, trans, rot):
-		pose = Pose()
-		pose.position.x = trans[0]
-		pose.position.y = trans[1]
-		pose.position.z = trans[2]
-		pose.orientation.x = rot[0]
-		pose.orientation.y = rot[1]
-		pose.orientation.z = rot[2]
-		pose.orientation.w = rot[3]
-		return pose
+	def objCamPose_callback(self, data):
+		self.objCamPose = data
 
 	# Make random moves with last axis
 	def move_random(self):
@@ -153,7 +146,7 @@ class dataCapture():
 
 		try:
 			# Convert your ROS Image message to OpenCV2
-			rgb_img = self.bridge.imgmsg_to_cv2(self.rgb_image, "rgb8")
+			rgb_img = self.bridge.imgmsg_to_cv2(self.rgb_image, "bgr8")
 			d_img = self.bridge.imgmsg_to_cv2(self.d_image, "16UC1")
 			# Save your OpenCV2 image
 			cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.png", rgb_img)
@@ -168,25 +161,18 @@ class dataCapture():
 				f.write("\n")
 			f.close()
 			print_debug("Images Stored " + str(namePreFix))
-			cv2.ppf_match_3d.writePLY(self.pc.data, "test.ply")
+			#cv2.ppf_match_3d.writePLY(self.pc.data, "test.ply")
 		except CvBridgeError, e:
 			print(e)
 
 		# Store Object-to-Base-Pose and Object-to-Cam-Pose
-		try:
-			# Get transformation
-			(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/object', rospy.Time(0))
-			camToObjPose = self.listToPose(trans, rot)
-			f = open(str(self.path) + str(namePreFix) + "_poses.csv", "w")
-			f.write("Object to Cam:\n")
-			f.write(camToObjPose)
-			f.write("\nObject to Base:\n")
-			f.write(self.objPose)
-			f.close()
-		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-			rospy.loginfo("Warning!")
-			continue
-
+		f = open(str(self.path) + str(namePreFix) + "_poses.txt", "w")
+		f.write("Object to Cam:\n")
+		f.write(str(self.objCamPose))
+		f.write("\n\nObject to Base:\n")
+		f.write(str(self.objBasePose))
+		f.close()
+		print_debug("Poses Stored")
 
 	def drive_to_pose(self, id):
 		self.ur5.execute_move(self.goals.poses[id])
@@ -196,12 +182,14 @@ class dataCapture():
 		i = 0
 		while True:
 			self.actPoseID = i
+			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
+			self.move_random()								# Make random moves
+			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 			inp = raw_input("Store state? y/n: ")[0]
 			if inp == 'y':
 				self.store_state()
-		elif inp == 'n':
-			return
-
+			elif inp == 'n':
+				return
 
 		for i in range(5):		
 			'''self.ur5.execute_move(self.goals.poses[i])		# Move to base-point

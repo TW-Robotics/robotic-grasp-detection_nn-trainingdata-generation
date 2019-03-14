@@ -20,7 +20,10 @@ xterm -hold -e "rosrun mt tf_marker_broadcaster.py" &
 xterm -hold -e "roslaunch mt tf_publishCam.launch" &
 # Pose von erkannten Markern während GT-Bestimmung
 xterm -hold -e "rosrun mt tf_gtPoseVGL_broadcaster.py" &
-#xterm -hold -e "roslaunch mt tf_transform.launch" &
+# Object-to-base_link and Object-to-cam topic-publisher
+xterm -hold -e "rosrun mt tf_listener_publisher.py" &
+# Caputre-Poses tf broadcaster
+xterm -hold -e "rosrun mt tf_capturePose_broadcaster.py" &
 #--------------------#
 #--- We are done! ---#
 #--------------------#

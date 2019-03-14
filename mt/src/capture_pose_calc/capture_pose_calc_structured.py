@@ -13,7 +13,7 @@ import math
 from geometry_msgs.msg import Quaternion
 from ur5_control import ur5_control
 
-debug = False		# Print Debug-Messages
+debug = True		# Print Debug-Messages
 
 class capturePoseSampler():
 	def __init__(self):
@@ -23,13 +23,15 @@ class capturePoseSampler():
 		# Publisher for Pose-Array
 		self.pub = rospy.Publisher('/capturePoses', PoseArray, queue_size=10)
 		# Subscriber to Object-Pose
-		rospy.Subscriber("/tf_objToBase", Pose, self.objPose_callback, queue_size=1)
+		rospy.Subscriber("/tf_objToBase", Pose, self.objBasePose_callback, queue_size=1)
+		rospy.Subscriber("/tf_objToCam", Pose, self.objCamPose_callback, queue_size=1)
 
 		self.ur5 = ur5_control.ur5Controler()
 
 		# Init variables
 		self.goals = PoseArray()	# Store all final poses
-		self.objPose = Pose()			# Store pose fo object
+		self.objBasePose = Pose()			# Store pose fo object
+		self.objCamPose = Pose()
 
 		##################################
 		# Give parameters in deg, meters #
@@ -59,8 +61,12 @@ class capturePoseSampler():
 		self.thetaRMax = self.thetaInc / 2.
 
 	# Subscribe to object pose
-	def objPose_callback(self, data):
-		self.objPose = data
+	def objBasePose_callback(self, data):
+		self.objBasePose = data
+
+	# Subscribe to object pose
+	def objCamPose_callback(self, data):
+		self.objCamPose = data
 
 	# Calculate polar coordinates from given cartesian vector	
 	def calc_polar(self, vec):
@@ -102,9 +108,9 @@ class capturePoseSampler():
 		q = tf.transformations.quaternion_from_euler(xAngle-math.pi/2, zAngle, 0, 'sxzx')
 		
 		goal = Pose()
-		goal.position.x = vec[0] + self.objPose.position.x 	# Added objPose to correct pose (Robot calculates with base_link, not with obj_pose)
-		goal.position.y = vec[1] + self.objPose.position.y			
-		goal.position.z = vec[2] + self.objPose.position.z
+		goal.position.x = vec[0] + self.objBasePose.position.x 	# Added objBasePose to correct pose (Robot calculates with base_link, not with obj_pose)
+		goal.position.y = vec[1] + self.objBasePose.position.y			
+		goal.position.z = vec[2] + self.objBasePose.position.z
 		goal.orientation.x = q[0]
 		goal.orientation.y = q[1]
 		goal.orientation.z = q[2]
@@ -114,21 +120,35 @@ class capturePoseSampler():
 
 	def calc_poses(self):
 		# start-point chosen by user TODO -> Read in
-		v1 = np.array([0.5, 0.25, 0.45])
+		while True:
+			if self.objCamPose.position.x == 0 and self.objCamPose.position.y == 0 and self.objCamPose.position.z == 0:
+				print "Waiting for object-to-cam-transform to arrive..."
+				rospy.sleep(1)
+			else:
+				break
+		# v01 = startpoint = vector from object to camera
+		v01 = np.array([self.objCamPose.position.x, self.objCamPose.position.y, self.objCamPose.position.z])
+		#print_debug("Vector read in: " + str(v1))
 
 		# Calc vector from object to start-point
-		v01 = np.array([v1[0]-self.objPose.position.x, v1[1]-self.objPose.position.y, v1[2]-self.objPose.position.z])
+		#v01 = np.array([v1[0]-self.objBasePose.position.x, v1[1]-self.objBasePose.position.y, v1[2]-self.objBasePose.position.z])
 		
 		# Calc polar coordinates of start point
 		r, phi01, theta01 = self.calc_polar(v01)
 		print_debug("Vector given by user: " + str(v01))
-		print_debug("Parameters of vector: " + str(r) + str(phi01*180/math.pi) + str(theta01*180/math.pi))
+		print_debug("Parameters of vector: r=" + str(r) + " phi=" + str(phi01*180/math.pi) + " theta=" + str(theta01*180/math.pi))
 
 		# Start-Angles for pose-generation
 		phi = phi01
 		theta = self.thetaInc
 
-		i = 0
+		vec = self.calc_cartesian(r, phi01, theta01)
+		print_debug("Vector calculated: " + str(vec))
+		goal = self.get_pose(vec)
+		print_debug("Pose calculated: " + str(goal))
+		self.goals.poses.append(goal)
+
+		'''i = 0
 		# Generate Points
 		while True:
 			# Calculate angles for new point
@@ -163,7 +183,7 @@ class capturePoseSampler():
 						self.goals.poses.append(goal)
 			i = i + 1
 		print "Number of goals generated: " + str(len(self.goals.poses)) + " = " + str(len(self.goals.poses) * 4 * 3 + len(self.goals.poses)) + " poses."	# 4xrandom + 3xrotated + 1 base
-		print "Store poses by typing 'rosbag record /capturePoses' and replay them by typing 'rosbag play -l'."
+		print "Store poses by typing 'rosbag record /capturePoses' and replay them by typing 'rosbag play -l'."'''
 
 		rate = rospy.Rate(10)
 		while not rospy.is_shutdown():

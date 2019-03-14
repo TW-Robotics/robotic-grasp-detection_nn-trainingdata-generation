@@ -16,7 +16,7 @@ def obj_pose_callback(data):
 
 def main(args):
 	# Init Node
-	rospy.init_node('tf_broadcaster', disable_signals=True)
+	rospy.init_node('tf_marker_broadcaster', disable_signals=True)
 
 	# Init subscriber to Pose of object relative to camera
 	rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, obj_pose_callback, queue_size=1)
@@ -47,7 +47,7 @@ def main(args):
 				minObjError = t.object_error
 				mID = t.fiducial_id
 			#print mID
-		#br.sendTransform((0, 0, 0.2), (0, 0, 0, 1), rospy.Time.now(), "object", "marker_241")
+		br.sendTransform((0, 0, 0.2), (0, 0, 0, 1), rospy.Time.now(), "object", "marker_245")
 		#br.sendTransform((mToObj[mID][0], mToObj[mID][1], mToObj[mID][2]), (mToObj[mID][3], mToObj[mID][4], mToObj[mID][5], mToObj[mID][6]), rospy.Time.now(), "object", "marker_" + str(mID))
 		rate.sleep()
 
