@@ -27,4 +27,14 @@
         <origin rpy="0 0 0" xyz="-0.01 0 0"/>
       </collision>
     </link>
+
+	<!-- For planning with camera as EEF - reset by tf_transform but necessary here-->
+    <link name="camera_planning_frame">
+      <collision>
+        <geometry>
+          <box size="0.01 0.01 0.01"/>
+        </geometry>
+        <origin rpy="0 0 0" xyz="-0.01 0 0"/>
+      </collision>
+    </link>
 </robot>

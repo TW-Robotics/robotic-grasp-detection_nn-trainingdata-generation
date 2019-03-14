@@ -13,7 +13,7 @@
     shoulder_pan_lower_limit="${-pi}" shoulder_pan_upper_limit="${pi}"
     shoulder_lift_lower_limit="${-pi}" shoulder_lift_upper_limit="${pi}"
     elbow_joint_lower_limit="${-pi}" elbow_joint_upper_limit="${pi}"
-    wrist_1_lower_limit="${-pi}" wrist_1_upper_limit="${pi}"
+    wrist_1_lower_limit="${-pi}" wrist_1_upper_limit="${pi/4}"
     wrist_2_lower_limit="${-pi}" wrist_2_upper_limit="${pi}"
     wrist_3_lower_limit="${-pi}" wrist_3_upper_limit="${pi}"
   />
@@ -46,11 +46,18 @@
     <origin xyz="0.088 0.0 0.0" rpy="0.0 0.0 0.0" />
   </joint>
 
-  <!-- Connection of gripper-frame to EEF to set TCP - reset by tf_transform but necessary here-->
-  <joint name="gripper_fixed_joint" type="fixed">
+  <!-- Connection of camera-planning-frame to EEF to set TCP-->
+  <joint name="camera_planning_fixed_joint" type="fixed">
     <parent link="tool0" />
-    <child link= "gripper" />
-    <origin xyz="0.0 0.0 ${0.088 + 0.144}" rpy="0.0 0.0 0.0" /> <!--${pi/2.0}-->
+    <child link= "camera_planning_frame" />
+    <origin xyz="-0.071 -0.040 0.127" rpy="0.0 0.0 ${-pi/2.0}" /> <!-- rosrun tf tf_echo tool0 camera_color_optical_frame - and add -pi/2Get Transformation gripper-camera and write it down here-->
   </joint>
 
+  <!-- Connection of gripper-frame to EEF to set TCP - reset by tf_transform but necessary here-->
+  <joint name="gripper_fixed_joint" type="fixed">
+    <parent link="camera_planning_frame" />
+    <child link= "gripper" />
+    <origin xyz="-0.040 0.071 0.105" rpy="0.0 0.0 0.0" /> <!--${pi/2.0}-->
+  </joint>
 </robot>
+
