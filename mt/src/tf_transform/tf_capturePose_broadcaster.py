@@ -38,7 +38,7 @@ def main(args):
 		#br.sendTransform((v0[0], v0[1], v0[2]), (0, 0, 0, 1), rospy.Time.now(), "object", "world")
 		for i in range(len(capturePoses.poses)):
 			try:
-				br.sendTransform((capturePoses.poses[i].position.x - objToBasePose.position.x, capturePoses.poses[i].position.y - objToBasePose.position.y, capturePoses.poses[i].position.z - objToBasePose.position.z),
+				br.sendTransform((capturePoses.poses[i].position.x , capturePoses.poses[i].position.y , capturePoses.poses[i].position.z ),
 								 (capturePoses.poses[i].orientation.x, capturePoses.poses[i].orientation.y, capturePoses.poses[i].orientation.z, capturePoses.poses[i].orientation.w),
 								 rospy.Time.now(),
 								 "p_" + str(i),

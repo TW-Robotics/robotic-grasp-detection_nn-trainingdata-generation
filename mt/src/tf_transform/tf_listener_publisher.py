@@ -35,7 +35,7 @@ def main(args):
 		try:
 			# Get transformation and publish it rearranged to a list
 			(trans, rot) = listener.lookupTransform('/base_link', '/object', rospy.Time(0))
-			(trans1, rot1) = listener.lookupTransform('/camera_color_optical_frame', '/object', rospy.Time(0))
+			(trans1, rot1) = listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))
 			objToBasePub.publish(listToPose(trans, rot))
 			objToCamPub.publish(listToPose(trans1, rot1))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):

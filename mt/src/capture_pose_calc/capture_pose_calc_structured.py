@@ -108,9 +108,9 @@ class capturePoseSampler():
 		q = tf.transformations.quaternion_from_euler(xAngle-math.pi/2, zAngle, 0, 'sxzx')
 		
 		goal = Pose()
-		goal.position.x = vec[0] + self.objBasePose.position.x 	# Added objBasePose to correct pose (Robot calculates with base_link, not with obj_pose)
-		goal.position.y = vec[1] + self.objBasePose.position.y			
-		goal.position.z = vec[2] + self.objBasePose.position.z
+		goal.position.x = vec[0]# + self.objBasePose.position.x 	# Added objBasePose to correct pose (Robot calculates with base_link, not with obj_pose)
+		goal.position.y = vec[1]# + self.objBasePose.position.y			
+		goal.position.z = vec[2]# + self.objBasePose.position.z
 		goal.orientation.x = q[0]
 		goal.orientation.y = q[1]
 		goal.orientation.z = q[2]
@@ -127,6 +127,8 @@ class capturePoseSampler():
 			else:
 				break
 		# v01 = startpoint = vector from object to camera
+		#v1 = np.array([0.5, 0.25, 0.45])
+		#v1 = np.array([-0.269, 0.316, 0.406]) 	# base-to-cam  later - base-to-obj
 		v01 = np.array([self.objCamPose.position.x, self.objCamPose.position.y, self.objCamPose.position.z])
 		#print_debug("Vector read in: " + str(v1))
 
@@ -147,8 +149,13 @@ class capturePoseSampler():
 		goal = self.get_pose(vec)
 		print_debug("Pose calculated: " + str(goal))
 		self.goals.poses.append(goal)
+		#goal.orientation.x = -0.790394951092
+		#goal.orientation.y = 0.519340729488
+		#goal.orientation.z =  0.260007157553
+		#goal.orientation.w = 0.194826348329
+		#self.goals.poses.append(goal)
 
-		'''i = 0
+		i = 0
 		# Generate Points
 		while True:
 			# Calculate angles for new point
@@ -183,8 +190,8 @@ class capturePoseSampler():
 						self.goals.poses.append(goal)
 			i = i + 1
 		print "Number of goals generated: " + str(len(self.goals.poses)) + " = " + str(len(self.goals.poses) * 4 * 3 + len(self.goals.poses)) + " poses."	# 4xrandom + 3xrotated + 1 base
-		print "Store poses by typing 'rosbag record /capturePoses' and replay them by typing 'rosbag play -l'."'''
-
+		print "Store poses by typing 'rosbag record /capturePoses' and replay them by typing 'rosbag play -l'."
+		
 		rate = rospy.Rate(10)
 		while not rospy.is_shutdown():
 			# Publish the goals

@@ -182,8 +182,10 @@ class dataCapture():
 		i = 0
 		while True:
 			self.actPoseID = i
+			print "drive to " + str(i)
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
-			self.move_random()								# Make random moves
+			i = i + 1
+			'''self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 			inp = raw_input("Store state? y/n: ")[0]
 			if inp == 'y':
@@ -191,7 +193,7 @@ class dataCapture():
 			elif inp == 'n':
 				return
 
-		for i in range(5):		
+		for i in range(5):		'''
 			'''self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
 			self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
