@@ -60,7 +60,7 @@ class dataCapture():
 		##################################
 
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
-		rospy.Subscriber("/tf_objToBase", Pose, self.objBasePose_callback, queue_size=1)		# Object-Pose w.r.t. robot
+		rospy.Subscriber("/tf_baseToObj", Pose, self.objBasePose_callback, queue_size=1)		# Object-Pose w.r.t. robot
 		rospy.Subscriber("/tf_objToCam", Pose, self.objCamPose_callback, queue_size=1)		# Object-Pose w.r.t. cam
 		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)			# RGB-Image
 		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image

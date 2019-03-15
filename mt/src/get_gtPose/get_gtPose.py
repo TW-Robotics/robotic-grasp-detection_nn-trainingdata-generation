@@ -85,8 +85,8 @@ class gtPose():
 			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/marker_245', rospy.Time(0))
 			self.poses.poses.append(self.listToPose(trans, rot))
 			self.poseErrors.append(self.poseError)
-			print self.listToPose(trans, rot)
-			print self.poseError
+			#print self.listToPose(trans, rot)
+			#print self.poseError
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
 			rospy.loginfo("Warning!")
 
@@ -99,12 +99,16 @@ def print_debug(dStr):
 def main(args):
 	poseCalculator = gtPose()
 	i = 0
+
+	# Publish pose to make old pose gone
 	rate = rospy.Rate(10)
 	for k in range(10):
 		poseCalculator.pub.publish(poseCalculator.poses)
 		rate.sleep()
+
+	# Capture views
 	while True:
-		inp = raw_input("Store position? y/n: ")[0]
+		inp = raw_input("Press 'y' to store Pose and 'n' if you have finished recording poses.")[0]
 		if inp == 'y':
 			poseCalculator.get_pose(i)
 			print "Pose stored"
@@ -112,6 +116,7 @@ def main(args):
 		elif inp == 'n':
 			print "-------------- DONE --------------"
 			sumPose = Pose()
+			sumAngles = [0.0, 0.0, 0.0]
 			numPoses = len(poseCalculator.poses.poses)
 			for i in range(numPoses):
 				print "Pose " + str(i) + " - Error:" + str(poseCalculator.poseErrors[i])
@@ -119,22 +124,47 @@ def main(args):
 				sumPose.position.x = sumPose.position.x + poseCalculator.poses.poses[i].position.x
 				sumPose.position.y = sumPose.position.y + poseCalculator.poses.poses[i].position.y
 				sumPose.position.z = sumPose.position.z + poseCalculator.poses.poses[i].position.z
-				sumPose.orientation.x = sumPose.orientation.x + poseCalculator.poses.poses[i].orientation.x
-				sumPose.orientation.y = sumPose.orientation.y + poseCalculator.poses.poses[i].orientation.y
-				sumPose.orientation.z = sumPose.orientation.z + poseCalculator.poses.poses[i].orientation.z
-				sumPose.orientation.w = sumPose.orientation.w + poseCalculator.poses.poses[i].orientation.w
-			poseCalculator.pub.publish(poseCalculator.poses)
+				angles = tf.transformations.euler_from_quaternion([poseCalculator.poses.poses[i].orientation.x, poseCalculator.poses.poses[i].orientation.y, poseCalculator.poses.poses[i].orientation.z, poseCalculator.poses.poses[i].orientation.w])
+				sumAngles = [sumAngles[i] + angles[i] for i in range(len(sumAngles))]
+				#print angles
+			poseCalculator.pub.publish(poseCalculator.poses)	# publish poses for comparison
+
+			# Calculate mean pose
+			meanPose = Pose()
+			meanPose.position.x = sumPose.position.x / numPoses
+			meanPose.position.y = sumPose.position.y / numPoses
+			meanPose.position.z = sumPose.position.z / numPoses
+			
+			meanAngles = [sumAngles[i] / numPoses for i in range(len(sumAngles))]
+			meanOrientations = tf.transformations.quaternion_from_euler(meanAngles[0], meanAngles[1], meanAngles[2])
+			meanPose.orientation.x = meanOrientations[0]
+			meanPose.orientation.y = meanOrientations[1]
+			meanPose.orientation.z = meanOrientations[2]
+			meanPose.orientation.w = meanOrientations[3]
+
+			print "MEAN OBJECT POSE"
+			print meanPose
 			break
 	# Do at a frequency of 10 Hz
 	rate = rospy.Rate(10.0)
 	i = 1
 	while not rospy.is_shutdown():
 		#try:
-			poseCalculator.br.sendTransform((poseCalculator.poses.poses[i].position.x , poseCalculator.poses.poses[i].position.y , poseCalculator.poses.poses[i].position.z ),
-							 (poseCalculator.poses.poses[i].orientation.x, poseCalculator.poses.poses[i].orientation.y, poseCalculator.poses.poses[i].orientation.z, poseCalculator.poses.poses[i].orientation.w),
+			poseCalculator.br.sendTransform((meanPose.position.x , meanPose.position.y , meanPose.position.z ),
+							 (meanPose.orientation.x, meanPose.orientation.y, meanPose.orientation.z, meanPose.orientation.w),
 							 rospy.Time.now(),
-							 "base_link",
-							 "object")
+							 "mean_marker_pose",
+							 "base_link")
+			poseCalculator.br.sendTransform((0, 0, 0.05),
+							 (0, 0, 0, 1),
+							 rospy.Time.now(),
+							 "object_img_center",
+							 "mean_marker_pose")
+			poseCalculator.br.sendTransform((-0.1, 0, 0.08),
+							 (tf.transformations.quaternion_from_euler(90*math.pi/180, 90*math.pi/180, 0, "ryzx")),
+							 rospy.Time.now(),
+							 "object",
+							 "mean_marker_pose")
 		#except:
 		#	rospy.loginfo("Warning!")
 	#		continue

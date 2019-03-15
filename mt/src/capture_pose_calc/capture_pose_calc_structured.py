@@ -23,8 +23,8 @@ class capturePoseSampler():
 		# Publisher for Pose-Array
 		self.pub = rospy.Publisher('/capturePoses', PoseArray, queue_size=10)
 		# Subscriber to Object-Pose
-		rospy.Subscriber("/tf_objToBase", Pose, self.objBasePose_callback, queue_size=1)
-		rospy.Subscriber("/tf_objToCam", Pose, self.objCamPose_callback, queue_size=1)
+		rospy.Subscriber("/tf_baseToObj", Pose, self.objBasePose_callback, queue_size=1)
+		rospy.Subscriber("/tf_objImgCenterToCam", Pose, self.objCamPose_callback, queue_size=1)
 
 		self.ur5 = ur5_control.ur5Controler()
 
@@ -42,9 +42,9 @@ class capturePoseSampler():
 		self.thetaMax = 50		# After which thetaAngle to stop generating points
 
 		# Parameters for randomization
-		self.rRMin = -0.1 			# How far should poses be nearer/farer from object
-		self.rRMax = 0.1
-		self.numRandomGoals = 3		# How many random goals (delta r, phi, theta) should be created
+		self.rRMin = 0#-0.1 			# How far should poses be nearer/farer from object
+		self.rRMax = 0#0.1
+		self.numRandomGoals = 0#3		# How many random goals (delta r, phi, theta) should be created
 		##################################
 		# ## # # # # # # # # # # # # # # #
 		##################################
@@ -171,6 +171,7 @@ class capturePoseSampler():
 			# Convert new point into cartesian and calculate the full pose
 			vec = self.calc_cartesian(r, phi, theta)
 			goal = self.get_pose(vec)
+			print_debug("Vector calculated: " + str(vec))
 
 			# If the goal is reachable, add it to the goals and make additional random goals
 			if self.ur5.isReachable(goal):

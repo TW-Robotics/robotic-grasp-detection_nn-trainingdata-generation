@@ -7,15 +7,15 @@ from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
 
 capturePoses = PoseArray()
-objToBasePose = Pose()
+baseToObjPose = Pose()
 
 def pose_callback(data):
 	global capturePoses
 	capturePoses = data
 
-def objToBasePose_callback(data):
-	global objToBasePose
-	objToBasePose = data
+def baseToObjPose_callback(data):
+	global baseToObjPose
+	baseToObjPose = data
 
 def main(args):
 	# Init Node
@@ -23,7 +23,7 @@ def main(args):
 
 	# Init subscriber to Pose of object relative to camera
 	rospy.Subscriber("/capturePoses", PoseArray, pose_callback, queue_size=1)
-	rospy.Subscriber("/tf_objToBase", Pose, objToBasePose_callback, queue_size=1)
+	rospy.Subscriber("/tf_baseToObj", Pose, baseToObjPose_callback, queue_size=1)
 	# TODO Subscribe to objectPose
 
 	#v0 = np.array([0.3, 0.6, -0.15])
@@ -42,7 +42,7 @@ def main(args):
 								 (capturePoses.poses[i].orientation.x, capturePoses.poses[i].orientation.y, capturePoses.poses[i].orientation.z, capturePoses.poses[i].orientation.w),
 								 rospy.Time.now(),
 								 "p_" + str(i),	# parent frame!
-								 "object")
+								 "object_img_center")
 			except:
 				rospy.loginfo("Warning!")
 				continue

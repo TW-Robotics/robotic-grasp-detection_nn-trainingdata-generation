@@ -31,7 +31,7 @@ def main(args):
 				br.sendTransform((gtPoses.poses[i].position.x, gtPoses.poses[i].position.y, gtPoses.poses[i].position.z),
 								 (gtPoses.poses[i].orientation.x, gtPoses.poses[i].orientation.y, gtPoses.poses[i].orientation.z, gtPoses.poses[i].orientation.w),
 								 rospy.Time.now(),
-								 "p_" + str(i),
+								 "mp_" + str(i),
 								 "base_link")
 			except:
 				rospy.loginfo("Warning!")

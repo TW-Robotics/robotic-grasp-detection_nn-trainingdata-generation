@@ -48,6 +48,7 @@ def main(args):
 				mID = t.fiducial_id
 			#print mID
 		#br.sendTransform((0, 0, 0.2), (0, 0, 0, 1), rospy.Time.now(), "object", "marker_245")
+		#br.sendTransform((-0.147, 0.725, 0.038), (-0.030, -0.042, -0.775, 0.630), rospy.Time.now(), "object", "base_link")
 		#br.sendTransform((mToObj[mID][0], mToObj[mID][1], mToObj[mID][2]), (mToObj[mID][3], mToObj[mID][4], mToObj[mID][5], mToObj[mID][6]), rospy.Time.now(), "object", "marker_" + str(mID))
 		rate.sleep()
 
