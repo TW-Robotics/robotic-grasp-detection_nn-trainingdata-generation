@@ -10,6 +10,11 @@ import math
 from geometry_msgs.msg import Quaternion
 from ur5_control import ur5_control
 from fiducial_msgs.msg import FiducialTransformArray
+from fiducial_msgs.msg import FiducialArray
+from sensor_msgs.msg import Image
+from sensor_msgs.msg import ChannelFloat32
+import cv2
+from cv_bridge import CvBridge, CvBridgeError
 
 debug = False		# Print Debug-Messages
 
@@ -18,11 +23,8 @@ class gtPose():
 		# Init node
 		rospy.init_node('gtPose_calc', anonymous=True, disable_signals=True)
 
-		# Subscriber to Object-Pose
-		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)
-
-		# Publisher for Pose-Array
-		self.pub = rospy.Publisher('/gtPoses', PoseArray, queue_size=10)
+		# Instantiate CvBridge
+		self.bridge = CvBridge()
 
 		# Init Listener for tf-transformation
 		self.tfListener = tf.TransformListener()
@@ -33,6 +35,20 @@ class gtPose():
 		self.poseError = 0
 		self.poses = PoseArray()
 		self.poseErrors = []
+		self.dImage = Image()
+
+		self.x = 0
+		self.y = 0
+
+		# Subscriber to Object-Pose
+		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)
+		rospy.Subscriber("/fiducial_vertices", FiducialArray, self.marker_vert_callback, queue_size=1)
+		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)			# RGB-Image
+		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
+
+		# Publisher for Pose-Array
+		self.pub = rospy.Publisher('/gtPoses', PoseArray, queue_size=10)
+		self.pubDepth = rospy.Publisher('/markerDepthValue', ChannelFloat32, queue_size=10)
 
 		##################################
 		# Give parameters in deg, meters #
@@ -41,6 +57,26 @@ class gtPose():
 		##################################
 		# ## # # # # # # # # # # # # # # #
 		##################################
+
+	def rgb_image_callback(self, data):
+		rgb_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+		cv2.circle(rgb_img ,(int(self.x), int(self.y)),2,(0,0,255),3)
+		#cv2.imshow("Img", rgb_img)
+		#cv2.waitKey(1)
+
+	def d_image_callback(self, data):
+		self.d_img = self.bridge.imgmsg_to_cv2(data, "16UC1")
+		depthV = self.d_img[self.y][self.x]
+		#print depthV
+		self.pubDepth.publish("depth", [depthV])
+
+	def marker_vert_callback(self, data):
+		if len(data.fiducials) > 0:
+			vert = data.fiducials[0]
+			#print vert
+			self.x = int((vert.x0+vert.x1+vert.x2+vert.x3)/4)
+			self.y = int((vert.y0+vert.y1+vert.y2+vert.y3)/4)
+			#print self.x, self.y
 
 	# Subscribe to object pose
 	def marker_pose_callback(self, data):
@@ -102,13 +138,14 @@ def main(args):
 
 	# Publish pose to make old pose gone
 	rate = rospy.Rate(10)
+	#while not rospy.is_shutdown():
 	for k in range(10):
 		poseCalculator.pub.publish(poseCalculator.poses)
 		rate.sleep()
 
 	# Capture views
 	while True:
-		inp = raw_input("Press 'y' to store Pose and 'n' if you have finished recording poses.")[0]
+		inp = raw_input("Press 'y' to store Pose and 'n' if you have finished recording poses. ")[0]
 		if inp == 'y':
 			poseCalculator.get_pose(i)
 			print "Pose stored"

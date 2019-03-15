@@ -4,22 +4,30 @@ import tf
 import sys
 from geometry_msgs.msg import Pose
 from fiducial_msgs.msg import FiducialTransformArray
+from sensor_msgs.msg import ChannelFloat32
 
 ''' Subscribe to transformation between object and camera and 
 	broadcast it to tf so other transformations can be calculated'''
 
 marker_poses = FiducialTransformArray()
+marker_depth = 0.0
 
 def obj_pose_callback(data):
 	global marker_poses
 	marker_poses = data
 
+def depth_callback(data):
+	global marker_depth
+	marker_depth = data.values[0]/1000
+
 def main(args):
+	global marker_depth
 	# Init Node
 	rospy.init_node('tf_marker_broadcaster', disable_signals=True)
 
 	# Init subscriber to Pose of object relative to camera
 	rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, obj_pose_callback, queue_size=1)
+	rospy.Subscriber("/markerDepthValue", ChannelFloat32, depth_callback, queue_size=1)
 
 	# Init tf-broadcaster to forward pose to tf
 	br = tf.TransformBroadcaster()
@@ -38,11 +46,17 @@ def main(args):
 	while not rospy.is_shutdown():
 		# Send transformation to tf
 		for t in marker_poses.transforms:
+			if marker_depth != 0:
+				print "depth"
+				t.transform.translation.z = marker_depth
+			else:
+				print "not"
 			br.sendTransform((t.transform.translation.x, t.transform.translation.y, t.transform.translation.z),
 							 (t.transform.rotation.x, t.transform.rotation.y, t.transform.rotation.z, t.transform.rotation.w),
 							 rospy.Time.now(),
 							 "marker_" + str(t.fiducial_id),
 							 "camera_color_optical_frame")
+			marker_depth = 0
 			if t.object_error < minObjError:
 				minObjError = t.object_error
 				mID = t.fiducial_id
