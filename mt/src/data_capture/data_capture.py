@@ -42,7 +42,7 @@ class dataCapture():
 		# Give parameters in deg, meters #
 		##################################
 		# Path to store images and stuff
-		self.path = "/home/johannes/catkin_ws/src/mt/mt/src/data_capture/data/"
+		self.path = "/home/johannes/catkin_ws/src/data/"
 		#self.path = "/home/mluser/catkin_ws/src/data/"
 
 		# Parameters for randomization
