@@ -1,82 +1,80 @@
 #!/usr/bin/env python
 import numpy as np
 import sys
-
 import rospy
 import tf
+import math
+
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
-import math
-from geometry_msgs.msg import Quaternion
-from ur5_control import ur5_control
+from geometry_msgs.msg import Point
 from fiducial_msgs.msg import FiducialTransformArray
 from fiducial_msgs.msg import FiducialArray
 from sensor_msgs.msg import Image
-from sensor_msgs.msg import ChannelFloat32
+
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
-debug = False		# Print Debug-Messages
+debug = True		# Print Debug-Messages
 
 class gtPose():
 	def __init__(self):
 		# Init node
 		rospy.init_node('gtPose_calc', anonymous=True, disable_signals=True)
 
+		##################################
+		# Give parameters in deg, meters #
+		##################################
+		self.marker_id = "\marker_245"
+		##################################
+		# ## # # # # # # # # # # # # # # #
+		##################################
+
 		# Instantiate CvBridge
 		self.bridge = CvBridge()
 
 		# Init Listener for tf-transformation
 		self.tfListener = tf.TransformListener()
-		self.br = tf.TransformBroadcaster()
+		self.tfBroadcaster = tf.TransformBroadcaster()
 
 		# Init variables
-		self.markerPose = Pose()
 		self.poseError = 0
-		self.poses = PoseArray()
+		self.markerPoses = PoseArray()
 		self.poseErrors = []
 		self.dImage = Image()
-
-		self.x = 0
-		self.y = 0
+		self.markerCenter = Point()
+		self.meanPose = Pose()
 
 		# Subscriber to Object-Pose
-		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)
-		rospy.Subscriber("/fiducial_vertices", FiducialArray, self.marker_vert_callback, queue_size=1)
-		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)			# RGB-Image
-		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
+		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)	# Marker-Pose
+		rospy.Subscriber("/fiducial_vertices", FiducialArray, self.marker_vert_callback, queue_size=1)				# Marker-Corners
+		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)									# RGB-Image
+		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)					# Depth-Image
 
 		# Publisher for Pose-Array
 		self.pub = rospy.Publisher('/gtPoses', PoseArray, queue_size=10)
-		self.pubDepth = rospy.Publisher('/markerDepthValue', ChannelFloat32, queue_size=10)
-
-		##################################
-		# Give parameters in deg, meters #
-		##################################
-
-		##################################
-		# ## # # # # # # # # # # # # # # #
-		##################################
+		self.pubDepth = rospy.Publisher('/markerCenter', Point, queue_size=10)
 
 	def rgb_image_callback(self, data):
 		rgb_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
-		cv2.circle(rgb_img ,(int(self.x), int(self.y)),2,(0,0,255),3)
-		#cv2.imshow("Img", rgb_img)
-		#cv2.waitKey(1)
+		''' # Visualization
+		cv2.circle(rgb_img ,(int(self.markerCenter.x), int(self.markerCenter.y)),2,(0,0,255),3)
+		cv2.imshow("Img", rgb_img)
+		cv2.waitKey(1)'''
 
 	def d_image_callback(self, data):
 		self.d_img = self.bridge.imgmsg_to_cv2(data, "16UC1")
-		depthV = self.d_img[self.y][self.x]
-		#print depthV
-		self.pubDepth.publish("depth", [depthV])
+
+		# If a depth-image arrives, calculate the depth-value of the marker's center and publish it
+		self.markerCenter.z = self.d_img[int(self.markerCenter.y)][int(self.markerCenter.x)]
+		self.pubDepth.publish(self.markerCenter)
 
 	def marker_vert_callback(self, data):
+		# If at least one marker could be found, calculate its center
 		if len(data.fiducials) > 0:
 			vert = data.fiducials[0]
-			#print vert
-			self.x = int((vert.x0+vert.x1+vert.x2+vert.x3)/4)
-			self.y = int((vert.y0+vert.y1+vert.y2+vert.y3)/4)
-			#print self.x, self.y
+			self.markerCenter.x = int((vert.x0+vert.x1+vert.x2+vert.x3)/4)
+			self.markerCenter.y = int((vert.y0+vert.y1+vert.y2+vert.y3)/4)
 
 	# Subscribe to object pose
 	def marker_pose_callback(self, data):
@@ -87,21 +85,9 @@ class gtPose():
 		self.markerPose.orientation.y = data.transforms[0].transform.rotation.y
 		self.markerPose.orientation.z = data.transforms[0].transform.rotation.z
 		self.markerPose.orientation.w = data.transforms[0].transform.rotation.w'''
+		# Store actual pose-error
 		if len(data.transforms) == 1:
 			self.poseError = data.transforms[0].object_error
-		#self.poseError = data.transforms[0].object_error
-
-	'''def copy_act_pose(self):
-		pose = Pose()
-		pose.position.x = self.markerPose.position.x
-		pose.position.y = self.markerPose.position.y
-		pose.position.z = self.markerPose.position.z
-		pose.orientation.x = self.markerPose.orientation.x
-		pose.orientation.y = self.markerPose.orientation.y
-		pose.orientation.z = self.markerPose.orientation.z
-		pose.orientation.w = self.markerPose.orientation.w
-
-		poseError = self.poseError'''
 
 	# Convert lists to pose-obect so a standard pose message can be published
 	def listToPose(self, trans, rot):
@@ -118,13 +104,59 @@ class gtPose():
 	def get_pose(self, id):
 		try:
 			# Get transformation
-			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/marker_245', rospy.Time(0))
-			self.poses.poses.append(self.listToPose(trans, rot))
+			(trans, rot) = self.tfListener.lookupTransform('/base_link', self.marker_id, rospy.Time(0))
+			self.markerPoses.poses.append(self.listToPose(trans, rot))
 			self.poseErrors.append(self.poseError)
-			#print self.listToPose(trans, rot)
-			#print self.poseError
-		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-			rospy.loginfo("Warning!")
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+	def calc_mean_pose(self):
+		sumPose = Pose()
+		sumAngles = [0.0, 0.0, 0.0]
+		numPoses = len(self.markerPoses.poses)
+
+		# Calculate sum of poses for mean pose
+		for i in range(numPoses):
+			print_debug("Pose " + str(i) + " - Error:" + str(self.poseErrors[i]))
+			print_debug(self.markerPoses.poses[i])
+			sumPose.position.x = sumPose.position.x + self.markerPoses.poses[i].position.x
+			sumPose.position.y = sumPose.position.y + self.markerPoses.poses[i].position.y
+			sumPose.position.z = sumPose.position.z + self.markerPoses.poses[i].position.z
+			angles = tf.transformations.euler_from_quaternion([self.markerPoses.poses[i].orientation.x, self.markerPoses.poses[i].orientation.y, self.markerPoses.poses[i].orientation.z, self.markerPoses.poses[i].orientation.w])
+			sumAngles = [sumAngles[i] + angles[i] for i in range(len(sumAngles))]
+
+		# Calculate mean pose
+		self.meanPose.position.x = sumPose.position.x / numPoses
+		self.meanPose.position.y = sumPose.position.y / numPoses
+		self.meanPose.position.z = sumPose.position.z / numPoses
+
+		meanAngles = [sumAngles[i] / numPoses for i in range(len(sumAngles))]
+		meanOrientations = tf.transformations.quaternion_from_euler(meanAngles[0], meanAngles[1], meanAngles[2])
+		self.meanPose.orientation.x = meanOrientations[0]
+		self.meanPose.orientation.y = meanOrientations[1]
+		self.meanPose.orientation.z = meanOrientations[2]
+		self.meanPose.orientation.w = meanOrientations[3]
+
+def broadcast_transformations(self):
+	# Do at a frequency of 10 Hz
+	rate = rospy.Rate(10.0)
+	while not rospy.is_shutdown():
+		pC.tfBroadcaster.sendTransform((self.meanPose.position.x , self.meanPose.position.y , self.meanPose.position.z ),
+						 (self.meanPose.orientation.x, self.meanPose.orientation.y, self.meanPose.orientation.z, self.meanPose.orientation.w),
+						 rospy.Time.now(),
+						 "mean_marker_pose",
+						 "base_link")	# marker-pose wrt to base_link
+		pC.tfBroadcaster.sendTransform((0, 0, 0.05),
+						 (0, 0, 0, 1),
+						 rospy.Time.now(),
+						 "object_img_center",
+						 "mean_marker_pose")  # calculated pose where camera should point to
+		pC.tfBroadcaster.sendTransform((-0.1, 0, 0.08),
+						 (tf.transformations.quaternion_from_euler(90*math.pi/180, 90*math.pi/180, 0, "ryzx")),
+						 rospy.Time.now(),
+						 "object",
+						 "mean_marker_pose")  # calculated pose where the object can be grasped
+		rate.sleep()
 
 # Print debug messages
 def print_debug(dStr):
@@ -133,91 +165,38 @@ def print_debug(dStr):
 		print dStr
 
 def main(args):
-	poseCalculator = gtPose()
-	i = 0
+	# Initialize Pose-Calculator pC
+	pC = gtPose()
 
 	# Publish pose to make old pose gone
 	rate = rospy.Rate(10)
-	#while not rospy.is_shutdown():
 	for k in range(10):
-		poseCalculator.pub.publish(poseCalculator.poses)
+		pC.pub.publish(pC.markerPoses)
 		rate.sleep()
 
-	# Capture views
+	# Capture poses from different views
+	i = 0
 	while True:
-		inp = raw_input("Press 'y' to store Pose and 'n' if you have finished recording poses. ")[0]
+		inp = raw_input("Press 'y' to store Pose and 'c' if you have finished recording poses. ")[0]
 		if inp == 'y':
-			poseCalculator.get_pose(i)
+			pC.get_pose(i)
 			print "Pose stored"
 			i = i + 1
-		elif inp == 'n':
-			print "-------------- DONE --------------"
-			sumPose = Pose()
-			sumAngles = [0.0, 0.0, 0.0]
-			numPoses = len(poseCalculator.poses.poses)
-			for i in range(numPoses):
-				print "Pose " + str(i) + " - Error:" + str(poseCalculator.poseErrors[i])
-				print poseCalculator.poses.poses[i]
-				sumPose.position.x = sumPose.position.x + poseCalculator.poses.poses[i].position.x
-				sumPose.position.y = sumPose.position.y + poseCalculator.poses.poses[i].position.y
-				sumPose.position.z = sumPose.position.z + poseCalculator.poses.poses[i].position.z
-				angles = tf.transformations.euler_from_quaternion([poseCalculator.poses.poses[i].orientation.x, poseCalculator.poses.poses[i].orientation.y, poseCalculator.poses.poses[i].orientation.z, poseCalculator.poses.poses[i].orientation.w])
-				sumAngles = [sumAngles[i] + angles[i] for i in range(len(sumAngles))]
-				#print angles
-			poseCalculator.pub.publish(poseCalculator.poses)	# publish poses for comparison
+		elif inp == 'c':
+			# Publish poses for comparison
+			rate = rospy.Rate(10)
+			for k in range(10):
+				pC.pub.publish(pC.markerPoses)
+				rate.sleep()
 
-			# Calculate mean pose
-			meanPose = Pose()
-			meanPose.position.x = sumPose.position.x / numPoses
-			meanPose.position.y = sumPose.position.y / numPoses
-			meanPose.position.z = sumPose.position.z / numPoses
-			
-			meanAngles = [sumAngles[i] / numPoses for i in range(len(sumAngles))]
-			meanOrientations = tf.transformations.quaternion_from_euler(meanAngles[0], meanAngles[1], meanAngles[2])
-			meanPose.orientation.x = meanOrientations[0]
-			meanPose.orientation.y = meanOrientations[1]
-			meanPose.orientation.z = meanOrientations[2]
-			meanPose.orientation.w = meanOrientations[3]
-
-			print "MEAN OBJECT POSE"
-			print meanPose
+			# Calculate and print mean pose
+			print "-------------- Mean Object Pose --------------"
+			pC.calc_mean_pose()
+			print self.meanPose
 			break
-	# Do at a frequency of 10 Hz
-	rate = rospy.Rate(10.0)
-	i = 1
-	while not rospy.is_shutdown():
-		#try:
-			poseCalculator.br.sendTransform((meanPose.position.x , meanPose.position.y , meanPose.position.z ),
-							 (meanPose.orientation.x, meanPose.orientation.y, meanPose.orientation.z, meanPose.orientation.w),
-							 rospy.Time.now(),
-							 "mean_marker_pose",
-							 "base_link")
-			poseCalculator.br.sendTransform((0, 0, 0.05),
-							 (0, 0, 0, 1),
-							 rospy.Time.now(),
-							 "object_img_center",
-							 "mean_marker_pose")
-			poseCalculator.br.sendTransform((-0.1, 0, 0.08),
-							 (tf.transformations.quaternion_from_euler(90*math.pi/180, 90*math.pi/180, 0, "ryzx")),
-							 rospy.Time.now(),
-							 "object",
-							 "mean_marker_pose")
-		#except:
-		#	rospy.loginfo("Warning!")
-	#		continue
-			rate.sleep()
 
-	'''meanPose = Pose()
-	meanPose.position.x = sumPose.position.x / numPoses
-	meanPose.position.y = sumPose.position.y / numPoses
-	meanPose.position.z = sumPose.position.z / numPoses
-	meanPose.orientation.x = sumPose.orientation.x / numPoses
-	meanPose.orientation.y = sumPose.orientation.y / numPoses
-	meanPose.orientation.z = sumPose.orientation.z / numPoses
-	meanPose.orientation.w = sumPose.orientation.w / numPoses
-	while True:
-		print meanPose
-		poseCalculator.pub.publish(meanPose)'''
+	# Broadcast transformations
+	pC.broadcast_transformations()
 
 if __name__ == '__main__':
 	main(sys.argv)
