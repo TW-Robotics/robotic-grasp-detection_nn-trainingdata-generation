@@ -45,8 +45,8 @@ class dataCapture():
 		# Give parameters in deg, meters #
 		##################################
 		# Path to store images and stuff
-		#self.path = "/home/johannes/catkin_ws/src/mt/mt/src/data_capture/data/"
-		self.path = "/home/mluser/catkin_ws/src/data/"
+		self.path = "/home/johannes/catkin_ws/src/mt/mt/src/data_capture/data/"
+		#self.path = "/home/mluser/catkin_ws/src/data/"
 
 		# Parameters for randomization
 		self.rotateTiltRMin = -10 	# Joint 4: How far to rotate
@@ -68,7 +68,7 @@ class dataCapture():
 		self.d_info_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cameraInfoD_callback, queue_size=1) 
 		rospy.Subscriber("/camera/depth/color/points", PointCloud2, self.pc_callback)		# Point Cloud		
 
-		self.ur5 = ur5_control.ur5Controler()
+		#self.ur5 = ur5_control.ur5Controler()
 
 		# Instantiate CvBridge
 		self.bridge = CvBridge()
@@ -107,6 +107,7 @@ class dataCapture():
 
 	def d_image_callback(self, data):
 		self.d_image = data
+		#self.store_state()
 
 	# Subscribe to object pose
 	def objBasePose_callback(self, data):
@@ -155,11 +156,15 @@ class dataCapture():
 			#cv2.waitKey(1)
 			# Store Depth-Image as CSV-File
 			f = open(str(self.path) + str(namePreFix) + "_d.csv", "w")
+			f1 = open(str(self.path) + str(namePreFix) + "pc.ply", "w")
+			f1.write("ply\nformat ascii 1.0\nelement vertex 921600\nproperty float x\nproperty float y\nproperty float z\nend_header\n")
 			for row in range(len(d_img)):			#1280
 				for col in range(len(d_img[0])):	#720
 					f.write(str(d_img[row][col]) + ";")
+					f1.write(str(float(row) / 1000.) + " " + str(float(col) / 1000.) + " " + str(float(d_img[row][col]) / 1000.) + "\n")
 				f.write("\n")
 			f.close()
+			f1.close()
 			print_debug("Images Stored " + str(namePreFix))
 			#cv2.ppf_match_3d.writePLY(self.pc.data, "test.ply")
 		except CvBridgeError, e:
