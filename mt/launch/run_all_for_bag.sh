@@ -27,5 +27,9 @@ xterm -hold -e "rosrun mt tf_capturePose_broadcaster.py" &
 #--------------------#
 #--- We are done! ---#
 #--------------------#
-echo "Wait for processes ...."
+echo "Finished launching basic nodes"
+echo "Now run the following commands in different consoles"
+echo "    rosrun mt get_gtPose.py"
+echo "    rosrun mt capture_pose_calc.py"
+echo "    rosrun mt data_capture.py"
 wait

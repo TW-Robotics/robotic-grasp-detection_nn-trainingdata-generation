@@ -38,9 +38,13 @@ class capturePoseSampler():
 		self.thetaMax = 50		# After which thetaAngle to stop generating points
 
 		# Parameters for randomization
-		self.rRMin = 0#-0.1 			# How far should poses be nearer/farer from object
-		self.rRMax = 0#0.1
-		self.numRandomGoals = 0#3		# How many random goals (delta r, phi, theta) should be created
+		self.rRMin = -0.1 			# How far should poses be nearer/farer from object
+		self.rRMax = 0.1
+		self.numRandomGoals = 3		# How many random goals (delta r, phi, theta) should be created
+		# WITHOUT RANDOM
+		'''self.rRMin = 0
+		self.rRMax = 0
+		self.numRandomGoals = 0'''
 		##################################
 		# ## # # # # # # # # # # # # # # #
 		##################################
@@ -110,6 +114,14 @@ class capturePoseSampler():
 		return goal
 
 	def calc_poses(self):
+		# Ask user for start pose
+		print "Move the robot to right-outer position and press 'y' to start calculation of capture-poses."
+		inp = raw_input("y to start calculation, e to Exit: ")[0]
+		if inp == 'y':
+			rospy.sleep(1)
+		elif inp == 'e':
+			return
+
 		# Wait for transformations to arrive
 		while True:
 			if self.objCamPose.position.x == 0 and self.objCamPose.position.y == 0 and self.objCamPose.position.z == 0:
