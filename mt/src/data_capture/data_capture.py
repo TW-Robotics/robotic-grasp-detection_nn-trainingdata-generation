@@ -133,6 +133,7 @@ class dataCapture():
 		self.ur5.move_joint(3, rotateTiltR - rotateTiltL)
 		self.store_state()
 
+	# Store images and poses
 	def store_state(self):
 		# Calculate actual name-prefix for image
 		if self.lastPoseID == self.actPoseID:
@@ -188,9 +189,8 @@ class dataCapture():
 	def drive_to_pose(self, id):
 		self.ur5.execute_move(self.goals.poses[id])
 
-	def capture(self):	# TODO add StartID
-		# Drive to the goals and make random moves
-		
+	# Drive to the goals and make random moves
+	def capture(self):	# TODO add StartID	
 		# TEST
 		i = 0
 		while True:
