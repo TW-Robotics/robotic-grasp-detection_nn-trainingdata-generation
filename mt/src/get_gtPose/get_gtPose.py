@@ -5,6 +5,7 @@ import select
 import rospy
 import tf
 import math
+import collections
 
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
@@ -17,7 +18,7 @@ from sensor_msgs.msg import Image
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
-debug = True		# Print Debug-Messages
+debug = False		# Print Debug-Messages
 
 class gtPose():
 	def __init__(self):
@@ -28,6 +29,7 @@ class gtPose():
 		# Give parameters in deg, meters #
 		##################################
 		self.marker_id = "\marker_245"
+		self.poseBuffSize = 10
 		##################################
 		# ## # # # # # # # # # # # # # # #
 		##################################
@@ -40,12 +42,11 @@ class gtPose():
 		self.tfBroadcaster = tf.TransformBroadcaster()
 
 		# Init variables
-		self.poseError = 0
 		self.markerPoses = PoseArray()
-		self.poseErrors = []
 		self.dImage = Image()
 		self.markerCenter = Point()
 		self.meanPose = Pose()
+		self.poseBuff = collections.deque(maxlen=self.poseBuffSize)
 
 		# Subscriber to Object-Pose
 		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)	# Marker-Pose
@@ -87,9 +88,10 @@ class gtPose():
 		self.markerPose.orientation.y = data.transforms[0].transform.rotation.y
 		self.markerPose.orientation.z = data.transforms[0].transform.rotation.z
 		self.markerPose.orientation.w = data.transforms[0].transform.rotation.w'''
-		# Store actual pose-error
+		
+		# If a new valid pose is available: Store actual pose to ring-buffer
 		if len(data.transforms) == 1:
-			self.poseError = data.transforms[0].object_error
+			self.get_pose()
 
 	# Calculate deviation of p2 from p1 (p1 = source = "ground truth")
 	def calc_deviation(self, p1, p2):
@@ -148,42 +150,60 @@ class gtPose():
 		return pose
 
 	# Get transformation between base and marker
-	def get_pose(self, id):
+	def get_pose(self):
 		try:
 			# Get transformation
 			(trans, rot) = self.tfListener.lookupTransform('/base_link', self.marker_id, rospy.Time(0))
-			self.markerPoses.poses.append(self.listToPose(trans, rot))
-			self.poseErrors.append(self.poseError)
+			self.poseBuff.append(self.listToPose(trans, rot))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
+	# Store given pose in array
+	def store_pose(self, poseToStore):
+		self.markerPoses.poses.append(poseToStore)
+
+		# Empty the buffer
+		self.poseBuff.clear()
+
+	def ringBuff_to_poseArray(self, ringBuff):
+		poseArray = PoseArray()
+		for i in range(len(ringBuff)):
+			poseArray.poses.append(ringBuff[i])
+
+		return poseArray
+
 	# Caclulate the mean pose of all given poses
-	def calc_mean_pose(self):
+	def calc_mean_pose(self, poseArray):
 		sumPose = Pose()
+		meanPose = Pose()
 		sumAngles = [0.0, 0.0, 0.0]
-		numPoses = len(self.markerPoses.poses)
+		numPoses = len(poseArray.poses)
+		if numPoses == 0:
+			return
 
 		# Calculate sum of poses for mean pose
 		for i in range(numPoses):
-			print_debug("Pose " + str(i) + " - Error:" + str(self.poseErrors[i]))
-			print_debug(self.markerPoses.poses[i])
-			sumPose.position.x = sumPose.position.x + self.markerPoses.poses[i].position.x
-			sumPose.position.y = sumPose.position.y + self.markerPoses.poses[i].position.y
-			sumPose.position.z = sumPose.position.z + self.markerPoses.poses[i].position.z
-			angles = tf.transformations.euler_from_quaternion([self.markerPoses.poses[i].orientation.x, self.markerPoses.poses[i].orientation.y, self.markerPoses.poses[i].orientation.z, self.markerPoses.poses[i].orientation.w])
+			print_debug("Pose " + str(i))
+			print_debug(poseArray.poses[i])
+			sumPose.position.x = sumPose.position.x + poseArray.poses[i].position.x
+			sumPose.position.y = sumPose.position.y + poseArray.poses[i].position.y
+			sumPose.position.z = sumPose.position.z + poseArray.poses[i].position.z
+			angles = tf.transformations.euler_from_quaternion([poseArray.poses[i].orientation.x, poseArray.poses[i].orientation.y, poseArray.poses[i].orientation.z, poseArray.poses[i].orientation.w])
 			sumAngles = [sumAngles[i] + angles[i] for i in range(len(sumAngles))]
 
 		# Calculate mean pose
-		self.meanPose.position.x = sumPose.position.x / numPoses
-		self.meanPose.position.y = sumPose.position.y / numPoses
-		self.meanPose.position.z = sumPose.position.z / numPoses
+		meanPose.position.x = sumPose.position.x / numPoses
+		meanPose.position.y = sumPose.position.y / numPoses
+		meanPose.position.z = sumPose.position.z / numPoses
 
 		meanAngles = [sumAngles[i] / numPoses for i in range(len(sumAngles))]
 		meanOrientations = tf.transformations.quaternion_from_euler(meanAngles[0], meanAngles[1], meanAngles[2])
-		self.meanPose.orientation.x = meanOrientations[0]
-		self.meanPose.orientation.y = meanOrientations[1]
-		self.meanPose.orientation.z = meanOrientations[2]
-		self.meanPose.orientation.w = meanOrientations[3]
+		meanPose.orientation.x = meanOrientations[0]
+		meanPose.orientation.y = meanOrientations[1]
+		meanPose.orientation.z = meanOrientations[2]
+		meanPose.orientation.w = meanOrientations[3]
+
+		return meanPose
 
 def broadcast_transformations(self):
 	# Do at a frequency of 10 Hz
@@ -216,7 +236,7 @@ def main(args):
 	# Initialize Pose-Calculator pC
 	pC = gtPose()
 
-	mean = Pose()
+	'''mean = Pose()
 	mean.position.x = 2
 	mean.position.y = 3
 	mean.position.z = 4
@@ -247,6 +267,10 @@ def main(args):
 	markers.poses.append(m2)
 	markers.poses.append(m1)
 
+	pC.poseBuff.append(mean)
+	pC.poseBuff.append(m1)
+	pC.poseBuff.append(m2)'''
+
 	# Publish pose to make old pose gone
 	rate = rospy.Rate(10)
 	for k in range(10):
@@ -254,21 +278,25 @@ def main(args):
 		rate.sleep()
 
 	# Capture poses from different views
-	i = 0
 	while True:
-		inp = raw_input("Press 'y' to store Pose, 'c' to calculate accuracy and 'd' if you have finished recording poses. ")[0]
+		inp = raw_input("Press 'y' to store Pose, 'c' to calculate accuracy and 'f' if you have finished recording poses. ")[0]
 		if inp == 'y':
-			minD, maxD = pC.calc_metrics(mean, markers)
+			poseBuffLoc = pC.ringBuff_to_poseArray(pC.poseBuff) 	# Make local copy so it does not change at the moment and convert
+			meanPose = pC.calc_mean_pose(poseBuffLoc)				# Calculate mean pose of ring-buffer
+			minD, maxD = pC.calc_metrics(meanPose, poseBuffLoc)		# Calculate deviation in ring-buffer
 			pC.disp_metrics(minD, maxD)
 			inp = raw_input("Press 'y' to store Pose. ")[0]
 			if inp == 'y':
-				pC.get_pose(i)
+				pC.store_pose(meanPose)								# Store pose to array
 				print "Pose stored"
-				i = i + 1
+
 		elif inp == 'c':
-			minD, maxD = pC.calc_metrics(mean, markers)
+			poseBuffLoc = pC.ringBuff_to_poseArray(pC.poseBuff) 	# Make local copy so it does not change at the moment and convert
+			meanPose = pC.calc_mean_pose(poseBuffLoc)				# Calculate mean pose of ring-buffer
+			minD, maxD = pC.calc_metrics(meanPose, poseBuffLoc)		# Calculate deviation in ring-buffer
 			pC.disp_metrics(minD, maxD)
-		elif inp == 'd':
+
+		elif inp == 'f':
 			# Publish poses for comparison
 			rate = rospy.Rate(10)
 			for k in range(10):
@@ -277,7 +305,7 @@ def main(args):
 
 			# Calculate and print mean pose
 			print "-------------- Mean Object Pose --------------"
-			pC.calc_mean_pose()
+			pc.meanPose = pC.calc_mean_pose(pC.markerPoses)
 			print pC.meanPose
 			minD, maxD = pc.calc_metrics(pC.meanPose, pC.markerPoses)
 			pC.disp_metrics(minD, maxD)
