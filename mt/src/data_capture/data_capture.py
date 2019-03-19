@@ -169,10 +169,7 @@ class dataCapture():
 				f1.write("ply\nformat ascii 1.0\nelement vertex 921600\nproperty float x\nproperty float y\nproperty float z\nend_header\n")
 				for row in range(len(d_img)):			#1280
 					for col in range(len(d_img[0])):	#720
-						f.write(str(d_img[row][col]) + ";")
 						f1.write(str(float(row) / 1000.) + " " + str(float(col) / 1000.) + " " + str(float(d_img[row][col]) / 1000.) + "\n")
-					f.write("\n")
-				f.close()
 				f1.close()
 
 			print_debug("RGB and Depth-Data Stored " + str(namePreFix))
