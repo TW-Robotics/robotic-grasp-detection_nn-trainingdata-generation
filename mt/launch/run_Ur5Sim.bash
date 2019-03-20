@@ -11,5 +11,7 @@ xterm -hold -e "roslaunch ur5_moveit_config moveit_rviz.launch config:=true" &
 #--------------------#
 #--- We are done! ---#
 #--------------------#
+echo "If model does 'jump around' make commented changes in following file:"
+echo "universal_robot/ur_description/urdf/ur5_joint_limited_robot.urdf.xacro"
 echo "Wait for processes ...."
 wait
