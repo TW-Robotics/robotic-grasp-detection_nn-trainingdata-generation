@@ -11,16 +11,6 @@ from geometry_msgs.msg import Point
 marker_center = Point()
 debug = True
 
-# Broadcast all recorded gt-poses for comparison
-def gtPosesComparison_callback(gtPoses):
-	br = tf.TransformBroadcaster()
-	for i in range(len(gtPoses.poses)):
-		br.sendTransform((gtPoses.poses[i].position.x, gtPoses.poses[i].position.y, gtPoses.poses[i].position.z),
-						 (gtPoses.poses[i].orientation.x, gtPoses.poses[i].orientation.y, gtPoses.poses[i].orientation.z, gtPoses.poses[i].orientation.w),
-						 rospy.Time.now(),
-						 "gt_" + str(i),
-						 "base_link")
-
 # Broadcast the refined, mean gt-pose (final gt-pose)
 def marker_callback(marker_poses):
 	global marker_center
@@ -56,7 +46,6 @@ def main(args):
 	rospy.init_node('tf_broadcaster', disable_signals=True)
 
 	# Init subscriber
-	rospy.Subscriber("/gtPoses", PoseArray, gtPosesComparison_callback, queue_size=1)
 	rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, marker_callback, queue_size=1)
 	rospy.Subscriber("/markerCenter", Point, markerCenter_callback, queue_size=1)
 

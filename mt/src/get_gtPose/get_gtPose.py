@@ -97,6 +97,16 @@ class gtPose():
 		if len(data.transforms) == 1:
 			self.get_pose()
 
+	# Broadcast all recorded gt-poses for comparison
+	def broadcast_gtPosesComparison(gtPoses):
+		br = tf.TransformBroadcaster()
+		for i in range(len(gtPoses.poses)):
+			br.sendTransform((gtPoses.poses[i].position.x, gtPoses.poses[i].position.y, gtPoses.poses[i].position.z),
+							 (gtPoses.poses[i].orientation.x, gtPoses.poses[i].orientation.y, gtPoses.poses[i].orientation.z, gtPoses.poses[i].orientation.w),
+							 rospy.Time.now(),
+							 "gt_" + str(i),
+							 "base_link")
+
 	# Calculate deviation of p2 from p1 (p1 = source = "ground truth")
 	def calc_deviation(self, p1, p2):
 		poseDeviation = Twist()
@@ -209,10 +219,7 @@ class gtPose():
 
 		return meanPose
 
-def broadcast_transformations(self):
-	# Do at a frequency of 10 Hz
-	rate = rospy.Rate(10.0)
-	while not rospy.is_shutdown():
+	def broadcast_transformations(self):
 		pC.tfBroadcaster.sendTransform((self.meanPose.position.x , self.meanPose.position.y , self.meanPose.position.z ),
 						 (self.meanPose.orientation.x, self.meanPose.orientation.y, self.meanPose.orientation.z, self.meanPose.orientation.w),
 						 rospy.Time.now(),
@@ -228,7 +235,6 @@ def broadcast_transformations(self):
 						 rospy.Time.now(),
 						 "object",
 						 "mean_marker_pose")  # calculated pose where the object can be grasped
-		rate.sleep()
 
 # Print debug messages
 def print_debug(dStr):
@@ -282,6 +288,7 @@ def main(args):
 	rate = rospy.Rate(10)
 	for k in range(10):
 		pC.pub.publish(pC.markerPoses)
+		pC.broadcast_gtPosesComparison(pC.markerPoses)
 		rate.sleep()
 
 	# Capture poses from different views
@@ -304,12 +311,6 @@ def main(args):
 			pC.disp_metrics(minD, maxD)
 
 		elif inp == 'f':
-			# Publish poses for comparison
-			rate = rospy.Rate(10)
-			for k in range(10):
-				pC.pub.publish(pC.markerPoses)
-				rate.sleep()
-
 			# Calculate and print mean pose
 			print "-------------- Mean Object Pose --------------"
 			pc.meanPose = pC.calc_mean_pose(pC.markerPoses)
@@ -320,7 +321,12 @@ def main(args):
 			break
 
 	# Broadcast transformations
-	pC.broadcast_transformations()
+	# Do at a frequency of 10 Hz
+	rate = rospy.Rate(10.0)
+	while not rospy.is_shutdown():
+		pC.broadcast_gtPosesComparison(pC.markerPoses)	# Comparison of stored poses
+		pC.broadcast_transformations()
+		rate.sleep()
 
 if __name__ == '__main__':
 	main(sys.argv)
