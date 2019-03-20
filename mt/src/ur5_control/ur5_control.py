@@ -26,7 +26,7 @@ from math import pi
 # To make mesh-importer working: https://launchpadlibrarian.net/319496602/patchPyassim.txt
 #		open /usr/lib/python2.7/dist-packages/pyassimp/core.py and change line 33 according to the link to "load, release, dll = helper.search_library()"
 
-''' Control the UR5 robot - basic functions (e.g. moveXYZ) and task-specific (e.g. layDown) '''
+''' Control the UR5 robot - basic functions (e.g. moveXYZ) '''
 
 # Set debug = True to display debug-messages
 debug = False
@@ -37,13 +37,8 @@ class ur5Controler():
 		self.speed = 0.1
 		self.acceleration = 0.1
 		self.speedScalingFactor = 0.05		# For timing of path-planning-points [very small eg 0.01, 1]
-		self.floor_to_UR = 0 				# Distance = 0 because planning frame is base-footprint
 
-		# Init variables
-		self.camToObj = Pose()
-		self.baseToObj = Pose()
-		self.pickUpHeight = 0 		# Robot stores height over its planning-frame where it picked up object [in m]. e.g. Table = 720mm -> 0.814
-		self.distToObj = 1000
+		self.pathToObjectFile = "/home/johannes/catkin_ws/src/mt/cad/product.stl"
 
 		# Set True to make the program ask before the robot moves
 		self.checkBeforeDo = checkBeforeDo
@@ -55,23 +50,10 @@ class ur5Controler():
 		self.group = moveit_commander.MoveGroupCommander(group_name)
 		self.scene = moveit_commander.PlanningSceneInterface()
 		self.group.set_end_effector_link(eef_link)
-		self.group.set_pose_reference_frame(pose_ref_frame)#("/object_img_center")
+		self.group.set_pose_reference_frame(pose_ref_frame)
 		'''print self.robot.get_planning_frame()
 		print self.group.get_pose_reference_frame()
 		print self.group.get_current_pose().pose'''
-
-		#rospy.Subscriber("/tf_baseToObj", Pose, self.baseToObj_callback, queue_size=1)	# get transformation from object to base for R1-Move and planning
-		#rospy.Subscriber("/tf_objToCam", Pose, self.camToObj_callback, queue_size=1)	# get transformation from object to cam for R4-Move
-
-		# Wait for init of subscribers
-		rospy.sleep(1)
-
-	def camToObj_callback(self, data):
-		self.camToObj = data
-
-	def baseToObj_callback(self, data):
-		self.baseToObj = data
-
 
 	######################################################
 	###### GENERAL FUNCTIONS FOR BASIC MOVING TASKS ######
@@ -81,6 +63,11 @@ class ur5Controler():
 	def go_home(self):
 		goalPose = [0, -1.565, 0, -1.569, 0, 0]
 		self.execute_move(goalPose)
+
+	# Move the robot to a safe position to drive around
+	def moveToDrivingPose(self):
+		jointStates = [0, -180*pi/180, 150*pi/180, -150*pi/180, -90*pi/180, 0]
+		self.execute_move(jointStates)
 
 	# Move robot to a specific pose
 	def move_to_pose(self, goalPose):
@@ -207,7 +194,7 @@ class ur5Controler():
 		obj_pose.pose.position.x = -0.2
 		obj_pose.pose.position.y = 0
 		obj_pose.pose.position.z = -0.3
-		box_name = "MIR"
+		box_name = "box"
 		self.scene.add_box(box_name, obj_pose, size=(0.6, 0.4, 0.6))
 		rospy.sleep(1)
 		
@@ -223,13 +210,8 @@ class ur5Controler():
 		obj_pose.pose.orientation.x = pose.orientation.z
 		obj_pose.pose.orientation.x = pose.orientation.w
 
-		# Import the STL-Files
-		# x comes out of EEF, Y shows upwords, Z to the left (front view)		
-		#self.scene.add_mesh("gripper", eef_pose, "/mnt/data/mluser/catkin_ws/src/butler/stl_Files/Greifer_mit_Flansch.STL",size=(0.001, 0.001, 0.001))
-		#self.scene.add_mesh("cam", eef_pose, "/mnt/data/mluser/catkin_ws/src/butler/stl_Files/Camera_mit_Halterung.STL",size=(0.001, 0.001, 0.001))
-		#self.scene.add_mesh("gripper", eef_pose, "/home/mluser/catkin_ws/src/butler/butler/stl_Files/Greifer_mit_Flansch.STL",size=(0.001, 0.001, 0.001))
-		#self.scene.add_mesh("cam", eef_pose, "/home/mluser/catkin_ws/src/butler/butler/stl_Files/Camera_mit_Halterung.STL",size=(0.001, 0.001, 0.001))
-		self.scene.add_mesh("eef", obj_pose, "/home/johannes/catkin_ws/src/mt/cad/product.stl", size=(0.001, 0.001, 0.001)) #TODO make path to parameter
+		# Import the STL-File
+		self.scene.add_mesh("object", obj_pose, self.pathToObjectFile, size=(0.001, 0.001, 0.001))
 
 		rospy.sleep(1)
 		#print self.scene.get_known_object_names()
@@ -254,191 +236,7 @@ class ur5Controler():
 	####### SPECIFIC FUNCTIONS FOR TASK EXECUTION #######
 	#####################################################
 
-	# Check if a given goal-pose and pre-goal-pose in zDist is reachable
-	def isGoalReachable(self, zDist):
-		# Copy current pose
-		current_pose = self.group.get_current_pose().pose
-		goal_pose = current_pose
-
-		# Check if pre-goal is reachable
-		# Calculate orientation of eef when moved over object
-		quats = tf.transformations.quaternion_from_euler(pi/2, self.group.get_current_joint_values()[0], -pi/2, 'rxyz')
-		goal_pose.orientation.x = quats[0]
-		goal_pose.orientation.y = quats[1]
-		goal_pose.orientation.z = quats[2]
-		goal_pose.orientation.w = quats[3]
-		goal_pose.position.x = self.baseToObj.position.x
-		goal_pose.position.y = self.baseToObj.position.y
-		goal_pose.position.z = self.baseToObj.position.z + float(zDist) / 1000
-
-		if not self.isReachable(goal_pose):
-			return False
-
-		# Check if goal is reachable
-		goal_pose.position.z = self.baseToObj.position.z
-
-		if not self.isReachable(goal_pose):
-			return False
-		return True		
-
-	# Center the object by moving joint 1 and 4
-	def followObject(self):
-		# Joint 1
-		act_jointStates = self.group.get_current_joint_values()
-		theta = math.atan2(self.baseToObj.position.y, self.baseToObj.position.x)
-		beta = math.atan2(self.camToObj.position.z, self.camToObj.position.x)
-		a = math.sqrt(self.baseToObj.position.y**2 + self.baseToObj.position.x**2)
-		b = math.sqrt(self.camToObj.position.z**2 + self.camToObj.position.x**2)
-		delta = math.asin(b/a * math.sin(pi/2 + beta))
-		if debug == True:
-			print "correction deg: " + str(delta*180/pi)
-			print "goal: " + str((act_jointStates[0] - delta)*180/pi)
-		#self.move_joint_to_target(0, act_jointStates[0] - delta)
-
-		# Joint 4
-		act_jointStates = self.group.get_current_joint_values()
-		phi = math.atan2(self.camToObj.position.z, self.camToObj.position.y)
-		if debug == True:
-			print "correction deg: " + str((pi/2-phi)*180/pi)
-			print "goal: " + str((act_jointStates[3] + (pi/2 - phi))*180/pi)
-		#self.move_joint_to_target(3, act_jointStates[3] + (pi/2 - phi))
-
-		# Move joints simulatenously
-		goal_jointStates = act_jointStates
-		goal_jointStates[0] = act_jointStates[0] - delta
-		goal_jointStates[3] = act_jointStates[3] + (pi/2 - phi)
-		self.execute_move(goal_jointStates)
-
-		# Calculate Distance to object
-		self.distToObj = math.sqrt(self.baseToObj.position.x**2 + self.baseToObj.position.y**2 + self.baseToObj.position.z**2)
-
-	# Move the robot to the position, where it starts to search for the object
-	def moveToSearchPose(self, orientation, tableHeight):
-		# Drive to position where r = 0.4 and h = 0.6
-		jointStates = [110*pi/180, -pi/2, pi/2, -110*pi/180, -pi/2, 0]
-
-		if orientation == "left":
-			jointStates[0] = 65*pi/180
-		elif orientation == "right":
-			jointStates[0] = -115*pi/180
-		elif orientation == "front":
-			jointStates[0] = -25*pi/180
-
-		self.execute_move(jointStates)
-
-		# Correct height dependend on table height
-		if tableHeight != 720:
-			print "Correcting height..."
-			actPose = self.group.get_current_pose().pose
-			actPose.position.z = actPose.position.z - float(720) / 1000 + float(tableHeight) / 1000
-			self.execute_move(actPose)
-
-	# Turn the robot around R1 and R4 to search the object
-	def searchObject(self, num):
-		if num == 0:
-			self.move_joint(0, 25)
-		elif num == 1:
-			self.move_joint(0, 25)
-		elif num == 2:
-			self.move_joint(3, 15)
-		elif num == 3:
-			self.move_joint(0, -25)
-		elif num == 4:
-			self.move_joint(0, -25)
-		else:
-			return False
-		return True
-
-	# Move the robot to the pre-goal-pose to analyze the depth-image
-	def moveOverObject(self, zDist, tableHeight):
-		goal_pose = Pose()
-
-		quats = tf.transformations.quaternion_from_euler(pi/2, self.group.get_current_joint_values()[0], -pi/2, 'rxyz')
-		goal_pose.orientation.x = quats[0]
-		goal_pose.orientation.y = quats[1]
-		goal_pose.orientation.z = quats[2]
-		goal_pose.orientation.w = quats[3]
-		goal_pose.position.x = self.baseToObj.position.x
-		goal_pose.position.y = self.baseToObj.position.y
-		#goal_pose.position.z = self.baseToObj.position.z + float(zDist) / 1000
-		goal_pose.position.z = float(zDist + tableHeight - self.floor_to_UR) / 1000
-
-		self.execute_move(goal_pose)
-
-	# Move the last joints of the robot to grasp a bottle
-	def moveToPreGrabbingPoseBottle(self):
-		goal_jointStates = self.group.get_current_joint_values()
-		goal_jointStates = [goal_jointStates[0], -70*pi/180, 100*pi/180, -30*pi/180, 85*pi/180, -180*pi/180]
-		self.execute_move(goal_jointStates)
-
-	# Move the robot to to the position of the grasping point (first above it) in the correct orientation
-	def moveToGrabbingPose(self):
-		goal_pose = self.baseToObj
-		goal_pose.position.z = goal_pose.position.z + 0.15 # Make EEF stop 15 cm over object
-		self.execute_move(goal_pose)
-		goal_pose.position.z = goal_pose.position.z - 0.16 # Move down EEF to grasp object
-		self.execute_move(goal_pose)
-		# Store pickUpHeight to put down object later
-		self.pickUpHeight = goal_pose.position.z
-		print self.pickUpHeight
-
-	# Move the robot with the object to a safe transport-pose
-	def moveToTransportPose(self, objectG):
-		if objectG == "bottle":
-			jointStates = [0, -160*pi/180, 135*pi/180, 30*pi/180, 90*pi/180, -180*pi/180]
-		elif objectG == "cup":
-			jointStates = [0, -130*pi/180, 130*pi/180, -90*pi/180, -90*pi/180, 0]
-
-		self.execute_move(jointStates)
-
-	# Move the robot to a safe position to drive around
-	def moveToDrivingPose(self):
-		jointStates = [0, -180*pi/180, 150*pi/180, -150*pi/180, -90*pi/180, 0]
-		self.execute_move(jointStates)
-
-	# Move the robot to lay down the object
-	def layDown(self, objectG, side, pickUpTableHeight, putDownTableHeight):
-		# Move robot up if put-down height is greater than robots actual pose
-		actPose = self.group.get_current_pose().pose
-		newPose = self.group.get_current_pose().pose
-		newPose.position.z = float(putDownTableHeight + 150) / 1000
-		if newPose.position.z > actPose.position.z:
-			print "Driving up..."
-			self.execute_move(newPose)
-
-		# Turn R1 to put-down place
-		moveX = 0
-		moveY = 0
-		act_jointStates = self.group.get_current_joint_values()
-		if side == "left":
-			act_jointStates[0] = 90*pi/180
-			moveY = 0.5
-		elif side == "right":
-			act_jointStates[0] = -90*pi/180
-			moveY = -0.5
-		if side == "front":
-			act_jointStates[0] = 0
-			moveX = 0.5
-		print "Turning to put-down place..."
-		self.execute_move(act_jointStates)
-
-		# Drive over the put-down place
-		print "Moving over put-down place..."
-		self.move_xyz(moveX, moveY, 0)
-
-		# Drive down to putDown-Pose
-		actPose = self.group.get_current_pose().pose
-		pickUpHeight_overTable = self.pickUpHeight - float(pickUpTableHeight) / 1000
-		actPose.position.z = float(putDownTableHeight) / 1000 + pickUpHeight_overTable
-		print actPose.position.z
-		print "Lying down..."
-		self.execute_move(actPose)
-
-	# Calculate distance from TCP to floor in mm
-	def tcp_to_floor(self):
-		UR_z = self.group.get_current_pose().pose.position.z * 1000 	# mm
-
-		return self.floor_to_UR + UR_z
+	# To be added
 
 def main(args):
 	try:
