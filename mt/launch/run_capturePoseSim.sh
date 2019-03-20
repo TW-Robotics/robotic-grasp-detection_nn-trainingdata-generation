@@ -23,6 +23,8 @@ xterm -hold -e "rosrun mt tf_listener_publisher.py" &
 #--------------------#
 #--- We are done! ---#
 #--------------------#
+echo "If model does 'jump around' make commented changes in following file:"
+echo "universal_robot/ur_description/urdf/ur5_joint_limited_robot.urdf.xacro"
 echo "Wait for processes ...."
 wait
 
