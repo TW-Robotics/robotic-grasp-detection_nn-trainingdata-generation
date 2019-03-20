@@ -7,8 +7,6 @@ sleep 2
 xterm -hold -e "roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch" &
 sleep 2
 xterm -hold -e "roslaunch ur5_moveit_config moveit_rviz.launch config:=true" &
-sleep 3
-xterm -hold -e "roslaunch mt mt tf_publishCam.launch" &
 #--------------------#
 #--- We are done! ---#
 #--------------------#
