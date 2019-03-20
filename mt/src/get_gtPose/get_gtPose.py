@@ -45,8 +45,6 @@ class gtPose():
 
 		# Init variables
 		self.markerPoses = PoseArray()
-		self.dImage = Image()
-		self.markerCenter = Point()
 		self.meanPose = Pose()
 		self.poseBuff = collections.deque(maxlen=self.poseBuffSize)
 
@@ -54,34 +52,9 @@ class gtPose():
 
 		# Subscriber to Object-Pose
 		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)	# Marker-Pose
-		rospy.Subscriber("/fiducial_vertices", FiducialArray, self.marker_vert_callback, queue_size=1)				# Marker-Corners
-		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)									# RGB-Image
-		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)					# Depth-Image
 
 		# Publisher for Pose-Array
 		self.pub = rospy.Publisher('/gtPoses', PoseArray, queue_size=10)
-		self.pubDepth = rospy.Publisher('/markerCenter', Point, queue_size=10)
-
-	def rgb_image_callback(self, data):
-		rgb_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
-		''' # Visualization
-		cv2.circle(rgb_img ,(int(self.markerCenter.x), int(self.markerCenter.y)),2,(0,0,255),3)
-		cv2.imshow("Img", rgb_img)
-		cv2.waitKey(1)'''
-
-	def d_image_callback(self, data):
-		self.d_img = self.bridge.imgmsg_to_cv2(data, "16UC1")
-
-		# If a depth-image arrives, calculate the depth-value of the marker's center and publish it
-		self.markerCenter.z = self.d_img[int(self.markerCenter.y)][int(self.markerCenter.x)]
-		self.pubDepth.publish(self.markerCenter)
-
-	def marker_vert_callback(self, data):
-		# If at least one marker could be found, calculate its center
-		if len(data.fiducials) > 0:
-			vert = data.fiducials[0]
-			self.markerCenter.x = int((vert.x0+vert.x1+vert.x2+vert.x3)/4)
-			self.markerCenter.y = int((vert.y0+vert.y1+vert.y2+vert.y3)/4)
 
 	# Subscribe to object pose
 	def marker_pose_callback(self, data):
@@ -93,19 +66,22 @@ class gtPose():
 		self.markerPose.orientation.z = data.transforms[0].transform.rotation.z
 		self.markerPose.orientation.w = data.transforms[0].transform.rotation.w'''
 		
-		# If a new valid pose is available: Store actual pose to ring-buffer
+		# If a new valid pose is available: Store actual pose from tf to ring-buffer
 		if len(data.transforms) == 1:
 			self.get_pose()
 
-	# Broadcast all recorded gt-poses for comparison
-	def broadcast_gtPosesComparison(gtPoses):
-		br = tf.TransformBroadcaster()
-		for i in range(len(gtPoses.poses)):
-			br.sendTransform((gtPoses.poses[i].position.x, gtPoses.poses[i].position.y, gtPoses.poses[i].position.z),
-							 (gtPoses.poses[i].orientation.x, gtPoses.poses[i].orientation.y, gtPoses.poses[i].orientation.z, gtPoses.poses[i].orientation.w),
-							 rospy.Time.now(),
-							 "gt_" + str(i),
-							 "base_link")
+	# Get transformation between base and marker
+	def get_pose(self):
+		try:
+			# Get transformation - which is refined by tf_marker_broadcaster
+			(trans, rot) = self.tfListener.lookupTransform('/base_link', self.marker_id, rospy.Time(0))
+			self.poseBuff.append(self.listToPose(trans, rot))
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+	# Return a 6D-Array from given Twist
+	def twist_to_array(self, t):
+		return [t.linear.x, t.linear.y, t.linear.z, t.angular.x, t.angular.y, t.angular.z]
 
 	# Calculate deviation of p2 from p1 (p1 = source = "ground truth")
 	def calc_deviation(self, p1, p2):
@@ -123,10 +99,6 @@ class gtPose():
 		poseDeviation.angular.y = angles2[1] - angles1[1]
 		poseDeviation.angular.z = angles2[2] - angles1[2]
 		return poseDeviation
-
-	# Return a 6D-Array from given Twist
-	def twist_to_array(self, t):
-		return [t.linear.x, t.linear.y, t.linear.z, t.angular.x, t.angular.y, t.angular.z]
 
 	# Calculate the biggest deviation of all poses in p from reference ref
 	def calc_metrics(self, ref, p):
@@ -162,15 +134,6 @@ class gtPose():
 		pose.orientation.z = rot[2]
 		pose.orientation.w = rot[3]
 		return pose
-
-	# Get transformation between base and marker
-	def get_pose(self):
-		try:
-			# Get transformation - which is refined by tf_broadcaster
-			(trans, rot) = self.tfListener.lookupTransform('/base_link', self.marker_id, rospy.Time(0))
-			self.poseBuff.append(self.listToPose(trans, rot))
-		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-			rospy.logerr(e)
 
 	# Store given pose in array
 	def store_pose(self, poseToStore):
@@ -219,6 +182,17 @@ class gtPose():
 
 		return meanPose
 
+	# Broadcast all recorded gt-poses for comparison
+	def broadcast_gtPosesComparison(self, gtPoses):
+		br = tf.TransformBroadcaster()
+		for i in range(len(gtPoses.poses)):
+			br.sendTransform((gtPoses.poses[i].position.x, gtPoses.poses[i].position.y, gtPoses.poses[i].position.z),
+							 (gtPoses.poses[i].orientation.x, gtPoses.poses[i].orientation.y, gtPoses.poses[i].orientation.z, gtPoses.poses[i].orientation.w),
+							 rospy.Time.now(),
+							 "gt_" + str(i),
+							 "base_link")
+
+	# Broadcast the final mean pose and other frames dependent on that frame
 	def broadcast_transformations(self):
 		pC.tfBroadcaster.sendTransform((self.meanPose.position.x , self.meanPose.position.y , self.meanPose.position.z ),
 						 (self.meanPose.orientation.x, self.meanPose.orientation.y, self.meanPose.orientation.z, self.meanPose.orientation.w),

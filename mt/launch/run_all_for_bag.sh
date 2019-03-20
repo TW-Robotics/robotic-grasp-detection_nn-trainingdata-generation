@@ -18,10 +18,10 @@ sleep 2
 echo "Launching Marker-Detection for Pose-Estimation..."
 xterm -hold -e "roslaunch mt aruco_detect.launch" &
 
-echo "Launching tf-Broadcaster and Listener"
-# Robot-Goals for data_capture, Recorded GT-Poses for comparison, TODO
-xterm -hold -e "rosrun mt tf_broadcaster.py" &
-# TODO
+echo "Launching tf-Marker-Broadcaster and tf-Listener"
+# Refines marker-pose with depth-image and broadcasts pose
+xterm -hold -e "rosrun mt tf_marker_broadcaster.py" &
+# Publish base-object, object-cam, objectImgCenter-cam
 xterm -hold -e "rosrun mt tf_listener_publisher.py" &
 
 #--------------------#
