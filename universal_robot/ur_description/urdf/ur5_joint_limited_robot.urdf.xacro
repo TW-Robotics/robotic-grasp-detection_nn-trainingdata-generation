@@ -19,7 +19,8 @@
   />
 
   <!-- Controlbox -->
-  <xacro:include filename="$(find ur_description)/urdf/controlbox.urdf" />  
+                                                                                  <!-- COMMENT FOR SIMULATION -->
+  <!--<xacro:include filename="$(find ur_description)/urdf/controlbox.urdf" />-->
   
   <!-- EEF -->
   <xacro:include filename="$(find ur_description)/urdf/eef.urdf" /> 
@@ -32,12 +33,13 @@
     <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
   </joint>
 
-  <!-- Connection controlbox to MiR -->
-  <joint name="boxJoint" type="fixed">
+  <!-- Connection controlbox to UR -->
+                                                                                  <!-- COMMENT FOR SIMULATION -->
+  <!--<joint name="boxJoint" type="fixed">
     <origin xyz="-0.11 0.038 ${-0.54/2}" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="controlbox" />
-  </joint>
+  </joint>-->
 
   <!-- Connection UR to EEF -->
   <joint name="eef_fixed_joint" type="fixed">
