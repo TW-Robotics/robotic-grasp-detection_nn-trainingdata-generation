@@ -18,6 +18,8 @@ from sensor_msgs.msg import Image
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
+from ur5_control import ur5_control
+
 debug = False		# Print Debug-Messages
 
 class gtPose():
@@ -47,6 +49,8 @@ class gtPose():
 		self.markerCenter = Point()
 		self.meanPose = Pose()
 		self.poseBuff = collections.deque(maxlen=self.poseBuffSize)
+
+		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/base_link", True)
 
 		# Subscriber to Object-Pose
 		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)	# Marker-Pose
@@ -237,13 +241,13 @@ def main(args):
 	pC = gtPose()
 
 	'''mean = Pose()
-	mean.position.x = 2
-	mean.position.y = 3
-	mean.position.z = 4
-	mean.orientation.x = 0.245	# 20, 30, 40
-	mean.orientation.y = 0.182
-	mean.orientation.z = 0.368
-	mean.orientation.w = 0.879
+	mean.position.x = 0.2
+	mean.position.y = 0.3
+	mean.position.z = 0.4
+	mean.orientation.x = 0#0.245	# 20, 30, 40
+	mean.orientation.y = 0#0.182
+	mean.orientation.z = 0#0.368
+	mean.orientation.w = 1#0.879
 
 	markers = PoseArray()
 	m1 = Pose()
@@ -270,6 +274,9 @@ def main(args):
 	pC.poseBuff.append(mean)
 	pC.poseBuff.append(m1)
 	pC.poseBuff.append(m2)'''
+
+	# Clear the robot's world
+	pC.ur5.scene.remove_world_object()
 
 	# Publish pose to make old pose gone
 	rate = rospy.Rate(10)
@@ -309,6 +316,7 @@ def main(args):
 			print pC.meanPose
 			minD, maxD = pc.calc_metrics(pC.meanPose, pC.markerPoses)
 			pC.disp_metrics(minD, maxD)
+			pC.ur5.addMesh(pC.meanPose)	# TODO change to be correct
 			break
 
 	# Broadcast transformations

@@ -70,7 +70,7 @@ class dataCapture():
 		rospy.Subscriber("/tf_baseToObj", Pose, self.objBasePose_callback, queue_size=1)	# Object-Pose w.r.t. robot
 		rospy.Subscriber("/tf_objToCam", Pose, self.objCamPose_callback, queue_size=1)		# Object-Pose w.r.t. cam	
 
-		#self.ur5 = ur5_control.ur5Controler()
+		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
 
 		'''rate = rospy.Rate(10)
 		while not rospy.is_shutdown():

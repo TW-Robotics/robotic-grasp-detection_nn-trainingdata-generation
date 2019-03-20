@@ -32,7 +32,7 @@ from math import pi
 debug = False
 
 class ur5Controler():
-	def __init__(self):
+	def __init__(self, eef_link="camera_planning_frame", pose_ref_frame="/base_link", checkBeforeDo=True):
 		# Set Robot paramters: position over floor, speed and acceloration [0, 1] (only 0.1 steps)
 		self.speed = 0.1
 		self.acceleration = 0.1
@@ -46,7 +46,7 @@ class ur5Controler():
 		self.distToObj = 1000
 
 		# Set True to make the program ask before the robot moves
-		self.checkBeforeDo = True
+		self.checkBeforeDo = checkBeforeDo
 
 		# Init moveit_commander
 		moveit_commander.roscpp_initialize(sys.argv)
@@ -54,11 +54,11 @@ class ur5Controler():
 		group_name = "manipulator"
 		self.group = moveit_commander.MoveGroupCommander(group_name)
 		self.scene = moveit_commander.PlanningSceneInterface()
-		self.group.set_end_effector_link("camera_planning_frame")
-		self.group.set_pose_reference_frame("/object_img_center")
-		print self.robot.get_planning_frame()
+		self.group.set_end_effector_link(eef_link)
+		self.group.set_pose_reference_frame(pose_ref_frame)#("/object_img_center")
+		'''print self.robot.get_planning_frame()
 		print self.group.get_pose_reference_frame()
-		print self.group.get_current_pose().pose
+		print self.group.get_current_pose().pose'''
 
 		#rospy.Subscriber("/tf_baseToObj", Pose, self.baseToObj_callback, queue_size=1)	# get transformation from object to base for R1-Move and planning
 		#rospy.Subscriber("/tf_objToCam", Pose, self.camToObj_callback, queue_size=1)	# get transformation from object to cam for R4-Move
@@ -211,6 +211,29 @@ class ur5Controler():
 		self.scene.add_box(box_name, obj_pose, size=(0.6, 0.4, 0.6))
 		rospy.sleep(1)
 		
+	def addMesh(self, pose):
+		rospy.sleep(2)
+		obj_pose = PoseStamped()
+		obj_pose.header.frame_id = "/base_link"#self.robot.get_planning_frame()
+		obj_pose.pose.position.x = pose.position.x
+		obj_pose.pose.position.y = pose.position.y
+		obj_pose.pose.position.z = pose.position.z
+		obj_pose.pose.orientation.x = pose.orientation.x
+		obj_pose.pose.orientation.x = pose.orientation.y
+		obj_pose.pose.orientation.x = pose.orientation.z
+		obj_pose.pose.orientation.x = pose.orientation.w
+
+		# Import the STL-Files
+		# x comes out of EEF, Y shows upwords, Z to the left (front view)		
+		#self.scene.add_mesh("gripper", eef_pose, "/mnt/data/mluser/catkin_ws/src/butler/stl_Files/Greifer_mit_Flansch.STL",size=(0.001, 0.001, 0.001))
+		#self.scene.add_mesh("cam", eef_pose, "/mnt/data/mluser/catkin_ws/src/butler/stl_Files/Camera_mit_Halterung.STL",size=(0.001, 0.001, 0.001))
+		#self.scene.add_mesh("gripper", eef_pose, "/home/mluser/catkin_ws/src/butler/butler/stl_Files/Greifer_mit_Flansch.STL",size=(0.001, 0.001, 0.001))
+		#self.scene.add_mesh("cam", eef_pose, "/home/mluser/catkin_ws/src/butler/butler/stl_Files/Camera_mit_Halterung.STL",size=(0.001, 0.001, 0.001))
+		self.scene.add_mesh("eef", obj_pose, "/home/johannes/catkin_ws/src/mt/cad/product.stl", size=(0.001, 0.001, 0.001)) #TODO make path to parameter
+
+		rospy.sleep(1)
+		#print self.scene.get_known_object_names()
+
 	# Check if a given goal-pose is reachable
 	def isReachable(self, goalPose):
 		# Change planning-time to make process faster

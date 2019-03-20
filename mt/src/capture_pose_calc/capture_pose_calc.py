@@ -27,7 +27,7 @@ class capturePoseSampler():
 		# Subscriber to Object-Pose
 		rospy.Subscriber("/tf_objImgCenterToCam", Pose, self.objCamPose_callback, queue_size=1)
 
-		self.ur5 = ur5_control.ur5Controler()
+		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
 
 		##################################
 		# Give parameters in deg, meters #
