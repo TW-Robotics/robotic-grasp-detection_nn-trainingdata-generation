@@ -79,6 +79,16 @@ class capturePoseSampler():
 		vec[2] = r * math.cos(theta)
 		return vec
 
+	# Broadcast positions where robot should drive to for visualisation
+	def broadcast_poses(capturePoses):
+		br = tf.TransformBroadcaster()
+		for i in range(len(capturePoses.poses)):
+			br.sendTransform((capturePoses.poses[i].position.x , capturePoses.poses[i].position.y , capturePoses.poses[i].position.z ),
+							 (capturePoses.poses[i].orientation.x, capturePoses.poses[i].orientation.y, capturePoses.poses[i].orientation.z, capturePoses.poses[i].orientation.w),
+							 rospy.Time.now(),
+							 "p_" + str(i),
+							 "base_link")
+
 	# Calculate full pose to given point w.r.t. object pose
 	def get_pose(self, vec):
 		# Negate Coordinates for correct orientation of vector
@@ -187,12 +197,6 @@ class capturePoseSampler():
 			i = i + 1
 		print "Number of goals generated: " + str(len(self.goals.poses)) + " = " + str(len(self.goals.poses) * 5 * 3) + " poses."	# 5x = 1xBase + 4xMoveRandom in data_capture; 3x = Rotation around last axis in data_capture
 		print "Store poses by typing 'rosbag record /capturePoses' and replay them by typing 'rosbag play -l'."
-		
-		rate = rospy.Rate(10)
-		while not rospy.is_shutdown():
-			# Publish the goals
-			self.pub.publish(self.goals)
-			rate.sleep()
 
 # Print debug messages
 def print_debug(dStr):
@@ -203,6 +207,13 @@ def print_debug(dStr):
 def main(args):
 	ps = capturePoseSampler()
 	ps.calc_poses()
+
+	rate = rospy.Rate(10)
+	while not rospy.is_shutdown():
+		# Publish the goals
+		ps.pub.publish(ps.goals)
+		ps.broadcast_poses(ps.goals)
+		rate.sleep()
 
 if __name__ == '__main__':
 	main(sys.argv)
