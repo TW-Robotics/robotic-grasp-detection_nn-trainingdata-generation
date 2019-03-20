@@ -23,15 +23,12 @@ from ur5_control import ur5_control
 debug = False		# Print Debug-Messages
 
 class gtPose():
-	def __init__(self):
-		# Init node
-		rospy.init_node('gtPose_calc', anonymous=True, disable_signals=True)
-
+	def __init__(self, poseBuffSize):
 		##################################
 		# Give parameters in deg, meters #
 		##################################
 		self.marker_id = "\marker_245"
-		self.poseBuffSize = 10
+		self.poseBuffSize = poseBuffSize
 		##################################
 		# ## # # # # # # # # # # # # # # #
 		##################################
@@ -217,8 +214,17 @@ def print_debug(dStr):
 		print dStr
 
 def main(args):
+	# Init node
+	rospy.init_node('gtPose_calc', anonymous=True, disable_signals=True)
+
+	if len(args) < 2:
+		buffLen = 10
+		rospy.logwarn("Buffersize set to default " + str(buffLen) +". Give integer when running program to change.")
+	else:
+		buffLen = int(args[1])
+
 	# Initialize Pose-Calculator pC
-	pC = gtPose()
+	pC = gtPose(buffLen)
 
 	'''mean = Pose()
 	mean.position.x = 0.2

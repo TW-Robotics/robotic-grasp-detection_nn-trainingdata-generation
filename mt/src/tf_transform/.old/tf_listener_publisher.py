@@ -38,14 +38,23 @@ def main(args):
 		try:
 			# Get transformation and publish it rearranged to a list
 			(trans, rot) = listener.lookupTransform('/base_link', '/object', rospy.Time(0))
-			(trans1, rot1) = listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))				# transform from object to camera (anders als in Doku)
-			(trans2, rot2) = listener.lookupTransform('/object_img_center', '/camera_color_optical_frame', rospy.Time(0))	# transform from object to camera (anders als in Doku)
 			baseToObjPub.publish(listToPose(trans, rot))
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+		try:
+			# Get transformation and publish it rearranged to a list
+			(trans1, rot1) = listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))				# transform from object to camera (anders als in Doku)
 			objToCamPub.publish(listToPose(trans1, rot1))
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+		try:
+			# Get transformation and publish it rearranged to a list
+			(trans2, rot2) = listener.lookupTransform('/object_img_center', '/camera_color_optical_frame', rospy.Time(0))	# transform from object to camera (anders als in Doku)
 			objImgCenterToCamPub.publish(listToPose(trans2, rot2))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
-			continue
 		rate.sleep()
 
 if __name__ == '__main__':

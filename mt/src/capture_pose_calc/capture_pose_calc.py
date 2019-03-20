@@ -14,18 +14,12 @@ debug = True		# Print Debug-Messages
 
 class capturePoseSampler():
 	def __init__(self):
-		# Init node
-		rospy.init_node('capture_pose_calc', anonymous=True, disable_signals=True)
-
 		# Init variables
 		self.goals = PoseArray()	# Store all final poses
-		self.objCamPose = Pose()
+		self.objImgCenterToCamPose = Pose()
 
 		# Publisher for Pose-Array
 		self.pub = rospy.Publisher('/capturePoses', PoseArray, queue_size=10)
-		
-		# Subscriber to Object-Pose
-		rospy.Subscriber("/tf_objImgCenterToCam", Pose, self.objCamPose_callback, queue_size=1)
 
 		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
 
@@ -60,10 +54,6 @@ class capturePoseSampler():
 		self.thetaRMin = -self.thetaInc / 2.
 		self.thetaRMax = self.thetaInc / 2.
 
-	# Subscribe to object pose
-	def objCamPose_callback(self, data):
-		self.objCamPose = data
-
 	# Calculate polar coordinates from given cartesian vector	
 	def calc_polar(self, vec):
 		r = math.sqrt(vec[0]*vec[0] + vec[1]*vec[1] + vec[2]*vec[2])
@@ -79,8 +69,28 @@ class capturePoseSampler():
 		vec[2] = r * math.cos(theta)
 		return vec
 
+	# Convert lists to pose-obect so a standard pose message can be published
+	def listToPose(self, trans, rot):
+		pose = Pose()
+		pose.position.x = trans[0]
+		pose.position.y = trans[1]
+		pose.position.z = trans[2]
+		pose.orientation.x = rot[0]
+		pose.orientation.y = rot[1]
+		pose.orientation.z = rot[2]
+		pose.orientation.w = rot[3]
+		return pose
+
+	# Lookup Transformation from object to camera
+	def get_start_pose_transformation(self):
+		try:
+			(trans, rot) = tf.TransformListener().lookupTransform('/object_img_center', '/camera_color_optical_frame', rospy.Time(0))	# transform from object to camera (anders als in Doku)
+			self.objImgCenterToCamPose = self.listToPose(trans, rot)
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
 	# Broadcast positions where robot should drive to for visualisation
-	def broadcast_poses(capturePoses):
+	def broadcast_poses(self, capturePoses):
 		br = tf.TransformBroadcaster()
 		for i in range(len(capturePoses.poses)):
 			br.sendTransform((capturePoses.poses[i].position.x , capturePoses.poses[i].position.y , capturePoses.poses[i].position.z ),
@@ -128,21 +138,13 @@ class capturePoseSampler():
 		print "Move the robot to right-outer position and press 'y' to start calculation of capture-poses."
 		inp = raw_input("y to start calculation, e to Exit: ")[0]
 		if inp == 'y':
-			rospy.sleep(1)
+			self.get_start_pose_transformation()
 		elif inp == 'e':
 			return
 
-		# Wait for transformations to arrive
-		while True:
-			if self.objCamPose.position.x == 0 and self.objCamPose.position.y == 0 and self.objCamPose.position.z == 0:
-				print "Waiting for object-to-cam-transform to arrive..."
-				rospy.sleep(1)
-			else:
-				break
-
 		# Start-point chosen by user = actual pose
-		v01 = np.array([self.objCamPose.position.x, self.objCamPose.position.y, self.objCamPose.position.z])
-		print_debug("Vector read in from actual pose: " + str(v1))
+		v01 = np.array([self.objImgCenterToCamPose.position.x, self.objImgCenterToCamPose.position.y, self.objImgCenterToCamPose.position.z])
+		print_debug("Vector read in from actual pose: " + str(v01))
 
 		# Calc polar coordinates of start point
 		r, phi01, theta01 = self.calc_polar(v01)
@@ -205,6 +207,9 @@ def print_debug(dStr):
 		print dStr
 
 def main(args):
+	# Init node
+	rospy.init_node('capture_pose_calc', anonymous=True, disable_signals=True)
+
 	ps = capturePoseSampler()
 	ps.calc_poses()
 

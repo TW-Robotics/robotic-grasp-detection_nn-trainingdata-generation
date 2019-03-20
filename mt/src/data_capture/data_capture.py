@@ -21,9 +21,6 @@ storePC = False		# Store Point-Cloud-Message
 
 class dataCapture():
 	def __init__(self):
-		# Init node
-		rospy.init_node('data_capture', anonymous=True, disable_signals=True)
-
 		# Init variables
 		self.goals = PoseArray()
 		self.objBasePose = Pose()
@@ -67,8 +64,6 @@ class dataCapture():
 
 		# Poses
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
-		rospy.Subscriber("/tf_baseToObj", Pose, self.objBasePose_callback, queue_size=1)	# Object-Pose w.r.t. robot
-		rospy.Subscriber("/tf_objToCam", Pose, self.objCamPose_callback, queue_size=1)		# Object-Pose w.r.t. cam	
 
 		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
 
@@ -103,12 +98,32 @@ class dataCapture():
 	def pose_callback(self, data):
 		self.goals = data
 
-	# Object-Poses
-	def objBasePose_callback(self, data):
-		self.objBasePose = data
+	# Convert lists to pose-obect so a standard pose message can be published
+	def listToPose(self, trans, rot):
+		pose = Pose()
+		pose.position.x = trans[0]
+		pose.position.y = trans[1]
+		pose.position.z = trans[2]
+		pose.orientation.x = rot[0]
+		pose.orientation.y = rot[1]
+		pose.orientation.z = rot[2]
+		pose.orientation.w = rot[3]
+		return pose
 
-	def objCamPose_callback(self, data):
-		self.objCamPose = data
+	def get_transformations(self):
+		try:
+			# Get transformation and publish it rearranged to a list
+			(trans, rot) = listener.lookupTransform('/base_link', '/object', rospy.Time(0))
+			self.objBasePose = self.listToPose(trans, rot)
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+		try:
+			# Get transformation and publish it rearranged to a list
+			(trans, rot) = listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))				# transform from object to camera (anders als in Doku)
+			self.objCamPose = self.listToPose(trans, rot)
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
 
 	# Make random moves with last axis
 	def move_random(self):
@@ -175,8 +190,9 @@ class dataCapture():
 
 			print_debug("RGB and Depth-Data Stored " + str(namePreFix))
 		except CvBridgeError, e:
-			print (e)
+			rospy.logerr(e)
 
+		self.get_transformations()
 		# Store Object-to-Base-Pose and Object-to-Cam-Pose
 		f = open(str(self.path) + str(namePreFix) + "_poses.txt", "w")
 		f.write("Object to Cam:\n")
@@ -227,6 +243,9 @@ def print_debug(dStr):
 		print dStr
 
 def main(args):
+	# Init node
+	rospy.init_node('data_capture', anonymous=True, disable_signals=True)
+	
 	dc = dataCapture()
 
 	#dc.drive_to_pose(74)
