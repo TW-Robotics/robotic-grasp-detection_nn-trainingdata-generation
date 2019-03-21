@@ -49,9 +49,13 @@ class gtPose():
 		rospy.sleep(1)	# Wait to register at tf
 		# Subscriber to Object-Pose
 		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)	# Marker-Pose
+		rospy.Subscriber("/fiducial_images", Image, self.image_callback)
 
 		# Publisher for Pose-Array
 		self.pub = rospy.Publisher('/tf_meanMarkerPose', Pose, queue_size=10)
+
+	def image_callback(self, data):
+		self.img = self.bridge.imgmsg_to_cv2(data, "bgr8")
 
 	# Subscribe to object pose
 	def marker_pose_callback(self, data):
@@ -139,6 +143,9 @@ class gtPose():
 		# Empty the buffer
 		self.poseBuff.clear()
 
+	def empty_buff(self):
+		self.poseBuff.clear()
+
 	def ringBuff_to_poseArray(self, ringBuff):
 		poseArray = PoseArray()
 		for i in range(len(ringBuff)):
@@ -171,7 +178,7 @@ class gtPose():
 		meanPose.position.z = sumPose.position.z / numPoses
 
 		meanAngles = [sumAngles[i] / numPoses for i in range(len(sumAngles))]
-		meanOrientations = tf.transformations.quaternion_from_euler(meanAngles[0], meanAngles[1], meanAngles[2])
+		meanOrientations = tf.transformations.quaternion_from_euler(0, 0, meanAngles[2])	# Rotation around x/y is impossible
 		meanPose.orientation.x = meanOrientations[0]
 		meanPose.orientation.y = meanOrientations[1]
 		meanPose.orientation.z = meanOrientations[2]
@@ -201,11 +208,21 @@ class gtPose():
 						 rospy.Time.now(),
 						 "object_img_center",
 						 "mean_marker_pose")  # calculated pose where camera should point to
-		self.tfBroadcaster.sendTransform((-0.1, 0, 0.08),
+		self.tfBroadcaster.sendTransform((-0.1185, 0, 0.0625),
 						 (tf.transformations.quaternion_from_euler(90*math.pi/180, 90*math.pi/180, 0, "ryzx")),
 						 rospy.Time.now(),
-						 "object",
+						 "object_grasp",
 						 "mean_marker_pose")  # calculated pose where the object can be grasped
+		self.tfBroadcaster.sendTransform((0, 0, -0.0075),
+						 (0, 0, 0, 1),
+						 rospy.Time.now(),
+						 "object",
+						 "mean_marker_pose")  # calculated pose where the object base is (z pointing up)
+		self.tfBroadcaster.sendTransform((0, 0, -0.0075),
+						 (tf.transformations.quaternion_from_euler(-90*math.pi/180, 0, -180*math.pi/180, "rxyz")),
+						 rospy.Time.now(),
+						 "object_origin",
+						 "mean_marker_pose")  # calculated pose where the object base is (for placement of cad-file)
 
 # Print debug messages
 def print_debug(dStr):
@@ -273,16 +290,25 @@ def main(args):
 
 	# Capture poses from different views
 	while True:
-		inp = raw_input("Press 'y' to store Pose, 'c' to calculate accuracy and 'f' if you have finished recording poses. ")[0]
+		inp = raw_input("Press 'y' to store Pose, 'c' to calculate accuracy, 'e' to empty buffer and 'f' if you have finished recording poses. ")[0]
 		if inp == 'y':
+			while True:
+				if len(pC.poseBuff) >= pC.poseBuffSize:
+					break
 			poseBuffLoc = pC.ringBuff_to_poseArray(pC.poseBuff) 	# Make local copy so it does not change at the moment and convert
 			meanPose = pC.calc_mean_pose(poseBuffLoc)				# Calculate mean pose of ring-buffer
 			minD, maxD = pC.calc_metrics(meanPose, poseBuffLoc)		# Calculate deviation in ring-buffer
 			pC.disp_metrics(minD, maxD)
+			# Visualization
+			cv2.imshow("Img", pC.img)
+			cv2.waitKey(1)
 			inp = raw_input("Press 'y' to store Pose. ")[0]
 			if inp == 'y':
 				pC.store_pose(meanPose)								# Store pose to array
 				print "Pose stored"
+
+		elif inp == 'e':
+			pC.empty_buff()
 
 		elif inp == 'c':
 			poseBuffLoc = pC.ringBuff_to_poseArray(pC.poseBuff) 	# Make local copy so it does not change at the moment and convert
@@ -297,15 +323,9 @@ def main(args):
 			print pC.meanPose
 			minD, maxD = pC.calc_metrics(pC.meanPose, pC.markerPoses)
 			pC.disp_metrics(minD, maxD)
-			objMeshPose = Pose()
-			objMeshPose.position.x = -0.0207
-			objMeshPose.position.y = 0.0135
-			objMeshPose.position.z = -0.0207
-			objMeshPose.orientation.x = 0.0
-			objMeshPose.orientation.y = 0.707
-			objMeshPose.orientation.z = 0.707
-			objMeshPose.orientation.w = 0.0
-			pC.ur5.addMesh(objMeshPose)	# TODO change to be correct
+			pC.broadcast_transformations()
+			rospy.sleep(1)
+			pC.ur5.addMesh(Pose())	# TODO change to be correct
 			break
 
 	print "Publishing ground-truth Object-Pose..."

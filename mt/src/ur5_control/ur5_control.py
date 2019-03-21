@@ -202,7 +202,7 @@ class ur5Controler():
 	def addMesh(self, pose):
 		rospy.sleep(2)
 		obj_pose = PoseStamped()
-		obj_pose.header.frame_id = "/mean_marker_pose"
+		obj_pose.header.frame_id = "/object_origin"
 		obj_pose.pose.position.x = pose.position.x
 		obj_pose.pose.position.y = pose.position.y
 		obj_pose.pose.position.z = pose.position.z

@@ -168,7 +168,7 @@ class dataCapture():
 			self.lastPoseID = self.actPoseID
 			self.actStorage = 0
 		namePreFix = str(self.actPoseID) + "_" + str(self.actStorage)
-
+		rospy.sleep(0.5)
 		# Store Images
 		# Source: https://gist.github.com/rethink-imcmahon/77a1a4d5506258f3dc1f
 		try:
@@ -219,7 +219,7 @@ class dataCapture():
 		self.ur5.execute_move(self.goals.poses[id])
 
 	# Drive to the goals and make random moves
-	def capture(self):	# TODO add StartID	
+	def capture(self, startID):	# TODO add StartID	
 		# TEST
 
 		'''for i in range(len(self.goals.poses)):
@@ -238,7 +238,7 @@ class dataCapture():
 				return
 			i = i + 1'''
 
-		for i in range(5):	# TODO put len(self.goals.poses)
+		for i in range(startID, len(self.goals.poses)):
 			self.actPoseID = i		
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
 			self.move_random()								# Make random moves
@@ -271,7 +271,7 @@ def main(args):
 
 	#dc.drive_to_pose(1)
 
-	dc.capture()
+	dc.capture(118)
 
 if __name__ == '__main__':
 	main(sys.argv)
