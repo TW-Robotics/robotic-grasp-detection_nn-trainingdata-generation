@@ -32,7 +32,7 @@ class capturePoseSampler():
 		self.phiInc = -10 		# Horizontal axis angle for base points
 		self.thetaInc = 15		# Vertical axis angle for base points
 		self.numHorizontal = 15	# After how many phi-increments to change row (increment theta)
-		self.thetaMax = 50		# After which thetaAngle to stop generating points
+		self.thetaMax = 75		# After which thetaAngle to stop generating points
 
 		# Parameters for randomization
 		self.rRMin = -0.1 			# How far should poses be nearer/farer from object

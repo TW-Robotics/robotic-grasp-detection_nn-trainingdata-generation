@@ -271,7 +271,7 @@ def main(args):
 
 	#dc.drive_to_pose(1)
 
-	dc.capture(118)
+	dc.capture(0)	# TODO make command line argument
 
 if __name__ == '__main__':
 	main(sys.argv)

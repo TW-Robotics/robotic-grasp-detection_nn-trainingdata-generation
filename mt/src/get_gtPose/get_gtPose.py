@@ -55,7 +55,10 @@ class gtPose():
 		self.pub = rospy.Publisher('/tf_meanMarkerPose', Pose, queue_size=10)
 
 	def image_callback(self, data):
-		self.img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+		img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+		# Visualization
+		cv2.imshow("Img", img)
+		cv2.waitKey(1)
 
 	# Subscribe to object pose
 	def marker_pose_callback(self, data):
@@ -299,9 +302,6 @@ def main(args):
 			meanPose = pC.calc_mean_pose(poseBuffLoc)				# Calculate mean pose of ring-buffer
 			minD, maxD = pC.calc_metrics(meanPose, poseBuffLoc)		# Calculate deviation in ring-buffer
 			pC.disp_metrics(minD, maxD)
-			# Visualization
-			cv2.imshow("Img", pC.img)
-			cv2.waitKey(1)
 			inp = raw_input("Press 'y' to store Pose. ")[0]
 			if inp == 'y':
 				pC.store_pose(meanPose)								# Store pose to array
