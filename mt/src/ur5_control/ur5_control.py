@@ -38,7 +38,8 @@ class ur5Controler():
 		self.acceleration = 0.1
 		self.speedScalingFactor = 0.05		# For timing of path-planning-points [very small eg 0.01, 1]
 
-		self.pathToObjectFile = "/home/johannes/catkin_ws/src/mt/cad/product.stl"
+		#self.pathToObjectFile = "/home/johannes/catkin_ws/src/mt/cad/product.stl"
+		self.pathToObjectFile = "/home/mluser/catkin_ws/src/mt/cad/product.stl"
 
 		# Set True to make the program ask before the robot moves
 		self.checkBeforeDo = checkBeforeDo
@@ -201,14 +202,14 @@ class ur5Controler():
 	def addMesh(self, pose):
 		rospy.sleep(2)
 		obj_pose = PoseStamped()
-		obj_pose.header.frame_id = "/base_link"#self.robot.get_planning_frame()
+		obj_pose.header.frame_id = "/mean_marker_pose"
 		obj_pose.pose.position.x = pose.position.x
 		obj_pose.pose.position.y = pose.position.y
 		obj_pose.pose.position.z = pose.position.z
 		obj_pose.pose.orientation.x = pose.orientation.x
-		obj_pose.pose.orientation.x = pose.orientation.y
-		obj_pose.pose.orientation.x = pose.orientation.z
-		obj_pose.pose.orientation.x = pose.orientation.w
+		obj_pose.pose.orientation.y = pose.orientation.y
+		obj_pose.pose.orientation.z = pose.orientation.z
+		obj_pose.pose.orientation.w = pose.orientation.w
 
 		# Import the STL-File
 		self.scene.add_mesh("object", obj_pose, self.pathToObjectFile, size=(0.001, 0.001, 0.001))

@@ -23,6 +23,9 @@ class capturePoseSampler():
 
 		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
 
+		self.tfListener = tf.TransformListener()
+		rospy.sleep(1)	# Wait to register at tf
+		
 		##################################
 		# Give parameters in deg, meters #
 		##################################
@@ -83,8 +86,9 @@ class capturePoseSampler():
 
 	# Lookup Transformation from object to camera
 	def get_start_pose_transformation(self):
+
 		try:
-			(trans, rot) = tf.TransformListener().lookupTransform('/object_img_center', '/camera_color_optical_frame', rospy.Time(0))	# transform from object to camera (anders als in Doku)
+			(trans, rot) = self.tfListener.lookupTransform('/object_img_center', '/camera_color_optical_frame', rospy.Time(0))	# transform from object to camera (anders als in Doku)
 			self.objImgCenterToCamPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -97,7 +101,7 @@ class capturePoseSampler():
 							 (capturePoses.poses[i].orientation.x, capturePoses.poses[i].orientation.y, capturePoses.poses[i].orientation.z, capturePoses.poses[i].orientation.w),
 							 rospy.Time.now(),
 							 "p_" + str(i),
-							 "base_link")
+							 "object_img_center")
 
 	# Calculate full pose to given point w.r.t. object pose
 	def get_pose(self, vec):

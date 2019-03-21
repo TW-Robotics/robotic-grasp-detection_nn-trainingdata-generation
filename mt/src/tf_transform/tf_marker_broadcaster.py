@@ -21,6 +21,9 @@ class marker_broadcaster():
 		self.markerCenter = Point()
 		self.dImage = Image()
 
+		# Instantiate CvBridge
+		self.bridge = CvBridge()
+
 		# Init subscriber
 		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_callback, queue_size=1)
 		rospy.Subscriber("/fiducial_vertices", FiducialArray, self.marker_vert_callback, queue_size=1)				# Marker-Corners
@@ -28,22 +31,24 @@ class marker_broadcaster():
 		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)					# Depth-Image
 
 	# Broadcast the refined, mean gt-pose (final gt-pose)
-	def marker_callback(marker_poses):
+	def marker_callback(self, marker_poses):
 		br = tf.TransformBroadcaster()
+		
+		if len(marker_poses.transforms) > 0:
+			if self.markerCenter.z != 0:
+				print_debug("depth refined")
+				marker_poses.transforms[0].transform.translation.z = float(self.markerCenter.z) / 1000.
+			else:
+				print_debug("not refined")
+			#print marker_poses.transforms[0].transform.translation.z
+			br.sendTransform((marker_poses.transforms[0].transform.translation.x, marker_poses.transforms[0].transform.translation.y, marker_poses.transforms[0].transform.translation.z),
+							 (marker_poses.transforms[0].transform.rotation.x, marker_poses.transforms[0].transform.rotation.y, marker_poses.transforms[0].transform.rotation.z, marker_poses.transforms[0].transform.rotation.w),
+							 rospy.Time.now(),
+							 "m_det",
+							 "camera_color_optical_frame")
 
-		if self.markerCenter.z != 0:
-			print_debug("depth refined")
-			marker_poses.transforms.transform.translation.z = self.markerCenter.z
-		else:
-			print_debug("not refined")
-		br.sendTransform((marker_poses.transforms.transform.translation.x, marker_poses.transforms.transform.translation.y, marker_poses.transforms.transform.translation.z),
-						 (marker_poses.transforms.transform.rotation.x, marker_poses.transforms.transform.rotation.y, marker_poses.transforms.transform.rotation.z, marker_poses.transforms.transform.rotation.w),
-						 rospy.Time.now(),
-						 "marker_" + str(marker_poses.transforms.fiducial_id),
-						 "camera_color_optical_frame")
-
-		# Set zero to make sure it is refreshed
-		self.markerCenter.z = 0
+			# Set zero to make sure it is refreshed
+			self.markerCenter.z = 0
 
 	# Calculate center of marker
 	def marker_vert_callback(self, data):
@@ -65,6 +70,7 @@ class marker_broadcaster():
 
 		# If a depth-image arrives, calculate the depth-value of the marker's center and publish it
 		self.markerCenter.z = self.d_img[int(self.markerCenter.y)][int(self.markerCenter.x)]
+		#print self.markerCenter.z
 
 # Print debug messages
 def print_debug(dStr):

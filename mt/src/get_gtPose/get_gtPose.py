@@ -27,7 +27,6 @@ class gtPose():
 		##################################
 		# Give parameters in deg, meters #
 		##################################
-		self.marker_id = "\marker_245"
 		self.poseBuffSize = poseBuffSize
 		##################################
 		# ## # # # # # # # # # # # # # # #
@@ -45,13 +44,14 @@ class gtPose():
 		self.meanPose = Pose()
 		self.poseBuff = collections.deque(maxlen=self.poseBuffSize)
 
-		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/base_link", True)
+		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/mean_marker_pose", True)
 
+		rospy.sleep(1)	# Wait to register at tf
 		# Subscriber to Object-Pose
 		rospy.Subscriber("/fiducial_transforms", FiducialTransformArray, self.marker_pose_callback, queue_size=1)	# Marker-Pose
 
 		# Publisher for Pose-Array
-		self.pub = rospy.Publisher('/gtPoses', PoseArray, queue_size=10)
+		self.pub = rospy.Publisher('/tf_meanMarkerPose', Pose, queue_size=10)
 
 	# Subscribe to object pose
 	def marker_pose_callback(self, data):
@@ -71,7 +71,7 @@ class gtPose():
 	def get_pose(self):
 		try:
 			# Get transformation - which is refined by tf_marker_broadcaster
-			(trans, rot) = self.tfListener.lookupTransform('/base_link', self.marker_id, rospy.Time(0))
+			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/m_det', rospy.Time(0))
 			self.poseBuff.append(self.listToPose(trans, rot))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -191,17 +191,17 @@ class gtPose():
 
 	# Broadcast the final mean pose and other frames dependent on that frame
 	def broadcast_transformations(self):
-		pC.tfBroadcaster.sendTransform((self.meanPose.position.x , self.meanPose.position.y , self.meanPose.position.z ),
+		self.tfBroadcaster.sendTransform((self.meanPose.position.x , self.meanPose.position.y , self.meanPose.position.z ),
 						 (self.meanPose.orientation.x, self.meanPose.orientation.y, self.meanPose.orientation.z, self.meanPose.orientation.w),
 						 rospy.Time.now(),
 						 "mean_marker_pose",
 						 "base_link")	# marker-pose wrt to base_link
-		pC.tfBroadcaster.sendTransform((0, 0, 0.05),
+		self.tfBroadcaster.sendTransform((0, 0, 0.05),
 						 (0, 0, 0, 1),
 						 rospy.Time.now(),
 						 "object_img_center",
 						 "mean_marker_pose")  # calculated pose where camera should point to
-		pC.tfBroadcaster.sendTransform((-0.1, 0, 0.08),
+		self.tfBroadcaster.sendTransform((-0.1, 0, 0.08),
 						 (tf.transformations.quaternion_from_euler(90*math.pi/180, 90*math.pi/180, 0, "ryzx")),
 						 rospy.Time.now(),
 						 "object",
@@ -267,7 +267,7 @@ def main(args):
 	# Publish pose to make old pose gone
 	rate = rospy.Rate(10)
 	for k in range(10):
-		pC.pub.publish(pC.markerPoses)
+		pC.pub.publish(pC.meanPose)
 		pC.broadcast_gtPosesComparison(pC.markerPoses)
 		rate.sleep()
 
@@ -293,17 +293,30 @@ def main(args):
 		elif inp == 'f':
 			# Calculate and print mean pose
 			print "-------------- Mean Object Pose --------------"
-			pc.meanPose = pC.calc_mean_pose(pC.markerPoses)
+			pC.meanPose = pC.calc_mean_pose(pC.markerPoses)
 			print pC.meanPose
-			minD, maxD = pc.calc_metrics(pC.meanPose, pC.markerPoses)
+			minD, maxD = pC.calc_metrics(pC.meanPose, pC.markerPoses)
 			pC.disp_metrics(minD, maxD)
-			pC.ur5.addMesh(pC.meanPose)	# TODO change to be correct
+			objMeshPose = Pose()
+			objMeshPose.position.x = -0.0207
+			objMeshPose.position.y = 0.0135
+			objMeshPose.position.z = -0.0207
+			objMeshPose.orientation.x = 0.0
+			objMeshPose.orientation.y = 0.707
+			objMeshPose.orientation.z = 0.707
+			objMeshPose.orientation.w = 0.0
+			pC.ur5.addMesh(objMeshPose)	# TODO change to be correct
 			break
+
+	print "Publishing ground-truth Object-Pose..."
+	print "Store pose by typing 'rosbag record /tf_meanMarkerPose' and replay them by typing 'rosbag play -l'."
+
 
 	# Broadcast transformations
 	# Do at a frequency of 10 Hz
 	rate = rospy.Rate(10.0)
 	while not rospy.is_shutdown():
+		pC.pub.publish(pC.meanPose)
 		pC.broadcast_gtPosesComparison(pC.markerPoses)	# Comparison of stored poses
 		pC.broadcast_transformations()
 		rate.sleep()

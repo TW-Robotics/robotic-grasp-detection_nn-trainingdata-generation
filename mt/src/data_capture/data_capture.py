@@ -25,6 +25,7 @@ class dataCapture():
 		self.goals = PoseArray()
 		self.objBasePose = Pose()
 		self.objCamPose = Pose()
+		self.baseToolPose = Pose()
 		self.rgb_image = Image()
 		self.d_image = Image()
 		self.pc = PointCloud2()
@@ -39,8 +40,8 @@ class dataCapture():
 		# Give parameters in deg, meters #
 		##################################
 		# Path to store images and stuff
-		self.path = "/home/johannes/catkin_ws/src/data/"
-		#self.path = "/home/mluser/catkin_ws/src/data/"
+		#self.path = "/home/johannes/catkin_ws/src/data/"
+		self.path = "/home/mluser/catkin_ws/src/data/"
 
 		# Parameters for randomization
 		self.rotateTiltRMin = -10 	# Joint 4: How far to rotate
@@ -65,7 +66,10 @@ class dataCapture():
 		# Poses
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
 
-		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
+		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", False)
+
+		self.listener = tf.TransformListener()
+		rospy.sleep(1)		# Wait for topics to arrive
 
 		'''rate = rospy.Rate(10)
 		while not rospy.is_shutdown():
@@ -113,15 +117,22 @@ class dataCapture():
 	def get_transformations(self):
 		try:
 			# Get transformation and publish it rearranged to a list
-			(trans, rot) = listener.lookupTransform('/base_link', '/object', rospy.Time(0))
+			(trans, rot) = self.listener.lookupTransform('/base_link', '/object', rospy.Time(0))	# from base to object
 			self.objBasePose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
 		try:
 			# Get transformation and publish it rearranged to a list
-			(trans, rot) = listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))				# transform from object to camera (anders als in Doku)
+			(trans, rot) = self.listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))				# transform from object to camera
 			self.objCamPose = self.listToPose(trans, rot)
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+		try:
+			# Get transformation and publish it rearranged to a list
+			(trans, rot) = self.listener.lookupTransform('/base', '/tool0_controller', rospy.Time(0))				# transform from base to tool0_controller
+			self.baseToolPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
@@ -195,10 +206,12 @@ class dataCapture():
 		self.get_transformations()
 		# Store Object-to-Base-Pose and Object-to-Cam-Pose
 		f = open(str(self.path) + str(namePreFix) + "_poses.txt", "w")
-		f.write("Object to Cam:\n")
+		f.write("object to camera_color_optical_frame:\n")
 		f.write(str(self.objCamPose))
-		f.write("\n\nObject to Base:\n")
+		f.write("\n\nbase_link to object:\n")
 		f.write(str(self.objBasePose))
+		f.write("\n\nbase_link to tool0_controller:\n")
+		f.write(str(self.baseToolPose))
 		f.close()
 		print_debug("Poses Stored " + str(namePreFix))
 
@@ -208,7 +221,12 @@ class dataCapture():
 	# Drive to the goals and make random moves
 	def capture(self):	# TODO add StartID	
 		# TEST
-		i = 0
+
+		'''for i in range(len(self.goals.poses)):
+			self.ur5.isReachable(self.goals.poses[i])
+			inp = raw_input("Keep pose? ")[0]'''
+
+		'''i = 0
 		while True:
 			self.actPoseID = i
 			print_debug("drive to point " + str(i))
@@ -218,9 +236,10 @@ class dataCapture():
 				self.store_state()
 			elif inp == 'e':
 				return
-			i = i + 1
+			i = i + 1'''
 
-		'''for i in range(5):	# TODO put len(self.goals.poses)		
+		for i in range(5):	# TODO put len(self.goals.poses)
+			self.actPoseID = i		
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
 			self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
@@ -234,7 +253,7 @@ class dataCapture():
 			rotateRand = random.uniform(self.rotateRMin, 0)
 			print_debug("Rotating2 " + str(rotateRand))
 			self.ur5.move_joint(5, rotateRand)				# Rotate the EEF
-			self.move_random()								# Make random moves'''
+			self.move_random()								# Make random moves
 
 # Print debug messages
 def print_debug(dStr):
@@ -246,9 +265,11 @@ def main(args):
 	# Init node
 	rospy.init_node('data_capture', anonymous=True, disable_signals=True)
 	
+	rospy.logwarn("Don't forget to put away the marker!")
+
 	dc = dataCapture()
 
-	#dc.drive_to_pose(74)
+	#dc.drive_to_pose(1)
 
 	dc.capture()
 
