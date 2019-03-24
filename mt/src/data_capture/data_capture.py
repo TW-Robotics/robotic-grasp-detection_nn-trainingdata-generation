@@ -91,11 +91,22 @@ class dataCapture():
 		self.d_info_sub.unregister()
 
 	def rgb_image_callback(self, data):
-		self.rgb_image = data
+		try:
+			cv_rgb_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
+			self.rgb_image = cv_rgb_image.copy()
+		except CvBridgeError as e:
+			print(e)
 
 	def d_image_callback(self, data):
-		self.d_image = data
-
+		try:
+			cv_depth_image = self.bridge.imgmsg_to_cv2(data,"32FC1")
+			self.d_image = cv_depth_image.copy()
+		except CvBridgeError as e:
+			print(e)
+		output = np.hstack((cv2.cvtColor(self.d_image, cv2.COLOR_GRAY2BGR), self.rgb_image))
+		cv2.imshow("Images", output)
+		cv2.waitKey(1)
+		
 	#def pc_callback(self, data):
 		#self.pc = data
 
@@ -172,37 +183,31 @@ class dataCapture():
 		rospy.sleep(0.5)
 		# Store Images
 		# Source: https://gist.github.com/rethink-imcmahon/77a1a4d5506258f3dc1f
-		try:
-			# Convert ROS Image messages to OpenCV2
-			rgb_img = self.bridge.imgmsg_to_cv2(self.rgb_image, "bgr8")
-			d_img = self.bridge.imgmsg_to_cv2(self.d_image, "16UC1")
 
-			# Save OpenCV2 images
-			cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.png", rgb_img)
-			cv2.imwrite(str(self.path) + str(namePreFix) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
-			#cv2.imshow("Grasp-Point", cv2_img)
-			#cv2.waitKey(1)
+		# Save OpenCV2 images
+		cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.png", self.rgb_img)
+		cv2.imwrite(str(self.path) + str(namePreFix) + "_d.png", self.d_img*255)	# *255 to rescale from 0-1 to 0-255
+		#cv2.imshow("Images", cv2_img)
+		#cv2.waitKey(1)
 
-			# Store Depth-Image as CSV-File
-			f = open(str(self.path) + str(namePreFix) + "_d.csv", "w")
-			for row in range(len(d_img)):			#1280
-				for col in range(len(d_img[0])):	#720
-					f.write(str(d_img[row][col]) + ";")
-				f.write("\n")
-			f.close()
+		# Store Depth-Image as CSV-File
+		f = open(str(self.path) + str(namePreFix) + "_d.csv", "w")
+		for row in range(len(self.d_img)):			#1280
+			for col in range(len(self.d_img[0])):	#720
+				f.write(str(self.d_img[row][col]) + ";")
+			f.write("\n")
+		f.close()
 
-			# Store Depth-Image as Point-Cloud
-			if storePC == True:
-				f1 = open(str(self.path) + str(namePreFix) + "pc.ply", "w")
-				f1.write("ply\nformat ascii 1.0\nelement vertex 921600\nproperty float x\nproperty float y\nproperty float z\nend_header\n")
-				for row in range(len(d_img)):			#1280
-					for col in range(len(d_img[0])):	#720
-						f1.write(str(float(row) / 1000.) + " " + str(float(col) / 1000.) + " " + str(float(d_img[row][col]) / 1000.) + "\n")
-				f1.close()
+		# Store Depth-Image as Point-Cloud
+		if storePC == True:
+			f1 = open(str(self.path) + str(namePreFix) + "pc.ply", "w")
+			f1.write("ply\nformat ascii 1.0\nelement vertex 921600\nproperty float x\nproperty float y\nproperty float z\nend_header\n")
+			for row in range(len(self.d_img)):			#1280
+				for col in range(len(self.d_img[0])):	#720
+					f1.write(str(float(row) / 1000.) + " " + str(float(col) / 1000.) + " " + str(float(self.d_img[row][col]) / 1000.) + "\n")
+			f1.close()
 
-			print_debug("RGB and Depth-Data Stored " + str(namePreFix))
-		except CvBridgeError, e:
-			rospy.logerr(e)
+		print_debug("RGB and Depth-Data Stored " + str(namePreFix))
 
 		self.get_transformations()
 		# Store Object-to-Base-Pose and Object-to-Cam-Pose
