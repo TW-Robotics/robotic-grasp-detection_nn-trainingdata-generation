@@ -5,6 +5,7 @@ import random
 import rospy
 import tf
 import math
+import os
 
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
@@ -219,7 +220,7 @@ class dataCapture():
 		self.ur5.execute_move(self.goals.poses[id])
 
 	# Drive to the goals and make random moves
-	def capture(self, startID):	# TODO add StartID	
+	def capture(self, startID):
 		# TEST
 
 		'''for i in range(len(self.goals.poses)):
@@ -269,9 +270,22 @@ def main(args):
 
 	dc = dataCapture()
 
+	if len(args) < 2:
+		print "Please specify folder to store files!"
+		return
+	else:
+		dc.path = dc.path + str(args[1])
+		if not os.path.exists(dc.path):
+        		os.makedirs(dc.path)
+		else:
+			rospy.logwarn("You are writing to an existing folder!")
+	startID = 0
+	if len(args) == 3:
+		startID = int(args[2])
+		print "Starting at pose no. " + str(startID)
 	#dc.drive_to_pose(1)
 
-	dc.capture(0)	# TODO make command line argument
+	dc.capture(startID)
 
 if __name__ == '__main__':
 	main(sys.argv)
