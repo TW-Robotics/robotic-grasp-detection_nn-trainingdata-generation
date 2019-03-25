@@ -16,6 +16,7 @@ class capturePoseSampler():
 	def __init__(self):
 		# Init variables
 		self.goals = PoseArray()	# Store all final poses
+		self.goals.header.frame_id = "/object_img_center"
 		self.objImgCenterToCamPose = Pose()
 
 		# Publisher for Pose-Array

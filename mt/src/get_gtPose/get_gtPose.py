@@ -57,8 +57,11 @@ class gtPose():
 	def image_callback(self, data):
 		img = self.bridge.imgmsg_to_cv2(data, "bgr8")
 		# Visualization
-		cv2.imshow("Img", img)
-		cv2.waitKey(1)
+		if self.meanPose.position.x == 0 and self.meanPose.position.y == 0:
+			cv2.imshow("Img", img)
+			cv2.waitKey(1)
+		else:
+			cv2.destroyAllWindows()
 
 	# Subscribe to object pose
 	def marker_pose_callback(self, data):
@@ -123,7 +126,7 @@ class gtPose():
 	def disp_metrics(self, minD, maxD):
 		print "Deviation:"
 		for i in range(0, 3):
-			print int(round(minD[i]*1000, 0)), int(round(maxD[i]*1000, 0))
+			print round(minD[i]*1000, 1), round(maxD[i]*1000, 1)
 		for i in range(3, 6):
 			print round(minD[i]* 180/math.pi, 1), round(maxD[i]* 180/math.pi, 1)
 
@@ -186,7 +189,6 @@ class gtPose():
 		meanPose.orientation.y = meanOrientations[1]
 		meanPose.orientation.z = meanOrientations[2]
 		meanPose.orientation.w = meanOrientations[3]
-
 		return meanPose
 
 	# Broadcast all recorded gt-poses for comparison

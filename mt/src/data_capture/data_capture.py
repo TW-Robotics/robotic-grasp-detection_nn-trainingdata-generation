@@ -27,12 +27,12 @@ class dataCapture():
 		self.objBasePose = Pose()
 		self.objCamPose = Pose()
 		self.baseToolPose = Pose()
-		self.rgb_image = Image()
-		self.d_image = Image()
 		self.pc = PointCloud2()
 		self.actPoseID = 0
 		self.lastPoseID = 0
 		self.actStorage = -1
+		self.rgb_img = None
+		self.d_img = None
 
 		# Instantiate CvBridge
 		self.bridge = CvBridge()
@@ -67,7 +67,7 @@ class dataCapture():
 		# Poses
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
 
-		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", False)
+		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
 
 		self.listener = tf.TransformListener()
 		rospy.sleep(1)		# Wait for topics to arrive
@@ -93,19 +93,22 @@ class dataCapture():
 	def rgb_image_callback(self, data):
 		try:
 			cv_rgb_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
-			self.rgb_image = cv_rgb_image.copy()
+			self.rgb_img = cv_rgb_image.copy()
 		except CvBridgeError as e:
 			print(e)
 
 	def d_image_callback(self, data):
 		try:
 			cv_depth_image = self.bridge.imgmsg_to_cv2(data,"32FC1")
-			self.d_image = cv_depth_image.copy()
+			self.d_img = cv_depth_image.copy()
 		except CvBridgeError as e:
 			print(e)
-		output = np.hstack((cv2.cvtColor(self.d_image, cv2.COLOR_GRAY2BGR), self.rgb_image))
-		cv2.imshow("Images", output)
-		cv2.waitKey(1)
+
+		if self.rgb_img is not None:
+			#output = np.hstack((cv2.cvtColor(self.d_img, cv2.COLOR_GRAY2BGR), self.rgb_img))
+			output = self.rgb_img
+			cv2.imshow("Images", output)
+			cv2.waitKey(1)
 		
 	#def pc_callback(self, data):
 		#self.pc = data
@@ -270,15 +273,12 @@ def print_debug(dStr):
 def main(args):
 	# Init node
 	rospy.init_node('data_capture', anonymous=True, disable_signals=True)
-	
-	rospy.logwarn("Don't forget to put away the marker!")
-
-	dc = dataCapture()
 
 	if len(args) < 2:
 		print "Please specify folder to store files!"
 		return
 	else:
+		dc = dataCapture()
 		dc.path = dc.path + str(args[1])
 		if not os.path.exists(dc.path):
         		os.makedirs(dc.path)
@@ -289,6 +289,8 @@ def main(args):
 		startID = int(args[2])
 		print "Starting at pose no. " + str(startID)
 	#dc.drive_to_pose(1)
+
+	rospy.logwarn("Don't forget to put away the marker!")
 
 	dc.capture(startID)
 
