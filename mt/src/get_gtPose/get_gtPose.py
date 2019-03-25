@@ -251,6 +251,8 @@ def main(args):
 	# Initialize Pose-Calculator pC
 	pC = gtPose(buffLen)
 
+	#print pC.ur5.group.get_current_pose().pose
+
 	'''mean = Pose()
 	mean.position.x = 0.2
 	mean.position.y = 0.3

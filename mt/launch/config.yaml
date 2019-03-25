@@ -12,7 +12,7 @@ path_to_obj_stl: '/home/mluser/catkin_ws/src/mt/cad/product.stl'
 path_to_store: '/home/mluser/catkin_ws/src/data/'
 #path_to_store: '/home/johannes/catkin_ws/src/data/'
 
-print_debug: true
+print_debug: false
 
 PoseRandomization:
   phiInc: -10
@@ -23,8 +23,8 @@ PoseRandomization:
   rRmax: 0.1
   numRandomGoals: 3
   rotate4Min: 2
-  rotate4Max: 10
+  rotate4Max: 7
   rotate5Min: 2
-  rotate5Max: 10
+  rotate5Max: 7
   rotate6Min: 5
   rotate6Max: 65

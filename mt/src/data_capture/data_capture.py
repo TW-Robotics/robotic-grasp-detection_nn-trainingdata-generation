@@ -6,6 +6,7 @@ import rospy
 import tf
 import math
 import os
+import csv
 
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
@@ -70,7 +71,7 @@ class dataCapture():
 		# Poses
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
 
-		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", True)
+		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", False)
 
 		self.listener = tf.TransformListener()
 		rospy.sleep(1)		# Wait for topics to arrive
@@ -82,7 +83,7 @@ class dataCapture():
 
 	# Images
 	def cameraInfoRGB_callback(self, data):
-		f = open(str(self.path) + "rgb-camera-info.txt", "w")
+		f = open(str(self.path) + "rgb-camera-info.txt", "w")	# TODO change because path is not updated at correct moment!
 		f.write(str(data))
 		f.close()
 		self.rgb_info_sub.unregister()
@@ -106,12 +107,6 @@ class dataCapture():
 			self.d_img = cv_depth_image.copy()
 		except CvBridgeError as e:
 			print(e)
-
-		if self.rgb_img is not None:
-			#output = np.hstack((cv2.cvtColor(self.d_img, cv2.COLOR_GRAY2BGR), self.rgb_img))
-			output = self.rgb_img
-			cv2.imshow("Images", output)
-			cv2.waitKey(1)
 		
 	#def pc_callback(self, data):
 		#self.pc = data
@@ -186,31 +181,43 @@ class dataCapture():
 			self.lastPoseID = self.actPoseID
 			self.actStorage = 0
 		namePreFix = str(self.actPoseID) + "_" + str(self.actStorage)
-		rospy.sleep(0.5)
+
+		# Make sure to refresh data -> Set None and wait until new images arrive
+		self.d_img = None
+		self.rgb_img = None
+		while self.d_img is None or self.rgb_img is None:
+			rospy.sleep(0.05)
+
+		#output = np.hstack((cv2.cvtColor(self.d_img, cv2.COLOR_GRAY2BGR), self.rgb_img))
+		output = self.rgb_img
+		cv2.imshow("Images", output)
+		cv2.waitKey(1)
+
 		# Store Images
 		# Source: https://gist.github.com/rethink-imcmahon/77a1a4d5506258f3dc1f
+		d_img = self.d_img.copy()
+		rgb_img = self.rgb_img.copy()
 
 		# Save OpenCV2 images
-		cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.png", self.rgb_img)
-		cv2.imwrite(str(self.path) + str(namePreFix) + "_d.png", self.d_img*255)	# *255 to rescale from 0-1 to 0-255
+		cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.png", rgb_img)
+		cv2.imwrite(str(self.path) + str(namePreFix) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
+
 		#cv2.imshow("Images", cv2_img)
 		#cv2.waitKey(1)
 
 		# Store Depth-Image as CSV-File
-		f = open(str(self.path) + str(namePreFix) + "_d.csv", "w")
-		for row in range(len(self.d_img)):			#1280
-			for col in range(len(self.d_img[0])):	#720
-				f.write(str(self.d_img[row][col]) + ";")
-			f.write("\n")
-		f.close()
+		with open(str(self.path) + str(namePreFix) + "_d.csv", "wb") as f:
+			writer = csv.writer(f, delimiter=";")
+			for line in d_img:
+				writer.writerow(line)
 
 		# Store Depth-Image as Point-Cloud
 		if storePC == True:
 			f1 = open(str(self.path) + str(namePreFix) + "pc.ply", "w")
 			f1.write("ply\nformat ascii 1.0\nelement vertex 921600\nproperty float x\nproperty float y\nproperty float z\nend_header\n")
-			for row in range(len(self.d_img)):			#1280
-				for col in range(len(self.d_img[0])):	#720
-					f1.write(str(float(row) / 1000.) + " " + str(float(col) / 1000.) + " " + str(float(self.d_img[row][col]) / 1000.) + "\n")
+			for row in range(len(d_img)):			#1280
+				for col in range(len(d_img[0])):	#720
+					f1.write(str(float(row) / 1000.) + " " + str(float(col) / 1000.) + " " + str(float(d_img[row][col]) / 1000.) + "\n")
 			f1.close()
 
 		print_debug("RGB and Depth-Data Stored " + str(namePreFix))
@@ -226,6 +233,7 @@ class dataCapture():
 		f.write(str(self.baseToolPose))
 		f.close()
 		print_debug("Poses Stored " + str(namePreFix))
+		print "Stored " + str(namePreFix)
 
 	def drive_to_pose(self, id):
 		self.ur5.execute_move(self.goals.poses[id])
@@ -282,7 +290,7 @@ def main(args):
 		return
 	else:
 		dc = dataCapture()
-		dc.path = dc.path + str(args[1])
+		dc.path = dc.path + str(args[1]) + "/"
 		if not os.path.exists(dc.path):
         		os.makedirs(dc.path)
 		else:
@@ -292,6 +300,15 @@ def main(args):
 		startID = int(args[2])
 		print "Starting at pose no. " + str(startID)
 	#dc.drive_to_pose(1)
+
+	'''while True:
+		dc.actPoseID = 0
+		inp = raw_input("y to Store, e to Exit, n to continue: ")[0]
+		if inp == 'y':
+			dc.actPoseID = dc.actPoseID + 1
+			dc.store_state()
+		elif inp == 'e':
+			return'''
 
 	rospy.logwarn("Don't forget to put away the marker!")
 
