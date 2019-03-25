@@ -1,0 +1,26 @@
+camera_color_width: 1280
+camera_color_height: 720
+camera_depth_width: 1280
+camera_depth_height: 720
+
+aruco_marker_length: 0.578
+
+path_to_obj_stl: 'mluser/...'
+path_to_store: 'mluser/...'
+
+print_debug = true
+
+PoseRandomization:
+  phiInc: !degrees 15
+  thetaInc: !degrees 15
+  numHorizontal: 15
+  thetaMax: !degrees 75
+  rRmin: 
+  rRmax:
+  numRandomGoals: 3
+  rotate4Min:
+  rotate4Max:
+  rotate5Min:
+  rotate5Max:
+  rotate6Min:
+  rotate6Max:
