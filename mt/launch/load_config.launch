@@ -1,0 +1,3 @@
+<launch>
+	<rosparam command="load" file="$(find mt)/launch/config.yaml"/>
+</launch>

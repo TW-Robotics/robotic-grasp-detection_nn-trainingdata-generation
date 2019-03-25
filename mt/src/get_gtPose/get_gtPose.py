@@ -20,7 +20,10 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from ur5_control import ur5_control
 
-debug = False		# Print Debug-Messages
+debug = False
+if rospy.get_param("print_debug") == True:
+	print "Debug-Mode ON"
+	debug = True		# Print Debug-Messages
 
 class gtPose():
 	def __init__(self, poseBuffSize):

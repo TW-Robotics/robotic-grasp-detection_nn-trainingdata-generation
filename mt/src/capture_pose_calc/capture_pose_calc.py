@@ -10,7 +10,10 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
 from ur5_control import ur5_control
 
-debug = True		# Print Debug-Messages
+debug = False
+if rospy.get_param("print_debug") == True:
+	print "Debug-Mode ON"
+	debug = True		# Print Debug-Messages
 
 class capturePoseSampler():
 	def __init__(self):
@@ -30,15 +33,15 @@ class capturePoseSampler():
 		##################################
 		# Give parameters in deg, meters #
 		##################################
-		self.phiInc = -10 		# Horizontal axis angle for base points
-		self.thetaInc = 15		# Vertical axis angle for base points
-		self.numHorizontal = 15	# After how many phi-increments to change row (increment theta)
-		self.thetaMax = 75		# After which thetaAngle to stop generating points
+		self.phiInc = rospy.get_param("PoseRandomization/phiInc")#-10 		# Horizontal axis angle for base points
+		self.thetaInc = rospy.get_param("PoseRandomization/thetaInc")#15		# Vertical axis angle for base points
+		self.numHorizontal = rospy.get_param("PoseRandomization/numHorizontal")#15	# After how many phi-increments to change row (increment theta)
+		self.thetaMax = rospy.get_param("PoseRandomization/thetaMax")#75		# After which thetaAngle to stop generating points
 
 		# Parameters for randomization
-		self.rRMin = -0.1 			# How far should poses be nearer/farer from object
-		self.rRMax = 0.1
-		self.numRandomGoals = 3		# How many random goals (delta r, phi, theta) should be created
+		self.rRMin = rospy.get_param("PoseRandomization/rRmin")#-0.1 			# How far should poses be nearer/farer from object
+		self.rRMax = rospy.get_param("PoseRandomization/rRmax")#0.1
+		self.numRandomGoals = rospy.get_param("PoseRandomization/numRandomGoals")#3		# How many random goals (delta r, phi, theta) should be created
 		# WITHOUT RANDOM
 		'''self.rRMin = 0
 		self.rRMax = 0

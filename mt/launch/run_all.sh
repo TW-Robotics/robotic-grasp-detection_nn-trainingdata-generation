@@ -2,6 +2,9 @@
 xterm -hold -e "roscore" &
 sleep 3
 
+echo "Loading parameters"
+xterm -hold -e "roslaunch mt load_config.launch" &
+
 echo "Connecting to UR5 and launching path-planner..."
 xterm -hold -e "roslaunch ur_modern_driver ur5_bringup.launch limited:=true robot_ip:=192.168.12.52" &
 sleep 2

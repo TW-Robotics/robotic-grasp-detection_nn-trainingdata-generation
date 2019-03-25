@@ -39,7 +39,7 @@ class ur5Controler():
 		self.speedScalingFactor = 0.05		# For timing of path-planning-points [very small eg 0.01, 1]
 
 		#self.pathToObjectFile = "/home/johannes/catkin_ws/src/mt/cad/product.stl"
-		self.pathToObjectFile = "/home/mluser/catkin_ws/src/mt/cad/product.stl"
+		self.pathToObjectFile = rospy.get_param("path_to_obj_stl")#"/home/mluser/catkin_ws/src/mt/cad/product.stl"
 
 		# Set True to make the program ask before the robot moves
 		self.checkBeforeDo = checkBeforeDo

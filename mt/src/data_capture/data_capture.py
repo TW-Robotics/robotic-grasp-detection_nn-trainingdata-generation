@@ -17,7 +17,10 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from ur5_control import ur5_control
 
-debug = True		# Print Debug-Messages
+debug = False
+if rospy.get_param("print_debug") == True:
+	print "Debug-Mode ON"
+	debug = True		# Print Debug-Messages
 storePC = False		# Store Point-Cloud-Message
 
 class dataCapture():
@@ -42,15 +45,15 @@ class dataCapture():
 		##################################
 		# Path to store images and stuff
 		#self.path = "/home/johannes/catkin_ws/src/data/"
-		self.path = "/home/mluser/catkin_ws/src/data/"
+		self.path = rospy.get_param("path_to_store")#"/home/mluser/catkin_ws/src/data/"
 
 		# Parameters for randomization
-		self.rotateTiltRMin = -10 	# Joint 4: How far to rotate
-		self.rotateTiltRMax = 10
-		self.rotateUpRMin = -10 	# Joint 5: How far to rotate
-		self.rotateUpRMax = 10
-		self.rotateRMin = -65		# Joint 6: How far can EEF be rotated
-		self.rotateRMax = 65
+		self.rotateTiltRMin = rospy.get_param("PoseRandomization/rotate4Min")#-10 	# Joint 4: How far to rotate
+		self.rotateTiltRMax = rospy.get_param("PoseRandomization/rotate4Max")#10
+		self.rotateUpRMin = rospy.get_param("PoseRandomization/rotate5Min")#-10 	# Joint 5: How far to rotate
+		self.rotateUpRMax = rospy.get_param("PoseRandomization/rotate5Max")#10
+		self.rotateRMin = rospy.get_param("PoseRandomization/rotate6Min")#-65		# Joint 6: How far can EEF be rotated
+		self.rotateRMax = rospy.get_param("PoseRandomization/rotate6Max")#65
 		##################################
 		# ## # # # # # # # # # # # # # # #
 		##################################
@@ -154,10 +157,10 @@ class dataCapture():
 	# Make random moves with last axis
 	def move_random(self):
 		# Sample random offsets
-		rotateUp = random.uniform(0, self.rotateUpRMax)
-		rotateDown = random.uniform(self.rotateUpRMin, 0)
-		rotateTiltL = random.uniform(0, self.rotateTiltRMax)
-		rotateTiltR = random.uniform(self.rotateTiltRMin, 0)
+		rotateUp = random.uniform(self.rotateUpRMin, self.rotateUpRMax)
+		rotateDown = random.uniform(-self.rotateUpRMin, -self.rotateUpRMax)
+		rotateTiltL = random.uniform(self.rotateTiltRMin, self.rotateTiltRMax)
+		rotateTiltR = random.uniform(-self.rotateTiltRMin, -self.rotateTiltRMax)
 
 		# Execute offsets
 		self.store_state()
@@ -253,13 +256,13 @@ class dataCapture():
 			self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
-			rotateRand = random.uniform(0, self.rotateRMax)
+			rotateRand = random.uniform(self.rotateRMin, self.rotateRMax)
 			print_debug("Rotating1 " + str(rotateRand))
 			self.ur5.move_joint(5, rotateRand)				# Rotate the EEF
 			self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
-			rotateRand = random.uniform(self.rotateRMin, 0)
+			rotateRand = random.uniform(-self.rotateRMin, -self.rotateRMax)
 			print_debug("Rotating2 " + str(rotateRand))
 			self.ur5.move_joint(5, rotateRand)				# Rotate the EEF
 			self.move_random()								# Make random moves
