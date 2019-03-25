@@ -1,7 +1,9 @@
 <launch>
 	<!-- Static transforms for camera_link. Parameters determined by pointing camera to robot's base -->
-	<node pkg="tf" type="static_transform_publisher" name="cam_trans_link_publisher" args="-0.071 -0.025 0.125 -0.707 0 -0.707 0 tool0_controller camera_link_trans 100" />
+	<node pkg="tf" type="static_transform_publisher" name="cam_link_publisher" args="-0.071 -0.016 0.117 -0.707 0 -0.707 0 tool0_controller camera_link 100" />
 	<!--<node pkg="tf" type="static_transform_publisher" name="old_cam_link_publisher" args="0 0 0 0 0.707 0 0.707 ee_link old_cam 100" />
 	<node pkg="tf" type="static_transform_publisher" name="old_cam_turn_link_publisher" args="0 0 0 0.011 0.005 0 1 old_cam old_turn 100" />-->
-	<node pkg="tf" type="static_transform_publisher" name="cam_link_publisher" args="-0.002 -0.005 0 0.0 -0.00 0.00 1 camera_link_trans camera_link 100" />
+	<!--<node pkg="tf" type="static_transform_publisher" name="cam_link_publisher" args="-0.002 -0.005 0 0.0 -0.00 0.00 1 camera_link_trans camera_link 100" />-->
+
+	<!-- COPY 	<node pkg="tf" type="static_transform_publisher" name="cam_link_publisher" args="-0.071 -0.02 0.123 -0.707 0 -0.707 0 tool0_controller camera_link 100" /> -->
 </launch>
