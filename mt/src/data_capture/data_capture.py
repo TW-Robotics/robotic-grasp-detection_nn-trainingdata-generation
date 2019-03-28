@@ -25,7 +25,7 @@ if rospy.get_param("print_debug") == True:
 storePC = False		# Store Point-Cloud-Message
 
 class dataCapture():
-	def __init__(self):
+	def __init__(self, path):
 		# Init variables
 		self.goals = PoseArray()
 		self.objBasePose = Pose()
@@ -46,7 +46,7 @@ class dataCapture():
 		##################################
 		# Path to store images and stuff
 		#self.path = "/home/johannes/catkin_ws/src/data/"
-		self.path = rospy.get_param("path_to_store")#"/home/mluser/catkin_ws/src/data/"
+		self.path = path
 
 		# Parameters for randomization
 		self.rotateTiltRMin = rospy.get_param("PoseRandomization/rotate4Min")#-10 	# Joint 4: How far to rotate
@@ -58,6 +58,12 @@ class dataCapture():
 		##################################
 		# ## # # # # # # # # # # # # # # #
 		##################################
+
+		self.fx = 925.112183
+		self.fy = 925.379517
+		self.cx = 647.22644
+		self.cy = 357.068359
+		# TODO Read out of camera_info
 
 		# Camera Info
 		self.rgb_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.cameraInfoRGB_callback, queue_size=1) 
@@ -149,6 +155,16 @@ class dataCapture():
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
+	def get_cuboid_transforms(self):
+		cuboidPoses = PoseArray()
+		for i in range(9):
+			try:
+				(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/c_'+str(i), rospy.Time(0))
+				cuboidPoses.poses.append(self.listToPose(trans, rot))
+			except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+				rospy.logerr(e)
+		return cuboidPoses
+
 	# Make random moves with last axis
 	def move_random(self):
 		# Sample random offsets
@@ -235,12 +251,25 @@ class dataCapture():
 		print_debug("Poses Stored " + str(namePreFix))
 		print "Stored " + str(namePreFix)
 
+	def calculate_projection(self, cuboidPoses):
+		cuboidProj = PoseArray()
+		for i in range(len(cuboidPoses.poses)):
+			p = Pose()
+			p.position.x = self.cx + 1/cuboidPoses.poses[i].position.z * (self.fx * cuboidPoses.poses[i].position.x)
+			p.position.y = self.cy + 1/cuboidPoses.poses[i].position.z * (self.fy * cuboidPoses.poses[i].position.y)
+			cuboidProj.poses.append(p)
+		return cuboidProj
+
 	def drive_to_pose(self, id):
 		self.ur5.execute_move(self.goals.poses[id])
 
 	# Drive to the goals and make random moves
 	def capture(self, startID):
 		# TEST
+
+		cuboidPoses = self.get_cuboid_transforms()
+		print self.calculate_projection(cuboidPoses)
+		return
 
 		'''for i in range(len(self.goals.poses)):
 			self.ur5.isReachable(self.goals.poses[i])
@@ -289,8 +318,9 @@ def main(args):
 		print "Please specify folder to store files!"
 		return
 	else:
-		dc = dataCapture()
-		dc.path = dc.path + str(args[1]) + "/"
+		path = rospy.get_param("path_to_store")#"/home/mluser/catkin_ws/src/data/"
+		path = path + str(args[1]) + "/"
+		dc = dataCapture(path)
 		if not os.path.exists(dc.path):
         		os.makedirs(dc.path)
 		else:

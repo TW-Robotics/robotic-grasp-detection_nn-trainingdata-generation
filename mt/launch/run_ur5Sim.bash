@@ -1,6 +1,8 @@
 #!/bin/bash
 xterm -hold -e "roscore" &
 sleep 3
+echo "Loading parameters"
+xterm -hold -e "roslaunch mt load_config.launch" &
 xterm -hold -e "roslaunch ur_gazebo ur5.launch limited:=true" &
 sleep 5
 xterm -hold -e "roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true limited:=true" &
