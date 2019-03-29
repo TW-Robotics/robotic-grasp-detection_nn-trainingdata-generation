@@ -231,18 +231,18 @@ class gtPose():
 						 rospy.Time.now(),
 						 "object_origin",
 						 "mean_marker_pose")  # calculated pose where the object base is (for placement of cad-file)
-		self.tfBroadcaster.sendTransform((-0.1185, 0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_0", "object")
-		self.tfBroadcaster.sendTransform((0.0585, 0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_1", "object")
+		self.tfBroadcaster.sendTransform((-0.1185, -0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_0", "object")
+		self.tfBroadcaster.sendTransform((-0.1185, 0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_1", "object")
 		self.tfBroadcaster.sendTransform((-0.1185, 0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_2", "object")
-		self.tfBroadcaster.sendTransform((0.0585, 0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_3", "object")
-		self.tfBroadcaster.sendTransform((-0.1185, -0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_4", "object")
-		self.tfBroadcaster.sendTransform((0.0585, -0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_5", "object")
-		self.tfBroadcaster.sendTransform((-0.1185, -0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_6", "object")
+		self.tfBroadcaster.sendTransform((-0.1185, -0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_3", "object")
+		self.tfBroadcaster.sendTransform((0.0585, -0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_4", "object")
+		self.tfBroadcaster.sendTransform((0.0585, 0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_5", "object")
+		self.tfBroadcaster.sendTransform((0.0585, 0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_6", "object")
 		self.tfBroadcaster.sendTransform((0.0585, -0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_7", "object")
 		self.tfBroadcaster.sendTransform((-0.03, 0, 0.045), (0, 0, 0, 1), rospy.Time.now(), "c_8", "object")		# Center
 
 		# TODO DELETE
-		self.tfBroadcaster.sendTransform((1.+0.03, 1.-0.2, 0.5), (tf.transformations.quaternion_from_euler(math.pi, 0, 0, "rxyz")), rospy.Time.now(), "camera_color_optical_frame", "base_link")
+		#self.tfBroadcaster.sendTransform((1.+0.03, 1.-0.2, 0.5), (tf.transformations.quaternion_from_euler(math.pi, 0, 0, "rxyz")), rospy.Time.now(), "camera_color_optical_frame", "base_link")
 
 # Print debug messages
 def print_debug(dStr):
@@ -263,7 +263,7 @@ def main(args):
 	# Initialize Pose-Calculator pC
 	pC = gtPose(buffLen)
 
-	pC.meanPose = Pose()
+	'''pC.meanPose = Pose()
 	pC.meanPose.position.x = 1
 	pC.meanPose.position.y = 1
 	pC.meanPose.position.z = 0.0075
@@ -279,7 +279,7 @@ def main(args):
 	rate = rospy.Rate(10.0)
 	while not rospy.is_shutdown():
 		pC.broadcast_transformations()
-		rate.sleep()
+		rate.sleep()'''
 
 	#print pC.ur5.group.get_current_pose().pose
 

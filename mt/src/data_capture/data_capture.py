@@ -28,9 +28,10 @@ class dataCapture():
 	def __init__(self, path):
 		# Init variables
 		self.goals = PoseArray()
-		self.objBasePose = Pose()
-		self.objCamPose = Pose()
+		self.baseObjPose = Pose()
+		self.camObjPose = Pose()
 		self.baseToolPose = Pose()
+		self.baseCamPose = Pose()
 		self.pc = PointCloud2()
 		self.actPoseID = 0
 		self.lastPoseID = 0
@@ -137,21 +138,28 @@ class dataCapture():
 		try:
 			# Get transformation and publish it rearranged to a list
 			(trans, rot) = self.listener.lookupTransform('/base_link', '/object', rospy.Time(0))	# from base to object
-			self.objBasePose = self.listToPose(trans, rot)
+			self.baseObjPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
 		try:
 			# Get transformation and publish it rearranged to a list
-			(trans, rot) = self.listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))				# transform from object to camera
-			self.objCamPose = self.listToPose(trans, rot)
+			(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/object', rospy.Time(0))				# transform from camera to object
+			self.camObjPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
 		try:
 			# Get transformation and publish it rearranged to a list
-			(trans, rot) = self.listener.lookupTransform('/base', '/tool0_controller', rospy.Time(0))				# transform from base to tool0_controller
+			(trans, rot) = self.listener.lookupTransform('/base_link', '/tool0_controller', rospy.Time(0))				# transform from base to tool0_controller
 			self.baseToolPose = self.listToPose(trans, rot)
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+		try:
+			# Get transformation and publish it rearranged to a list
+			(trans, rot) = self.listener.lookupTransform('/base_link', '/camera_color_optical_frame', rospy.Time(0))				# transform from base to tool0_controller
+			self.baseCamPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
@@ -241,14 +249,28 @@ class dataCapture():
 		self.get_transformations()
 		# Store Object-to-Base-Pose and Object-to-Cam-Pose
 		f = open(str(self.path) + str(namePreFix) + "_poses.txt", "w")
-		f.write("object to camera_color_optical_frame:\n")
-		f.write(str(self.objCamPose))
+		f.write("camera_color_optical_frame to object:\n")
+		f.write(str(self.camObjPose))
 		f.write("\n\nbase_link to object:\n")
-		f.write(str(self.objBasePose))
+		f.write(str(self.baseObjPose))
 		f.write("\n\nbase_link to tool0_controller:\n")
 		f.write(str(self.baseToolPose))
+		f.write("\n\nbase_link to camera_color_optical_frame:\n")
+		f.write(str(self.baseCamPose))
 		f.close()
 		print_debug("Poses Stored " + str(namePreFix))
+
+		cuboidPoses = self.get_cuboid_transforms()
+		#print cuboidPoses
+		cuboidPosesProj = self.calculate_projection(cuboidPoses)
+		f = open(str(self.path) + str(namePreFix) + "_cuboidPoints.txt", "w")
+		f.write("CuboidPoses:\n")
+		f.write(str(cuboidPoses))
+		f.write("\n\nCuboidPosesProjected:\n")
+		f.write(str(cuboidPosesProj))
+		f.close()
+		print_debug("Poses Stored " + str(namePreFix))
+
 		print "Stored " + str(namePreFix)
 
 	def calculate_projection(self, cuboidPoses):
@@ -266,9 +288,21 @@ class dataCapture():
 	# Drive to the goals and make random moves
 	def capture(self, startID):
 		# TEST
+		
+		i = 0
+		while True:
+			self.actPoseID = i
+			inp = raw_input("y to Store, e to Exit, n to continue: ")[0]
+			if inp == 'y':
+				self.store_state()
+				print "done"
+			elif inp == 'e':
+				return
+			i = i + 1
 
-		cuboidPoses = self.get_cuboid_transforms()
-		print self.calculate_projection(cuboidPoses)
+		#cuboidPoses = self.get_cuboid_transforms()
+		#print cuboidPoses
+		#print self.calculate_projection(cuboidPoses)
 		return
 
 		'''for i in range(len(self.goals.poses)):
@@ -320,11 +354,11 @@ def main(args):
 	else:
 		path = rospy.get_param("path_to_store")#"/home/mluser/catkin_ws/src/data/"
 		path = path + str(args[1]) + "/"
-		dc = dataCapture(path)
-		if not os.path.exists(dc.path):
-        		os.makedirs(dc.path)
+		if not os.path.exists(path):
+        		os.makedirs(path)
 		else:
 			rospy.logwarn("You are writing to an existing folder!")
+		dc = dataCapture(path)
 	startID = 0
 	if len(args) == 3:
 		startID = int(args[2])
