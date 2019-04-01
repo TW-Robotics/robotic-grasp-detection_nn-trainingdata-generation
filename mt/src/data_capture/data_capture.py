@@ -7,6 +7,8 @@ import tf
 import math
 import os
 import csv
+import json
+import re
 
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
@@ -78,7 +80,7 @@ class dataCapture():
 		# Poses
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
 
-		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", False)
+		#self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/object_img_center", False)
 
 		self.listener = tf.TransformListener()
 		rospy.sleep(1)		# Wait for topics to arrive
@@ -172,6 +174,15 @@ class dataCapture():
 			except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 				rospy.logerr(e)
 		return cuboidPoses
+
+	def calculate_projection(self, cuboidPoses):
+		cuboidProj = PoseArray()
+		for i in range(len(cuboidPoses.poses)):
+			p = Pose()
+			p.position.x = self.cx + 1/cuboidPoses.poses[i].position.z * (self.fx * cuboidPoses.poses[i].position.x)
+			p.position.y = self.cy + 1/cuboidPoses.poses[i].position.z * (self.fy * cuboidPoses.poses[i].position.y)
+			cuboidProj.poses.append(p)
+		return cuboidProj
 
 	# Make random moves with last axis
 	def move_random(self):
@@ -273,14 +284,115 @@ class dataCapture():
 
 		print "Stored " + str(namePreFix)
 
-	def calculate_projection(self, cuboidPoses):
-		cuboidProj = PoseArray()
-		for i in range(len(cuboidPoses.poses)):
-			p = Pose()
-			p.position.x = self.cx + 1/cuboidPoses.poses[i].position.z * (self.fx * cuboidPoses.poses[i].position.x)
-			p.position.y = self.cy + 1/cuboidPoses.poses[i].position.z * (self.fy * cuboidPoses.poses[i].position.y)
-			cuboidProj.poses.append(p)
-		return cuboidProj
+	def write_json(self, baseToCam, objName, camToObj):
+		baseToCam = Pose()
+		baseToCam.position.x = 0
+		baseToCam.position.y = 1
+		baseToCam.position.z = 0.5
+		baseToCam.orientation.x = 0.707
+		baseToCam.orientation.y = -0.707
+		baseToCam.orientation.z = 0
+		baseToCam.orientation.w = 1
+		camToObj = baseToCam
+		objName = "carrier"
+
+		#with open(str(self.path) + '000000.json') as json_file:  
+		#	data = json.load(json_file)
+		#cd = data["camera_data"]
+		#print cd["location_worldframe"]
+
+		'''"objects": [
+		{
+			"class": "productobj",
+			"instance_id": 14913080,
+			"visibility": 0,
+			"location": [ 20, -3, 50 ],
+			"quaternion_xyzw": [ 0, 0.70709997415542603, -0.70709997415542603, 0 ],
+			"pose_transform": [
+				[ 0, -1, 0, 0 ],
+				[ -1, 0, 0, 0 ],
+				[ 0, 0, 1, 0 ],
+				[ 20, -3, 50, 1 ]
+			],
+			"cuboid_centroid": [ 20, -5.9998998641967773, 45.500099182128906 ],
+			"projected_cuboid_centroid": [ 1046.275390625, 238.11830139160156 ],
+			"bounding_box":
+			{
+				"top_left": [ 22.022800445556641, 824.39642333984375 ],
+				"bottom_right": [ 417.7655029296875, 1226.842041015625 ]
+			},
+			"cuboid": [
+				[ 10.100099563598633, -14.849800109863281, 50 ],
+				[ 29.899900436401367, -14.849800109863281, 50 ],
+				[ 29.899900436401367, -14.849800109863281, 41.000099182128906 ],
+				[ 10.100099563598633, -14.849800109863281, 41.000099182128906 ],
+				[ 10.100099563598633, 2.8499000072479248, 50 ],
+				[ 29.899900436401367, 2.8499000072479248, 50 ],
+				[ 29.899900436401367, 2.8499000072479248, 41.000099182128906 ],
+				[ 10.100099563598633, 2.8499000072479248, 41.000099182128906 ]
+			],
+			"projected_cuboid": [
+				[ 826.70599365234375, 85.493202209472656 ],
+				[ 1192.7159423828125, 85.493301391601563 ],
+				[ 1314.0419921875, 25.236499786376953 ],
+				[ 867.6898193359375, 25.236499786376953 ],
+				[ 826.70599365234375, 412.681884765625 ],
+				[ 1192.7159423828125, 412.681884765625 ],
+				[ 1314.0419921875, 424.24609375 ],
+				[ 867.6898193359375, 424.24609375 ]
+			]
+		}'''
+
+		# Camera Data
+		location_worldframe = [baseToCam.position.x*100, baseToCam.position.y*100, baseToCam.position.z*100]
+		quaternion_xyzw_worldframe = [baseToCam.orientation.x, baseToCam.orientation.y, baseToCam.orientation.z, baseToCam.orientation.w]
+		camera_data = {'location_worldframe': location_worldframe, 'quaternion_xyzw_worldframe': quaternion_xyzw_worldframe}
+
+		# Get Cuboids
+		cuboidPoses = self.get_cuboid_transforms()
+		cuboidProj = self.calculate_projection(cuboidPoses)
+
+		# Object Data
+		location = [camToObj.position.x*100, camToObj.position.y*100, camToObj.position.z*100]
+		quaternion_xyzw = [camToObj.orientation.x, camToObj.orientation.y, camToObj.orientation.z, camToObj.orientation.w]	#TODO
+		pose_transform = 3 		#TODO
+		cuboid_centroid = [cuboidPoses.poses[8].position.x, cuboidPoses.poses[8].position.y, cuboidPoses.poses[8].position.z]
+		projected_cuboid_centroid = [cuboidProj.poses[8].position.x, cuboidProj.poses[8].position.y]
+		bounding_box = {"top_left": "NaN", "bottom_right": "NaN"}
+		cuboid = []
+		for i in range(len(cuboidPoses.poses) - 1):
+			cuboid.append([cuboidPoses.poses[i].position.x*100, cuboidPoses.poses[i].position.y*100, cuboidPoses.poses[i].position.z*100])
+		projected_cuboid = 7
+		for i in range(len(cuboidProj.poses) - 1):
+			cuboid.append([cuboidProj.poses[i].position.x*100, cuboidProj.poses[i].position.y*100])
+		objects = {"class": objName, "instance_id": 0, "visibility": 1, "location": location, "quaternion_xyzw": quaternion_xyzw,
+					"pose_transform": pose_transform, "cuboid_centroid": cuboid_centroid, "projected_cuboid_centroid": projected_cuboid_centroid,
+					"cuboid": cuboid, "projected_cuboid": projected_cuboid}
+
+		data = {'camera_data': camera_data, 'objects': objects}
+		#json.dump(data, open(str(self.path) + "test.json", 'w'))
+
+		#print camera_data
+
+
+		#json.dump(data, open(str(self.path) + "test.json", 'w'))
+		#return
+
+		#data = []
+
+		#data.append({'camera_data':[{'location_worldframe': [baseToCam.position.x*100, baseToCam.position.y*100, baseToCam.position.z*100],
+		#						'quaternion_xyzw_worldframe': [baseToCam.orientation.x, baseToCam.orientation.y, baseToCam.orientation.z, baseToCam.orientation.w]}]})
+		#data.append({'objects':[{'class': "test",
+		#						'location_worldframe': [baseToCam.position.x*100, baseToCam.position.y*100, baseToCam.position.z*100],
+		#						'quaternion_xyzw_worldframe': [baseToCam.orientation.x, baseToCam.orientation.y, baseToCam.orientation.z, baseToCam.orientation.w]}]})
+		dump = json.dumps(data, sort_keys=True, indent=4)
+		#Replaces spaces with tab
+		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
+		print >> open(str(self.path) + "test.json", 'w'), new_data
+		#json.dump(new_data, open(str(self.path) + "test.json", 'w'))
+
+		#with open(str(self.path) + "test.json", 'w') as f:
+		#	f.write(json.dumps(data, indent="\t"))
 
 	def drive_to_pose(self, id):
 		self.ur5.execute_move(self.goals.poses[id])
@@ -355,7 +467,7 @@ def main(args):
 		path = rospy.get_param("path_to_store")#"/home/mluser/catkin_ws/src/data/"
 		path = path + str(args[1]) + "/"
 		if not os.path.exists(path):
-        		os.makedirs(path)
+				os.makedirs(path)
 		else:
 			rospy.logwarn("You are writing to an existing folder!")
 		dc = dataCapture(path)
@@ -365,6 +477,8 @@ def main(args):
 		print "Starting at pose no. " + str(startID)
 	#dc.drive_to_pose(1)
 
+	dc.write_json(dc.baseCamPose, "carrier", dc.camObjPose)
+	return
 	'''while True:
 		dc.actPoseID = 0
 		inp = raw_input("y to Store, e to Exit, n to continue: ")[0]
