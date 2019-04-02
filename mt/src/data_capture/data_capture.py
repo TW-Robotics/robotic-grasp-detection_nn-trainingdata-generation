@@ -62,12 +62,6 @@ class dataCapture():
 		# ## # # # # # # # # # # # # # # #
 		##################################
 
-		self.fx = 925.112183
-		self.fy = 925.379517
-		self.cx = 647.22644
-		self.cy = 357.068359
-		# TODO Read out of camera_info
-
 		# Camera Info
 		self.rgb_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.cameraInfoRGB_callback, queue_size=1) 
 		self.d_info_sub = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, self.cameraInfoD_callback, queue_size=1) 
@@ -95,6 +89,11 @@ class dataCapture():
 		f = open(str(self.path) + "rgb-camera-info.txt", "w")	# TODO change because path is not updated at correct moment!
 		f.write(str(data))
 		f.close()
+		self.fx = data.K[0]#925.112183
+		self.fy = data.K[4]#925.379517
+		self.cx = data.K[2]#647.22644
+		self.cy = data.K[5]#357.068359
+		print self.fx, self.fy, self.cx, self.cy
 		self.rgb_info_sub.unregister()
 
 	def cameraInfoD_callback(self, data):
@@ -285,7 +284,7 @@ class dataCapture():
 		print "Stored " + str(namePreFix)
 
 	def write_json(self, baseToCam, objName, camToObj):
-		baseToCam = Pose()
+		'''baseToCam = Pose()
 		baseToCam.position.x = 0
 		baseToCam.position.y = 1
 		baseToCam.position.z = 0.5
@@ -294,7 +293,7 @@ class dataCapture():
 		baseToCam.orientation.z = 0
 		baseToCam.orientation.w = 1
 		camToObj = baseToCam
-		objName = "carrier"
+		objName = "carrier"'''
 
 		#with open(str(self.path) + '000000.json') as json_file:  
 		#	data = json.load(json_file)
@@ -354,17 +353,19 @@ class dataCapture():
 
 		# Object Data
 		location = [camToObj.position.x*100, camToObj.position.y*100, camToObj.position.z*100]
+		
 		quaternion_xyzw = [camToObj.orientation.x, camToObj.orientation.y, camToObj.orientation.z, camToObj.orientation.w]	#TODO
 		pose_transform = 3 		#TODO
+		
 		cuboid_centroid = [cuboidPoses.poses[8].position.x, cuboidPoses.poses[8].position.y, cuboidPoses.poses[8].position.z]
 		projected_cuboid_centroid = [cuboidProj.poses[8].position.x, cuboidProj.poses[8].position.y]
 		bounding_box = {"top_left": "NaN", "bottom_right": "NaN"}
 		cuboid = []
 		for i in range(len(cuboidPoses.poses) - 1):
 			cuboid.append([cuboidPoses.poses[i].position.x*100, cuboidPoses.poses[i].position.y*100, cuboidPoses.poses[i].position.z*100])
-		projected_cuboid = 7
+		projected_cuboid = []
 		for i in range(len(cuboidProj.poses) - 1):
-			cuboid.append([cuboidProj.poses[i].position.x*100, cuboidProj.poses[i].position.y*100])
+			projected_cuboid.append([cuboidProj.poses[i].position.x*100, cuboidProj.poses[i].position.y*100])
 		objects = {"class": objName, "instance_id": 0, "visibility": 1, "location": location, "quaternion_xyzw": quaternion_xyzw,
 					"pose_transform": pose_transform, "cuboid_centroid": cuboid_centroid, "projected_cuboid_centroid": projected_cuboid_centroid,
 					"cuboid": cuboid, "projected_cuboid": projected_cuboid}
@@ -385,7 +386,7 @@ class dataCapture():
 		#data.append({'objects':[{'class': "test",
 		#						'location_worldframe': [baseToCam.position.x*100, baseToCam.position.y*100, baseToCam.position.z*100],
 		#						'quaternion_xyzw_worldframe': [baseToCam.orientation.x, baseToCam.orientation.y, baseToCam.orientation.z, baseToCam.orientation.w]}]})
-		dump = json.dumps(data, sort_keys=True, indent=4)
+		dump = json.dumps(data, sort_keys=False, indent=4)
 		#Replaces spaces with tab
 		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
 		print >> open(str(self.path) + "test.json", 'w'), new_data
@@ -477,6 +478,7 @@ def main(args):
 		print "Starting at pose no. " + str(startID)
 	#dc.drive_to_pose(1)
 
+	dc.get_transformations()
 	dc.write_json(dc.baseCamPose, "carrier", dc.camObjPose)
 	return
 	'''while True:
