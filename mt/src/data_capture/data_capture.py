@@ -13,6 +13,7 @@ import re
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import PointCloud2
@@ -21,9 +22,9 @@ import cv2
 from ur5_control import ur5_control
 
 debug = False
-if rospy.get_param("print_debug") == True:
-	print "Debug-Mode ON"
-	debug = True		# Print Debug-Messages
+#if rospy.get_param("print_debug") == True:
+#	print "Debug-Mode ON"
+#	debug = True		# Print Debug-Messages
 storePC = False		# Store Point-Cloud-Message
 
 class dataCapture():
@@ -506,9 +507,44 @@ def print_debug(dStr):
 	if debug == True:
 		print dStr
 
+def dope_callback(data):
+	data = data.pose
+	angles = tf.transformations.euler_from_quaternion([data.orientation.x, data.orientation.y, data.orientation.z, data.orientation.w])#, "rxyz")
+	print data.position.x, data.position.y, data.position.z
+	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
+
 def main(args):
 	# Init node
 	rospy.init_node('data_capture', anonymous=True, disable_signals=True)
+
+	x = -0.75
+	y = -0.433	
+	z = 0.171
+	w = -0.4698
+
+	x = -0.5389999
+	y = 0.1962
+	z = 0.-0.1422
+	w = 0.806699
+
+	rospy.Subscriber("/dope/pose_cracker", PoseStamped, dope_callback, queue_size=1) 
+
+	while True:
+		rospy.sleep(1)
+
+	'''angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rxyz")
+	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
+	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rxzy")
+	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi'''
+	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "ryxz")
+	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
+	'''angles = tf.transformations.euler_from_quaternion([x, y, z, w], "ryzx")
+	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
+	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rzxy")
+	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
+	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rzyx")
+	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi'''
+	return
 
 	if len(args) < 2:
 		print "Please specify folder to store files!"
