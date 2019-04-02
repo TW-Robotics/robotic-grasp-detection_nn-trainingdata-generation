@@ -31,6 +31,7 @@ class dataCapture():
 		# Init variables
 		self.goals = PoseArray()
 		self.baseObjPose = Pose()
+		self.objCamPose = Pose()
 		self.camObjPose = Pose()
 		self.baseToolPose = Pose()
 		self.baseCamPose = Pose()
@@ -93,7 +94,7 @@ class dataCapture():
 		self.fy = data.K[4]#925.379517
 		self.cx = data.K[2]#647.22644
 		self.cy = data.K[5]#357.068359
-		print self.fx, self.fy, self.cx, self.cy
+		#print self.fx, self.fy, self.cx, self.cy
 		self.rgb_info_sub.unregister()
 
 	def cameraInfoD_callback(self, data):
@@ -135,11 +136,29 @@ class dataCapture():
 		pose.orientation.w = rot[3]
 		return pose
 
+	def poseToList(self, pose):
+		l = []
+		l.append(pose.position.x)
+		l.append(pose.position.y)
+		l.append(pose.position.z)
+		l.append(pose.orientation.x)
+		l.append(pose.orientation.y)
+		l.append(pose.orientation.z)
+		l.append(pose.orientation.w)
+		return l
+
 	def get_transformations(self):
 		try:
 			# Get transformation and publish it rearranged to a list
 			(trans, rot) = self.listener.lookupTransform('/base_link', '/object', rospy.Time(0))	# from base to object
 			self.baseObjPose = self.listToPose(trans, rot)
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+			rospy.logerr(e)
+
+		try:
+			# Get transformation and publish it rearranged to a list
+			(trans, rot) = self.listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))	# from object to camera
+			self.objCamPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
@@ -257,10 +276,24 @@ class dataCapture():
 		print_debug("RGB and Depth-Data Stored " + str(namePreFix))
 
 		self.get_transformations()
+
+		data = {"camToObj_xyz_xyzw": self.poseToList(self.camObjPose),
+				"objToCam_xyz_xyzw": self.poseToList(self.objCamPose),
+				"baseToObj_xyz_xyzw": self.poseToList(self.baseObjPose),
+				"baseTotool0_controller_xyz_xyzw": self.poseToList(self.baseToolPose),
+				"baseToCam_xyz_xyzw": self.poseToList(self.baseCamPose),}
+		dump = json.dumps(data, sort_keys=False, indent=4)
+		#Replaces spaces with tab
+		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
+		print >> open(str(self.path) + str(namePreFix) + "_poses.json", 'w'), new_data
+
+
 		# Store Object-to-Base-Pose and Object-to-Cam-Pose
-		f = open(str(self.path) + str(namePreFix) + "_poses.txt", "w")
+		'''f = open(str(self.path) + str(namePreFix) + "_poses.txt", "w")
 		f.write("camera_color_optical_frame to object:\n")
 		f.write(str(self.camObjPose))
+		f.write("object to camera_color_optical_frame:\n")
+		f.write(str(self.objCamPose))
 		f.write("\n\nbase_link to object:\n")
 		f.write(str(self.baseObjPose))
 		f.write("\n\nbase_link to tool0_controller:\n")
@@ -268,9 +301,9 @@ class dataCapture():
 		f.write("\n\nbase_link to camera_color_optical_frame:\n")
 		f.write(str(self.baseCamPose))
 		f.close()
-		print_debug("Poses Stored " + str(namePreFix))
+		print_debug("Poses Stored " + str(namePreFix))'''
 
-		cuboidPoses = self.get_cuboid_transforms()
+		'''cuboidPoses = self.get_cuboid_transforms()
 		#print cuboidPoses
 		cuboidPosesProj = self.calculate_projection(cuboidPoses)
 		f = open(str(self.path) + str(namePreFix) + "_cuboidPoints.txt", "w")
@@ -279,7 +312,7 @@ class dataCapture():
 		f.write("\n\nCuboidPosesProjected:\n")
 		f.write(str(cuboidPosesProj))
 		f.close()
-		print_debug("Poses Stored " + str(namePreFix))
+		print_debug("Poses Stored " + str(namePreFix))'''
 
 		print "Stored " + str(namePreFix)
 
@@ -480,6 +513,7 @@ def main(args):
 
 	dc.get_transformations()
 	dc.write_json(dc.baseCamPose, "carrier", dc.camObjPose)
+	dc.store_state()
 	return
 	'''while True:
 		dc.actPoseID = 0
