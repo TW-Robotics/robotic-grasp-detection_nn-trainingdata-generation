@@ -95,6 +95,22 @@ class dataCapture():
 		self.cx = data.K[2]#647.22644
 		self.cy = data.K[5]#357.068359
 		#print self.fx, self.fy, self.cx, self.cy
+
+		captured_image_size = {"width": data.width, "height": data.height}
+		intrinsic_settings = {"resX": data.width, "resY": data.height, "fx": self.fx, "fy": self.fy, "cx": self.cx, "cy": self.cy, "s": 0}
+		camera_settings = {"name": "Viewpoint", "horizontal_fov": 69.400001525878906, "intrinsic_settings": intrinsic_settings, "captured_image_size": captured_image_size}
+		data = {"camera_settings": camera_settings}
+		dump = json.dumps(data, sort_keys=False, indent=4)
+		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
+		print >> open(str(self.path) + "_camera_settings.json", 'w'), new_data
+
+		fixed_model_transform = [] #TODO
+		exported_objects = {"class": "carrier", "segmentation_class_id": 0, "segmentation_instance_id": 0, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": ["NaN", "NaN", "NaN"]}
+		data = {"exported_object_classes": ["carrier"], "exported_objects": [exported_objects]}
+		dump = json.dumps(data, sort_keys=False, indent=4)
+		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
+		print >> open(str(self.path) + "_object_settings.json", 'w'), new_data
+
 		self.rgb_info_sub.unregister()
 
 	def cameraInfoD_callback(self, data):
