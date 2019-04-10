@@ -22,9 +22,9 @@ import cv2
 from ur5_control import ur5_control
 
 debug = False
-if rospy.get_param("print_debug") == True:
-	print "Debug-Mode ON"
-	debug = True		# Print Debug-Messages
+#if rospy.get_param("print_debug") == True:
+#	print "Debug-Mode ON"
+#	debug = True		# Print Debug-Messages
 storePC = False		# Store Point-Cloud-Message
 
 class dataCapture():
@@ -37,10 +37,19 @@ class dataCapture():
 		self.actStorage = -1
 		self.rgb_img = None
 		self.d_img = None
+		self.rgb_img_resized = None
 		self.camera_settings_rgb = None
 		self.camera_settings_depth = None
 		self.intrinsics = [0., 0., 0., 0.]
+		self.intrinsics_resized = None
 		self.objectName = "carrier"
+		self.camPoses = []
+
+		self.imgOutputSize = 400
+
+		self.img_scaleFac = 720./self.imgOutputSize
+		self.resized_imgWidth = int(round(1280./self.img_scaleFac, 0))
+		self.resized_img_horizontalStart = int(round(self.resized_imgWidth/2., 0)) - self.imgOutputSize/2
 
 		# Instantiate CvBridge
 		self.bridge = CvBridge()
@@ -93,10 +102,10 @@ class dataCapture():
 	###########################################################
 
 	# Store camera-parameters in dict
-	def get_camera_dict(self, w, h, fx, fy, cx, cy, name, fov):
+	def get_camera_dict(self, w, h, intrinsics, name, fov):
 		captured_image_size = {"width": w, "height": h}
-		intrinsic_settings = {"resX": w, "resY": h, "fx": fx, "fy": fy, "cx": cx, "cy": cy, "s": 0}
-		self.camera_settings_rgb = {"name": name, "horizontal_fov": fov, "intrinsic_settings": intrinsic_settings, "captured_image_size": captured_image_size}
+		intrinsic_settings = {"resX": w, "resY": h, "fx": intrinsics[0], "fy": intrinsics[1], "cx": intrinsics[2], "cy": intrinsics[3], "s": 0}
+		self.camera_settings_rgb = {"name": name, "horizontal_fov": fov, "intrinsic_settings": intrinsic_settings, "captured_image_size": captured_image_size}	# TODO Calculate FOV
 		return cam_settings
 
 	def get_data_dict(self):
@@ -141,14 +150,14 @@ class dataCapture():
 		pose_transform = self.get_permuted_matrix_from_pose(camToObj)
 		
 		cuboid_centroid = [cuboidPoses.poses[8].position.x, cuboidPoses.poses[8].position.y, cuboidPoses.poses[8].position.z]
-		projected_cuboid_centroid = [cuboidProj.poses[8].position.x, cuboidProj.poses[8].position.y]
+		projected_cuboid_centroid = [cuboidProj[8][0], cuboidProj[8][1]]
 		bounding_box = {"top_left": "NaN", "bottom_right": "NaN"}
 		cuboid = []
 		for i in range(len(cuboidPoses.poses) - 1):
 			cuboid.append([cuboidPoses.poses[i].position.x*100, cuboidPoses.poses[i].position.y*100, cuboidPoses.poses[i].position.z*100])
 		projected_cuboid = []
-		for i in range(len(cuboidProj.poses) - 1):
-			projected_cuboid.append([cuboidProj.poses[i].position.x*100, cuboidProj.poses[i].position.y*100])
+		for i in range(len(cuboidProj) - 1):
+			projected_cuboid.append([cuboidProj[i][0]*100, cuboidProj[i][1]*100])
 		objects = {"class": self.objectName, "instance_id": 0, "visibility": 1, "location": location, "quaternion_xyzw": quaternion_xyzw,
 					"pose_transform": pose_transform, "cuboid_centroid": cuboid_centroid, "projected_cuboid_centroid": projected_cuboid_centroid,
 					"cuboid": cuboid, "projected_cuboid": projected_cuboid}
@@ -206,7 +215,6 @@ class dataCapture():
 	###########################################################
 	# CALLBACKS ###############################################
 	###########################################################
-
 	def cameraInfoRGB_callback(self, data):
 		fx = data.K[0]#925.112183
 		fy = data.K[4]#925.379517
@@ -215,8 +223,12 @@ class dataCapture():
 		self.intrinsics = [fx, fy, cx, cy]
 		#print self.fx, self.fy, self.cx, self.cy
 
+		# Calculate intrinsic parameters for resized image
+		self.set_resized_intrinsics()
+
 		# Store camera-parameters in dict
-		self.camera_settings_rgb = self.get_camera_dict(data.width, data.height, fx, fy, cx, cy, "RealsenseD435_RGB", 69.400001525878906)
+		self.camera_settings_rgb = self.get_camera_dict(self.imgOutputSize, self.imgOutputSize, self.intrinsics_resized, "RealsenseD435_RGB_resized", 69.400001525878906) #TODO check FOV
+		#self.camera_settings_rgb = self.get_camera_dict(data.width, data.height, self.intrinsics, "RealsenseD435_RGB", 69.400001525878906) #TODO check FOV
 
 		# Unregister from Camera-Info
 		self.rgb_info_sub.unregister()
@@ -228,7 +240,7 @@ class dataCapture():
 		cy = data.K[5]
 
 		# Store camera-parameters in dict
-		self.camera_settings_depth = self.get_camera_dict(data.width, data.height, fx, fy, cx, cy, "RealsenseD435_Depth", 69.400001525878906)	#TODO check FOV
+		self.camera_settings_depth = self.get_camera_dict(data.width, data.height, [fx, fy, cx, cy], "RealsenseD435_Depth", 69.400001525878906)	#TODO check FOV
 
 		# Unregister from Camera-Info
 		self.d_info_sub.unregister()
@@ -237,6 +249,7 @@ class dataCapture():
 		try:
 			cv_rgb_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
 			self.rgb_img = cv_rgb_image.copy()
+			self.rgb_resize()
 		except CvBridgeError as e:
 			print(e)
 
@@ -250,6 +263,33 @@ class dataCapture():
 	# Capture-Poses
 	def pose_callback(self, data):
 		self.goals = data
+
+	###########################################################
+	# HELPERS ###############################################
+	###########################################################
+
+	def rgb_resize(self):
+		# Copy image
+		rgb_img_resized = self.rgb_img.copy()
+		# Change scale so 720px become 400px
+		rgb_img_resized = cv2.resize(rgb_img_resized, (self.resized_imgWidth, self.imgOutputSize), interpolation=cv2.INTER_AREA)
+		# Cut off pixels at left and right to make image squared
+		self.rgb_img_resized = rgb_img_resized[0:self.imgOutputSize, self.resized_img_horizontalStart:self.resized_img_horizontalStart+self.imgOutputSize]
+		#print len(img), len(img[0])
+
+	def set_resized_intrinsics(self):
+		# Scale the paramters because of 720 to 400px shrinking
+		intrinsics_resized = [i/img_scaleFac for i in self.intrinsics]
+		# move cx to locate it at center again
+		intrinsics_resized[2] = intrinsics_resized[2] - self.resized_img_horizontalStart
+		self.intrinsics_resized = intrinsics_resized
+
+	def check_obj_in_img(self):
+		positions = self.calculate_projection(get_cuboid_transforms(), self.intrinsics_resized)
+		for i in range(len(positions-1)):	# -1 because center can not be out of image
+			if positions[i][0] > self.imgOutputSize or position[i][0] < 0 or positions[i][1] > self.imgOutputSize or position[i][1] < 0:
+				return False
+		return True
 
 	###########################################################
 	# TRANSFORMATIONS #########################################
@@ -327,12 +367,12 @@ class dataCapture():
 		return cuboidPoses
 
 	def calculate_projection(self, cuboidPoses, intrinsics):
-		cuboidProj = PoseArray()
+		cuboidProj = []
 		for i in range(len(cuboidPoses.poses)):
-			p = Pose()
-			p.position.x = intrinsics[2] + 1/cuboidPoses.poses[i].position.z * (intrinsics[0] * cuboidPoses.poses[i].position.x)
-			p.position.y = intrinsics[3]+ 1/cuboidPoses.poses[i].position.z * (intrinsics[1] * cuboidPoses.poses[i].position.y)
-			cuboidProj.poses.append(p)
+			p = [0, 0]
+			p[0] = intrinsics[2] + 1/cuboidPoses.poses[i].position.z * (intrinsics[0] * cuboidPoses.poses[i].position.x)
+			p[1] = intrinsics[3]+ 1/cuboidPoses.poses[i].position.z * (intrinsics[1] * cuboidPoses.poses[i].position.y)
+			cuboidProj.append(p)
 		return cuboidProj
 
 	###########################################################
@@ -341,6 +381,20 @@ class dataCapture():
 
 	def drive_to_pose(self, id):
 		self.ur5.execute_move(self.goals.poses[id])
+
+	def move_check_store(self, joint, rot):
+		counter = 0
+		while True:
+			self.ur5.move_joint(joint, rot)
+			if self.check_obj_in_img() == True:
+				if counter > 3:
+					print("Can't correct cropped object!")
+					return
+				break
+			rot = rot - rot / 2
+			print_debug("Object cropped - correcting...")
+			counter = counter + 1
+		self.store_state()
 
 	# Make random moves with last axis
 	def move_random(self):
@@ -351,19 +405,14 @@ class dataCapture():
 		rotateTiltR = random.uniform(-self.rotateTiltRMin, -self.rotateTiltRMax)
 
 		# Execute offsets
-		self.store_state()
 		print_debug("RotUp" + str(rotateUp))
-		self.ur5.move_joint(4, rotateUp)
-		self.store_state()
+		self.move_check_store(4, rotateUp)
 		print_debug("RotD" + str(rotateDown))
-		self.ur5.move_joint(4, rotateDown - rotateUp)
-		self.store_state()
+		self.move_check_store(4, rotateDown - rotateUp)
 		print_debug("TiltL" + str(rotateTiltL))
-		self.ur5.move_joint(3, rotateTiltL)
-		self.store_state()
+		self.move_check_store(3, rotateTiltL)
 		print_debug("TiltR" + str(rotateTiltR))
-		self.ur5.move_joint(3, rotateTiltR - rotateTiltL)
-		self.store_state()
+		self.move_check_store(3, rotateTiltR - rotateTiltL)
 
 	###########################################################
 	# STORE DATA ##############################################
@@ -423,6 +472,9 @@ class dataCapture():
 		data = self.get_data_dict(self.objectName)
 		self.write_json(data, str(namePreFix) + "_000000.json")	# TODO NAME!
 
+		data = self.camPoses.append(self.get_transform_baseCam())
+		self.write_json(data, _camera_poses.json)
+
 		''' # DEBUG
 		baseObjPose, baseCamPose, camObjPose, objCamPose, baseToolPose = self.get_transformations()
 		data = {"camToObj_xyz_xyzw": self.poseToList(camObjPose),
@@ -466,18 +518,19 @@ class dataCapture():
 		for i in range(startID, len(self.goals.poses)):
 			self.actPoseID = i		
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
+			self.move_check_store(0, 0)
 			self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
 			rotateRand = random.uniform(self.rotateRMin, self.rotateRMax)
 			print_debug("Rotating1 " + str(rotateRand))
-			self.ur5.move_joint(5, rotateRand)				# Rotate the EEF
+			self.move_check_store(5, rotateRand)			# Rotate the EEF
 			self.move_random()								# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
 			rotateRand = random.uniform(-self.rotateRMin, -self.rotateRMax)
 			print_debug("Rotating2 " + str(rotateRand))
-			self.ur5.move_joint(5, rotateRand)				# Rotate the EEF
+			self.move_check_store(5, rotateRand)			# Rotate the EEF
 			self.move_random()								# Make random moves
 
 # Print debug messages
