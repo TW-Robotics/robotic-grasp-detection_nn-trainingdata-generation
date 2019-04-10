@@ -28,27 +28,30 @@ debug = False
 storePC = False		# Store Point-Cloud-Message
 
 class dataCapture():
-	def __init__(self, path):
+	def __init__(self, path, pathFullRes):
 		# Init variables
 		self.goals = PoseArray()
 		self.pc = PointCloud2()
 		self.actPoseID = 0
+		self.actStoreID = 0
 		self.lastPoseID = 0
 		self.actStorage = -1
 		self.rgb_img = None
 		self.d_img = None
 		self.rgb_img_resized = None
 		self.camera_settings_rgb = None
+		self.camera_settings_rgb_resized = None
 		self.camera_settings_depth = None
 		self.intrinsics = [0., 0., 0., 0.]
 		self.intrinsics_resized = None
-		self.objectName = "carrier"
 		self.camPoses = []
+		self.objectName = rospy.get_param("object_name")
+		self.imgOutputSize = rospy.get_param("outputImage_size")
+		self.imgWidth = rospy.get_param("camera_width")
+		self.imgHeight = rospy.get_param("camera_height")
 
-		self.imgOutputSize = 400
-
-		self.img_scaleFac = 720./self.imgOutputSize
-		self.resized_imgWidth = int(round(1280./self.img_scaleFac, 0))
+		self.img_scaleFac = float(imgWidth)/self.imgOutputSize
+		self.resized_imgWidth = int(round(float(imgHeight)/self.img_scaleFac, 0))
 		self.resized_img_horizontalStart = int(round(self.resized_imgWidth/2., 0)) - self.imgOutputSize/2
 
 		# Instantiate CvBridge
@@ -58,8 +61,8 @@ class dataCapture():
 		# Give parameters in deg, meters #
 		##################################
 		# Path to store images and stuff
-		#self.path = "/home/johannes/catkin_ws/src/data/"
 		self.path = path
+		self.pathFullRes = pathFullRes
 
 		# Parameters for randomization
 		self.rotateTiltRMin = rospy.get_param("PoseRandomization/rotate4Min")#-10 	# Joint 4: How far to rotate
@@ -105,10 +108,10 @@ class dataCapture():
 	def get_camera_dict(self, w, h, intrinsics, name, fov):
 		captured_image_size = {"width": w, "height": h}
 		intrinsic_settings = {"resX": w, "resY": h, "fx": intrinsics[0], "fy": intrinsics[1], "cx": intrinsics[2], "cy": intrinsics[3], "s": 0}
-		self.camera_settings_rgb = {"name": name, "horizontal_fov": fov, "intrinsic_settings": intrinsic_settings, "captured_image_size": captured_image_size}	# TODO Calculate FOV
+		cam_settings = {"name": name, "horizontal_fov": fov, "intrinsic_settings": intrinsic_settings, "captured_image_size": captured_image_size}	# TODO Calculate FOV
 		return cam_settings
 
-	def get_data_dict(self):
+	def get_data_dict(self, intrinsics):
 		''' # DEBUG
 		baseToCam = Pose()
 		baseToCam.position.x = 0
@@ -142,7 +145,7 @@ class dataCapture():
 
 		# Get Cuboids
 		cuboidPoses = self.get_cuboid_transforms()
-		cuboidProj = self.calculate_projection(cuboidPoses, self.intrinsics)
+		cuboidProj = self.calculate_projection(cuboidPoses, intrinsics)
 
 		# Object Data
 		location = [camToObj.position.x*100, camToObj.position.y*100, camToObj.position.z*100]
@@ -163,7 +166,7 @@ class dataCapture():
 					"cuboid": cuboid, "projected_cuboid": projected_cuboid}
 
 		data = {'camera_data': camera_data, 'objects': objects}
-		return data
+		return data, cuboidProj
 
 	# Get permuted transformation matrix for fat-dataset-format
 	def get_permuted_matrix_from_pose(self, pose):
@@ -185,12 +188,14 @@ class dataCapture():
 	# Collect all info for camera-setting-file and write it
 	def write_cam_settings(self):
 		while True:
-			if (self.camera_settings_rgb is not None and self.camera_settings_depth is not None):
+			if (self.camera_settings_rgb is not None and self.camera_settings_depth is not None and self.camera_settings_rgb_resized is not None):
 				break
 			print ("Waiting for camera-settings to arrive...")
 			rosply.sleep(0.5)
 		data = {"camera_settings": [self.camera_settings_rgb, self.camera_settings_depth]}
-		self.write_json(data, "_camera_settings.json")
+		self.write_json(data, self.pathFullRes, "_camera_settings.json")
+		data = {"camera_settings": [self.camera_settings_rgb_resized]}
+		self.write_json(data, self.path, "_camera_settings.json")
 
 	# Collect all info for object-setting-file and write it
 	def write_scene_settings(self):
@@ -204,13 +209,14 @@ class dataCapture():
 		fixed_model_transform = self.get_permuted_matrix_from_pose(baseObjPose)
 		exported_objects = {"class": self.objectName, "segmentation_class_id": 255, "segmentation_instance_id": 255, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": [19.8, 90.0, 177.0]}
 		data = {"exported_object_classes": [self.objectName], "exported_objects": [exported_objects]}
-		self.write_json(data, "_object_settings.json")
+		self.write_json(data, self.path, "_object_settings.json")
+		self.write_json(data, self.pathFullRes, "_object_settings.json")
 
 	# Write data to json-file (formatted)
-	def write_json(self, data, filename):
+	def write_json(self, data, path, filename):
 		dump = json.dumps(data, sort_keys=False, indent=4)
 		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
-		print >> open(str(self.path) + str(filename), 'w'), new_data
+		print >> open(str(path) + str(filename), 'w'), new_data
 
 	###########################################################
 	# CALLBACKS ###############################################
@@ -227,8 +233,8 @@ class dataCapture():
 		self.set_resized_intrinsics()
 
 		# Store camera-parameters in dict
-		self.camera_settings_rgb = self.get_camera_dict(self.imgOutputSize, self.imgOutputSize, self.intrinsics_resized, "RealsenseD435_RGB_resized", 69.400001525878906) #TODO check FOV
-		#self.camera_settings_rgb = self.get_camera_dict(data.width, data.height, self.intrinsics, "RealsenseD435_RGB", 69.400001525878906) #TODO check FOV
+		self.camera_settings_rgb = self.get_camera_dict(data.width, data.height, self.intrinsics, "RealsenseD435_RGB", 69.400001525878906) #TODO check FOV
+		self.camera_settings_rgb_resized = self.get_camera_dict(self.imgOutputSize, self.imgOutputSize, self.intrinsics_resized, "RealsenseD435_RGB_resized", 69.400001525878906) #TODO check FOV
 
 		# Unregister from Camera-Info
 		self.rgb_info_sub.unregister()
@@ -265,7 +271,7 @@ class dataCapture():
 		self.goals = data
 
 	###########################################################
-	# HELPERS ###############################################
+	# HELPERS #################################################
 	###########################################################
 
 	def rgb_resize(self):
@@ -320,7 +326,9 @@ class dataCapture():
 
 	def get_transform_baseObj(self):
 		try:
-			(trans, rot) = self.listener.lookupTransform('/base_link', '/object', rospy.Time(0))					# from base to object
+			now = rospy.Time.now()
+			self.listener.waitForTransform('/base_link', '/object', now, rospy.Duration(4.0))
+			(trans, rot) = self.listener.lookupTransform('/base_link', '/object', now)					# from base to object
 			return self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -328,7 +336,9 @@ class dataCapture():
 
 	def get_transform_baseCam(self):
 		try:
-			(trans, rot) = self.listener.lookupTransform('/base_link', '/camera_color_optical_frame', rospy.Time(0))# transform from base to camera
+			now = rospy.Time.now()
+			self.listener.waitForTransform('/base_link', '/camera_color_optical_frame', now, rospy.Duration(4.0))
+			(trans, rot) = self.listener.lookupTransform('/base_link', '/camera_color_optical_frame', now)	# transform from base to camera
 			return self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)		
@@ -336,7 +346,9 @@ class dataCapture():
 
 	def get_transform_camObj(self):
 		try:
-			(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/object', rospy.Time(0))	# transform from camera to object
+			now = rospy.Time.now()
+			self.listener.waitForTransform('/camera_color_optical_frame', '/object', now, rospy.Duration(4.0))
+			(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/object', now)		# transform from camera to object
 			return self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -347,9 +359,12 @@ class dataCapture():
 		baseCamPose = self.get_transform_baseCam()
 		camObjPose = self.get_transform_camObj()
 		try:
-			(trans, rot) = self.listener.lookupTransform('/object', '/camera_color_optical_frame', rospy.Time(0))	# from object to camera
+			now = rospy.Time.now()
+			self.listener.waitForTransform('/object', '/camera_color_optical_frame', now, rospy.Duration(4.0))
+			self.listener.waitForTransform('/base_link', '/tool0_controller', now, rospy.Duration(4.0))
+			(trans, rot) = self.listener.lookupTransform('/object', '/camera_color_optical_frame', now)		# from object to camera
 			objCamPose = self.listToPose(trans, rot)
-			(trans, rot) = self.listener.lookupTransform('/base_link', '/tool0_controller', rospy.Time(0))			# transform from base to tool0_controller
+			(trans, rot) = self.listener.lookupTransform('/base_link', '/tool0_controller', now)			# transform from base to tool0_controller
 			baseToolPose = self.listToPose(trans, rot)
 			return baseObjPose, baseCamPose, camObjPose, objCamPose, baseToolPose
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
@@ -358,9 +373,11 @@ class dataCapture():
 
 	def get_cuboid_transforms(self):
 		cuboidPoses = PoseArray()
+		now = rospy.Time.now()
 		for i in range(9):
 			try:
-				(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/c_'+str(i), rospy.Time(0))
+				self.listener.waitForTransform('/camera_color_optical_frame', '/c_'+str(i), now, rospy.Duration(4.0))	
+				(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/c_'+str(i), now)
 				cuboidPoses.poses.append(self.listToPose(trans, rot))
 			except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 				rospy.logerr(e)
@@ -427,53 +444,55 @@ class dataCapture():
 			self.lastPoseID = self.actPoseID
 			self.actStorage = 0
 		namePreFix = str(self.actPoseID) + "_" + str(self.actStorage)
+		fileName = '{0:06d}'.format(self.actStoreID)
+		self.actStoreID = self.actStoreID + 1
 
 		# Make sure to refresh data -> Set None and wait until new images arrive
 		self.d_img = None
 		self.rgb_img = None
-		while self.d_img is None or self.rgb_img is None:
+		self.rgb_img_resized = None
+		while self.d_img is None or self.rgb_img is None or self.rgb_img_resized is None:
 			print "Waiting for images to arrive..."
 			rospy.sleep(0.05)
 
-		#output = np.hstack((cv2.cvtColor(self.d_img, cv2.COLOR_GRAY2BGR), self.rgb_img))
-		output = self.rgb_img
-		cv2.imshow("Images", output)
-		cv2.waitKey(1)
-
 		# Store Images
-		# Source: https://gist.github.com/rethink-imcmahon/77a1a4d5506258f3dc1f
 		d_img = self.d_img.copy()
 		rgb_img = self.rgb_img.copy()
+		rgb_img_resize = self.rgb_img_resize.copy()
 
 		# Save OpenCV2 images
-		cv2.imwrite(str(self.path) + str(namePreFix) + "_rgb.png", rgb_img)
-		cv2.imwrite(str(self.path) + str(namePreFix) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
-
-		#cv2.imshow("Images", cv2_img)
-		#cv2.waitKey(1)
+		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_rgb.png", rgb_img)
+		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
+		cv2.imwrite(str(self.path) + str(fileName) + ".png", rgb_img_resize)
 
 		# Store Depth-Image as CSV-File
-		with open(str(self.path) + str(namePreFix) + "_d.csv", "wb") as f:
+		with open(str(self.pathFullRes) + str(fileName) + "_d.csv", "wb") as f:
 			writer = csv.writer(f, delimiter=";")
 			for line in d_img:
 				writer.writerow(line)
 
 		# Store Depth-Image as Point-Cloud
 		if storePC == True:
-			f1 = open(str(self.path) + str(namePreFix) + "pc.ply", "w")
+			f1 = open(str(self.pathFullRes) + str(fileName) + "pc.ply", "w")
 			f1.write("ply\nformat ascii 1.0\nelement vertex 921600\nproperty float x\nproperty float y\nproperty float z\nend_header\n")
 			for row in range(len(d_img)):			#1280
 				for col in range(len(d_img[0])):	#720
 					f1.write(str(float(row) / 1000.) + " " + str(float(col) / 1000.) + " " + str(float(d_img[row][col]) / 1000.) + "\n")
 			f1.close()
 
-		print_debug("RGB and Depth-Data Stored " + str(namePreFix))
+		print_debug("RGB and Depth-Data Stored " + str(namePreFix) + " as " + str(fileName))
 
-		data = self.get_data_dict(self.objectName)
-		self.write_json(data, str(namePreFix) + "_000000.json")	# TODO NAME!
+		data = self.get_data_dict(self.objectName, self.intrinsics)
+		self.write_json(data, self.pathFullRes, str(fileName) + ".json")
+		data, cuboidPoses = self.get_data_dict(self.objectName, self.intrinsics_resized)
+		self.write_json(data, self.path, str(fileName) + ".json")
+
+		output = data_vis.draw_cuboids(rgb_img_resize, cuboidPoses)
+		cv2.imshow("Images", output)
+		cv2.waitKey(1)
 
 		data = self.camPoses.append(self.get_transform_baseCam())
-		self.write_json(data, _camera_poses.json)
+		self.write_json(data, self.pathFullRes, "_camera_poses.json")
 
 		''' # DEBUG
 		baseObjPose, baseCamPose, camObjPose, objCamPose, baseToolPose = self.get_transformations()
@@ -482,9 +501,9 @@ class dataCapture():
 				"baseToObj_xyz_xyzw": self.poseToList(baseObjPose),
 				"baseTotool0_controller_xyz_xyzw": self.poseToList(baseToolPose),
 				"baseToCam_xyz_xyzw": self.poseToList(baseCamPose),}
-		self.write_json(data, str(namePreFix) + "_poses.json")'''
+		self.write_json(data, str(fileName) + "_poses.json")'''
 
-		print "Stored " + str(namePreFix)
+		print "Stored " + str(namePreFix) + " as " + str(fileName)
 
 	# Drive to the goals and make random moves
 	def capture(self, startID):
@@ -549,11 +568,13 @@ def main(args):
 	else:
 		path = rospy.get_param("path_to_store")#"/home/mluser/catkin_ws/src/data/"
 		path = path + str(args[1]) + "/"
+		pathFullRes = path + str(args[1]) + "_full_res" + "/"
 		if not os.path.exists(path):
-				os.makedirs(path)
+			os.makedirs(path)
+			os.makedirs(pathFullRes)
 		else:
 			rospy.logwarn("You are writing to an existing folder!")
-		dc = dataCapture(path)
+		dc = dataCapture(path, pathFullRes)
 	startID = 0
 	if len(args) == 3:
 		startID = int(args[2])
