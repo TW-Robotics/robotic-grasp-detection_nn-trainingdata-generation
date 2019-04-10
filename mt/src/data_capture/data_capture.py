@@ -223,8 +223,8 @@ class dataCapture():
 		print cd["location_worldframe"]'''
 
 		# Get necessary transformations
-		baseToCam = self.get_transform_baseCam()
-		camToObj = self.get_transform_camObj()
+		baseToCam = self.get_transform('/base_link', '/camera_color_optical_frame')
+		camToObj = self.get_transform('/camera_color_optical_frame', '/object')
 
 		# Camera Data
 		location_worldframe = [baseToCam.position.x*100, baseToCam.position.y*100, baseToCam.position.z*100]
@@ -283,34 +283,12 @@ class dataCapture():
 		l.append(pose.orientation.w)
 		return l
 
-	# From base to object
-	def get_transform_baseObj(self):
+	# Get transformation from one frame to another
+	def get_transform(self, fromFrame, toFrame):
 		try:
 			now = rospy.Time.now()
-			self.listener.waitForTransform('/base_link', '/object', now, rospy.Duration(4.0))
-			(trans, rot) = self.listener.lookupTransform('/base_link', '/object', now)
-			return self.listToPose(trans, rot)
-		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-			rospy.logerr(e)
-			return None
-
-	# From base to camera
-	def get_transform_baseCam(self):
-		try:
-			now = rospy.Time.now()
-			self.listener.waitForTransform('/base_link', '/camera_color_optical_frame', now, rospy.Duration(4.0))
-			(trans, rot) = self.listener.lookupTransform('/base_link', '/camera_color_optical_frame', now)	
-			return self.listToPose(trans, rot)
-		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-			rospy.logerr(e)		
-			return None
-
-	# From camera to object
-	def get_transform_camObj(self):
-		try:
-			now = rospy.Time.now()
-			self.listener.waitForTransform('/camera_color_optical_frame', '/object', now, rospy.Duration(4.0))
-			(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/object', now)
+			self.listener.waitForTransform(fromFrame, toFrame, now, rospy.Duration(4.0))
+			(trans, rot) = self.listener.lookupTransform(fromFrame, toFrame, now)
 			return self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -318,33 +296,19 @@ class dataCapture():
 
 	# All transformations
 	def get_transformations(self):
-		baseObjPose = self.get_transform_baseObj()
-		baseCamPose = self.get_transform_baseCam()
-		camObjPose = self.get_transform_camObj()
-		try:
-			now = rospy.Time.now()
-			self.listener.waitForTransform('/object', '/camera_color_optical_frame', now, rospy.Duration(4.0))
-			self.listener.waitForTransform('/base_link', '/tool0_controller', now, rospy.Duration(4.0))
-			(trans, rot) = self.listener.lookupTransform('/object', '/camera_color_optical_frame', now)
-			objCamPose = self.listToPose(trans, rot)
-			(trans, rot) = self.listener.lookupTransform('/base_link', '/tool0_controller', now)
-			baseToolPose = self.listToPose(trans, rot)
-			return baseObjPose, baseCamPose, camObjPose, objCamPose, baseToolPose
-		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-			rospy.logerr(e)
-			return None
+		baseObjPose = self.get_transform('/base_link', '/object')
+		baseCamPose = self.get_transform('/base_link', '/camera_color_optical_frame')
+		camObjPose = self.get_transform('/camera_color_optical_frame', '/object')
+		objCamPose = self.get_transform('/object', '/camera_color_optical_frame')
+		baseToolPose = self.get_transform('/base_link', '/tool0_controller')
+		return baseObjPose, baseCamPose, camObjPose, objCamPose, baseToolPose
 
 	# From camera to cuboid-poses
 	def get_cuboid_transforms(self):
 		cuboidPoses = PoseArray()
 		now = rospy.Time.now()
 		for i in range(9):
-			try:
-				self.listener.waitForTransform('/camera_color_optical_frame', '/c_'+str(i), now, rospy.Duration(4.0))	
-				(trans, rot) = self.listener.lookupTransform('/camera_color_optical_frame', '/c_'+str(i), now)
-				cuboidPoses.poses.append(self.listToPose(trans, rot))
-			except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-				rospy.logerr(e)
+			cuboidPoses.poses.append(self.get_transform('/camera_color_optical_frame', '/c_'+str(i)))
 		return cuboidPoses
 
 	###########################################################
@@ -443,7 +407,7 @@ class dataCapture():
 
 	# Collect all info for object-setting-file and write it
 	def write_scene_settings(self):
-		baseObjPose = self.get_transform_baseObj()
+		baseObjPose = self.get_transform('/base_link', '/object')
 
 		# INFO:
 		# Segmentation-id = 255 since only 'Single'-images are produced (see FAT readme)
@@ -511,7 +475,7 @@ class dataCapture():
 		cv2.waitKey(1)
 
 		# Store all camera-poses
-		data = self.camPoses.append(self.get_transform_baseCam())
+		data = self.camPoses.append(self.get_transform('/base_link', '/camera_color_optical_frame'))
 		self.write_json(data, self.pathFullRes, "_camera_poses.json")
 
 		print "Stored " + str(poseInfo) + " as " + str(fileName)
