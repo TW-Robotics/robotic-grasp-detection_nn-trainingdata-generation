@@ -22,16 +22,16 @@ import cv2
 from ur5_control import ur5_control
 
 debug = False
-#if rospy.get_param("print_debug") == True:
-#	print "Debug-Mode ON"
-#	debug = True		# Print Debug-Messages
+if rospy.get_param("print_debug") == True:
+	print "Debug-Mode ON"
+	debug = True		# Print Debug-Messages
 storePC = False		# Store Point-Cloud-Message
 
 class dataCapture():
 	def __init__(self, path):
 		# Init variables
 		self.goals = PoseArray()
-		self.baseObjPose = Pose()
+		self.baseObjPose = None 	# To check if transformation already arrived
 		self.objCamPose = Pose()
 		self.camObjPose = Pose()
 		self.baseToolPose = Pose()
@@ -42,6 +42,8 @@ class dataCapture():
 		self.actStorage = -1
 		self.rgb_img = None
 		self.d_img = None
+		self.camera_settings_rgb = None
+		self.camera_settings_depth = None
 
 		# Instantiate CvBridge
 		self.bridge = CvBridge()
@@ -71,7 +73,6 @@ class dataCapture():
 		# Images
 		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)					# RGB-Image
 		rospy.Subscriber("/camera/aligned_depth_to_color/image_raw", Image, self.d_image_callback)	# Depth-Image
-		#rospy.Subscriber("/camera/depth/color/points", PointCloud2, self.pc_callback)				# Point Cloud	
 
 		# Poses
 		rospy.Subscriber("/capturePoses", PoseArray, self.pose_callback, queue_size=1)		# Poses to drive to
@@ -80,44 +81,80 @@ class dataCapture():
 
 		self.listener = tf.TransformListener()
 		rospy.sleep(1)		# Wait for topics to arrive
+		
+		# Write camera and object-scene settings if camera-infos arrived and base-to-object-transformation already arrived
+		while(True):
+			if (self.camera_settings_rgb is not None and self.camera_settings_depth is not None):
+				self.get_transformations()
+				if self.baseObjPose is not None:
+					self.write_cam_and_scene_settings()
+				break
+			rosply.sleep(1)
 
 		'''rate = rospy.Rate(10)
 		while not rospy.is_shutdown():
 			print "nothing"
 			rate.sleep()'''
 
-	# Images
+	# Write data to json-file (formatted)
+	def write_json(self, data, filename):
+		dump = json.dumps(data, sort_keys=False, indent=4)
+		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
+		print >> open(str(self.path) + str(filename), 'w'), new_data
+
+	# Collect all info for object- and camera-setting-files and write them
+	def write_cam_and_scene_settings(self):
+		data = {"camera_settings": [self.camera_settings_rgb, self.camera_settings_depth]}
+		self.write_json(data, "_camera_settings.json")
+
+		# INFO:
+		# Segmentation-id = 255 since only 'Single'-images are produced (see FAT readme)
+		# Cuboid-Dimensions in cm extracted from dataset-synthesizer json-file
+		quat = [self.baseObjPose.orientation.x, self.baseObjPose.orientation.y, self.baseObjPose.orientation.z, self.baseObjPose.orientation.w]
+		M_rot = tf.transformations.quaternion_matrix(quat)
+		M_res = np.delete(M_rot, 3, 1)	# Delete last column
+		M_res = np.delete(M_res, 3, 0)	# Delete last row
+		P_inv = np.linalg.inv([[0, 0, 1],[1, 0, 0],[0, -1, 0]])
+		M_out = np.matmul(M_res, P_inv).transpose()
+
+		transl = [self.baseObjPose.position.x*100, self.baseObjPose.position.y*100, self.baseObjPose.position.z*100, 1]
+		M_out = np.c_[M_out, np.zeros(3)]		# Add empty column as last column
+		fixed_model_transform = np.append(M_out, values=transl)	# Add translation as last row
+
+		exported_objects = {"class": "carrier", "segmentation_class_id": 255, "segmentation_instance_id": 255, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": [19.8, 90.0, 177.0]}
+		data = {"exported_object_classes": ["carrier"], "exported_objects": [exported_objects]}
+		self.write_json(data, "_object_settings.json")
+
+	# Store camera-parameters in dict
+	def get_camera_dict(self, w, h, fx, fy, cx, cy, name, fov):
+		captured_image_size = {"width": w, "height": h}
+		intrinsic_settings = {"resX": w, "resY": h, "fx": fx, "fy": fy, "cx": cx, "cy": cy, "s": 0}
+		self.camera_settings_rgb = {"name": name, "horizontal_fov": fov, "intrinsic_settings": intrinsic_settings, "captured_image_size": captured_image_size}
+		return cam_settings
+
 	def cameraInfoRGB_callback(self, data):
-		f = open(str(self.path) + "rgb-camera-info.txt", "w")	# TODO change because path is not updated at correct moment!
-		f.write(str(data))
-		f.close()
 		self.fx = data.K[0]#925.112183
 		self.fy = data.K[4]#925.379517
 		self.cx = data.K[2]#647.22644
 		self.cy = data.K[5]#357.068359
 		#print self.fx, self.fy, self.cx, self.cy
 
-		captured_image_size = {"width": data.width, "height": data.height}
-		intrinsic_settings = {"resX": data.width, "resY": data.height, "fx": self.fx, "fy": self.fy, "cx": self.cx, "cy": self.cy, "s": 0}
-		camera_settings = {"name": "Viewpoint", "horizontal_fov": 69.400001525878906, "intrinsic_settings": intrinsic_settings, "captured_image_size": captured_image_size}
-		data = {"camera_settings": camera_settings}
-		dump = json.dumps(data, sort_keys=False, indent=4)
-		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
-		print >> open(str(self.path) + "_camera_settings.json", 'w'), new_data
+		# Store camera-parameters in dict
+		self.camera_settings_rgb = self.get_camera_dict(data.width, data.height, self.fx, self.fy, self.cx, self.cy, "RealsenseD435_RGB", 69.400001525878906)
 
-		fixed_model_transform = [] #TODO
-		exported_objects = {"class": "carrier", "segmentation_class_id": 0, "segmentation_instance_id": 0, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": ["NaN", "NaN", "NaN"]}
-		data = {"exported_object_classes": ["carrier"], "exported_objects": [exported_objects]}
-		dump = json.dumps(data, sort_keys=False, indent=4)
-		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
-		print >> open(str(self.path) + "_object_settings.json", 'w'), new_data
-
+		# Unregister from Camera-Info
 		self.rgb_info_sub.unregister()
 
 	def cameraInfoD_callback(self, data):
-		f = open(str(self.path) + "depth-camera-info.txt", "w")
-		f.write(str(data))
-		f.close()
+		fx = data.K[0]
+		fy = data.K[4]
+		cx = data.K[2]
+		cy = data.K[5]
+
+		# Store camera-parameters in dict
+		self.camera_settings_depth = self.get_camera_dict(data.width, data.height, fx, fy, cx, cy, "RealsenseD435_Depth", 69.400001525878906)	#TODO check FOV
+
+		# Unregister from Camera-Info
 		self.d_info_sub.unregister()
 
 	def rgb_image_callback(self, data):
@@ -133,9 +170,6 @@ class dataCapture():
 			self.d_img = cv_depth_image.copy()
 		except CvBridgeError as e:
 			print(e)
-		
-	#def pc_callback(self, data):
-		#self.pc = data
 
 	# Capture-Poses
 	def pose_callback(self, data):
@@ -507,44 +541,9 @@ def print_debug(dStr):
 	if debug == True:
 		print dStr
 
-def dope_callback(data):
-	data = data.pose
-	angles = tf.transformations.euler_from_quaternion([data.orientation.x, data.orientation.y, data.orientation.z, data.orientation.w])#, "rxyz")
-	print data.position.x, data.position.y, data.position.z
-	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
-
 def main(args):
 	# Init node
 	rospy.init_node('data_capture', anonymous=True, disable_signals=True)
-
-	x = -0.75
-	y = -0.433	
-	z = 0.171
-	w = -0.4698
-
-	x = -0.5389999
-	y = 0.1962
-	z = 0.-0.1422
-	w = 0.806699
-
-	rospy.Subscriber("/dope/pose_cracker", PoseStamped, dope_callback, queue_size=1) 
-
-	while True:
-		rospy.sleep(1)
-
-	'''angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rxyz")
-	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
-	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rxzy")
-	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi'''
-	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "ryxz")
-	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
-	'''angles = tf.transformations.euler_from_quaternion([x, y, z, w], "ryzx")
-	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
-	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rzxy")
-	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi
-	angles = tf.transformations.euler_from_quaternion([x, y, z, w], "rzyx")
-	print angles[0]*180/math.pi, angles[1]*180/math.pi, angles[2]*180/math.pi'''
-	return
 
 	if len(args) < 2:
 		print "Please specify folder to store files!"
