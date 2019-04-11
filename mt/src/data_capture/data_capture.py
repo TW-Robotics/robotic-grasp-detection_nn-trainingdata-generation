@@ -20,6 +20,7 @@ from sensor_msgs.msg import PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from ur5_control import ur5_control
+#from data_vis import *
 
 debug = False
 if rospy.get_param("print_debug") == True:
@@ -63,9 +64,10 @@ class dataCapture():
 		self.imgOutputSize = rospy.get_param("outputImage_size")
 		self.imgWidth = rospy.get_param("camera_width")
 		self.imgHeight = rospy.get_param("camera_height")
-		self.img_scaleFac = float(imgWidth)/self.imgOutputSize
-		self.resized_imgWidth = int(round(float(imgHeight)/self.img_scaleFac, 0))
+		self.img_scaleFac = float(self.imgHeight)/self.imgOutputSize
+		self.resized_imgWidth = int(round(float(self.imgWidth)/self.img_scaleFac, 0))
 		self.resized_img_horizontalStart = int(round(self.resized_imgWidth/2., 0)) - self.imgOutputSize/2
+		#print self.img_scaleFac, self.resized_imgWidth, self.resized_img_horizontalStart
 
 		# Transformation-Listener
 		self.listener = tf.TransformListener()
@@ -87,6 +89,39 @@ class dataCapture():
 		self.write_cam_settings()
 		self.write_scene_settings()
 
+	def draw_cuboids(self, img, cuboidProj):
+		print cuboidProj
+		cuboidProj = np.asarray(cuboidProj)
+		cuboidProj = cuboidProj.astype(int)
+		print cuboidProj
+		for i in range(len(cuboidProj)):
+			cv2.circle(img, (cuboidProj[i][0], cuboidProj[i][1]), 5, (255, 0, 0), 5)
+		linePoints = [[cuboidProj[0], cuboidProj[1]],
+					  [cuboidProj[1], cuboidProj[2]],
+					  [cuboidProj[2], cuboidProj[3]],
+					  [cuboidProj[3], cuboidProj[0]],
+
+					  [cuboidProj[4], cuboidProj[5]],
+					  [cuboidProj[5], cuboidProj[6]],
+					  [cuboidProj[6], cuboidProj[7]],
+					  [cuboidProj[7], cuboidProj[4]],
+
+					  [cuboidProj[0], cuboidProj[4]],
+					  [cuboidProj[1], cuboidProj[5]],
+					  [cuboidProj[2], cuboidProj[6]],
+					  [cuboidProj[3], cuboidProj[7]],
+					 ]
+		for i in range(4):
+			cv2.line(img, (linePoints[i][0][0], linePoints[i][0][1]), (linePoints[i][1][0], linePoints[i][1][1]), (0, 255, 0), 2)
+		for i in range(4, 8):
+			cv2.line(img, (linePoints[i][0][0], linePoints[i][0][1]), (linePoints[i][1][0], linePoints[i][1][1]), (0, 0, 255), 2)
+		for i in range(8, 12):
+			cv2.line(img, (linePoints[i][0][0], linePoints[i][0][1]), (linePoints[i][1][0], linePoints[i][1][1]), (0, 255, 255), 2)
+		offset = 10
+		for i in range(len(cuboidProj)):
+			cv2.putText(img, str(i), (cuboidProj[i][0] + offset, cuboidProj[i][1] + offset), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
+		return img
+
 	###########################################################
 	# CALLBACKS ###############################################
 	###########################################################
@@ -96,6 +131,7 @@ class dataCapture():
 		cx = data.K[2]	#647.22644
 		cy = data.K[5]	#357.068359
 		self.intrinsics = [fx, fy, cx, cy]
+		#print self.intrinsics
 		#print self.fx, self.fy, self.cx, self.cy
 
 		# Calculate intrinsic parameters for resized image
@@ -152,20 +188,26 @@ class dataCapture():
 		# Cut off pixels at left and right to make image squared
 		self.rgb_img_resized = rgb_img_resized[0:self.imgOutputSize, self.resized_img_horizontalStart:self.resized_img_horizontalStart+self.imgOutputSize]
 		#print len(img), len(img[0])
+		#output = self.rgb_img_resized
+		#cv2.imshow("Image-Stream", output)
+		#cv2.waitKey(1)
+
 
 	# Set the intrinsic camera-parameters according to parameters of rgb-image and resize-factor
 	def set_resized_intrinsics(self):
 		# Scale the paramters because of 720 to 400px shrinking
-		intrinsics_resized = [i/img_scaleFac for i in self.intrinsics]
+		intrinsics_resized = [i/self.img_scaleFac for i in self.intrinsics]
 		# move cx to locate it at center again
 		intrinsics_resized[2] = intrinsics_resized[2] - self.resized_img_horizontalStart
 		self.intrinsics_resized = intrinsics_resized
+		print self.intrinsics
+		print self.intrinsics_resized
 
 	# Check if all cuboid-poses are visible in the resized image
 	def check_obj_in_img(self):
-		positions = self.calculate_projection(get_cuboid_transforms(), self.intrinsics_resized)
-		for i in range(len(positions-1)):	# -1 because center can not be out of image
-			if positions[i][0] > self.imgOutputSize or position[i][0] < 0 or positions[i][1] > self.imgOutputSize or position[i][1] < 0:
+		positions = self.calculate_projection(self.get_cuboid_transforms(), self.intrinsics_resized)
+		for i in range(len(positions)-1):	# -1 because center can not be out of image
+			if positions[i][0] > self.imgOutputSize or positions[i][0] < 0 or positions[i][1] > self.imgOutputSize or positions[i][1] < 0:
 				return False
 		return True
 
@@ -181,7 +223,7 @@ class dataCapture():
 		transl = [pose.position.x*100, pose.position.y*100, pose.position.z*100, 1]
 		M_out = np.c_[M_out, np.zeros(3)]		# Add empty column as last column
 		M_out = np.append(M_out, values=transl)	# Add translation as last row
-		return M_out
+		return M_out.tolist()
 
 	# Calculate projection of cuboidPoses on image plane
 	def calculate_projection(self, cuboidPoses, intrinsics):
@@ -248,7 +290,7 @@ class dataCapture():
 			cuboid.append([cuboidPoses.poses[i].position.x*100, cuboidPoses.poses[i].position.y*100, cuboidPoses.poses[i].position.z*100])
 		projected_cuboid = []
 		for i in range(len(cuboidProj) - 1):
-			projected_cuboid.append([cuboidProj[i][0]*100, cuboidProj[i][1]*100])
+			projected_cuboid.append([cuboidProj[i][0], cuboidProj[i][1]])
 		objects = {"class": self.objectName, "instance_id": 0, "visibility": 1, "location": location, "quaternion_xyzw": quaternion_xyzw,
 					"pose_transform": pose_transform, "cuboid_centroid": cuboid_centroid, "projected_cuboid_centroid": projected_cuboid_centroid,
 					"bounding_box": bounding_box, "cuboid": cuboid, "projected_cuboid": projected_cuboid}
@@ -324,11 +366,11 @@ class dataCapture():
 		while True:
 			self.ur5.move_joint(joint, rot)
 			if self.check_obj_in_img() == True:
-				if counter > 3:
-					print("Can't correct cropped object!")
-					return
 				break
-			rot = rot - rot / 2
+			if counter > 3:
+				print("Can't correct cropped object!")
+				return
+			rot = rot / 2 - rot
 			print_debug("Object cropped - correcting...")
 			counter = counter + 1
 		self.store_state()
@@ -399,7 +441,7 @@ class dataCapture():
 			if (self.camera_settings_rgb is not None and self.camera_settings_depth is not None and self.camera_settings_rgb_resized is not None):
 				break
 			print ("Waiting for camera-settings to arrive...")
-			rosply.sleep(0.5)
+			rospy.sleep(0.5)
 		data = {"camera_settings": [self.camera_settings_rgb, self.camera_settings_depth]}
 		self.write_json(data, self.pathFullRes, "_camera_settings.json")
 		data = {"camera_settings": [self.camera_settings_rgb_resized]}
@@ -434,19 +476,22 @@ class dataCapture():
 		self.d_img = None
 		self.rgb_img = None
 		self.rgb_img_resized = None
+		counter = 0
 		while self.d_img is None or self.rgb_img is None or self.rgb_img_resized is None:
-			print "Waiting for images to arrive..."
+			counter = counter + 1
+			if counter > 200:
+				print "No images arrived! Continuing with next pose..."
 			rospy.sleep(0.05)
 
 		# Store Images locally
 		d_img = self.d_img.copy()
 		rgb_img = self.rgb_img.copy()
-		rgb_img_resize = self.rgb_img_resize.copy()
+		rgb_img_resized = self.rgb_img_resized.copy()
 
 		# Save OpenCV2 images
 		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_rgb.png", rgb_img)
 		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
-		cv2.imwrite(str(self.path) + str(fileName) + ".png", rgb_img_resize)
+		cv2.imwrite(str(self.path) + str(fileName) + ".png", rgb_img_resized)
 
 		# Store Depth-Image as CSV-File
 		with open(str(self.pathFullRes) + str(fileName) + "_d.csv", "wb") as f:
@@ -464,14 +509,14 @@ class dataCapture():
 			f1.close()
 
 		# Store information-file
-		data = self.get_data_dict(self.objectName, self.intrinsics)
+		data = self.get_data_dict(self.intrinsics)
 		self.write_json(data, self.pathFullRes, str(fileName) + ".json")
-		data, cuboidPoses = self.get_data_dict(self.objectName, self.intrinsics_resized)
+		data, cuboidPoses = self.get_data_dict(self.intrinsics_resized)
 		self.write_json(data, self.path, str(fileName) + ".json")
 
 		# Draw cuboids on image and show image to user
-		output = data_vis.draw_cuboids(rgb_img_resize, cuboidPoses)
-		cv2.imshow("Images", output)
+		output = self.draw_cuboids(self.rgb_img_resized, cuboidPoses)
+		cv2.imshow("Image-Stored", output)
 		cv2.waitKey(1)
 
 		# Store all camera-poses
@@ -505,8 +550,8 @@ def main(args):
 		return
 	else:
 		path = rospy.get_param("path_to_store")
-		path = path + str(args[1]) + "/"
 		pathFullRes = path + str(args[1]) + "_full_res" + "/"
+		path = path + str(args[1]) + "/"
 		if not os.path.exists(path):
 			os.makedirs(path)
 			os.makedirs(pathFullRes)
