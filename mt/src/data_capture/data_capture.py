@@ -90,10 +90,8 @@ class dataCapture():
 		self.write_scene_settings()
 
 	def draw_cuboids(self, img, cuboidProj):
-		print cuboidProj
 		cuboidProj = np.asarray(cuboidProj)
 		cuboidProj = cuboidProj.astype(int)
-		print cuboidProj
 		for i in range(len(cuboidProj)):
 			cv2.circle(img, (cuboidProj[i][0], cuboidProj[i][1]), 5, (255, 0, 0), 5)
 		linePoints = [[cuboidProj[0], cuboidProj[1]],
@@ -200,8 +198,6 @@ class dataCapture():
 		# move cx to locate it at center again
 		intrinsics_resized[2] = intrinsics_resized[2] - self.resized_img_horizontalStart
 		self.intrinsics_resized = intrinsics_resized
-		print self.intrinsics
-		print self.intrinsics_resized
 
 	# Check if all cuboid-poses are visible in the resized image
 	def check_obj_in_img(self):
@@ -520,7 +516,9 @@ class dataCapture():
 		cv2.waitKey(1)
 
 		# Store all camera-poses
-		data = self.camPoses.append(self.get_transform('/base_link', '/camera_color_optical_frame'))
+		actCamPose = self.poseToList(self.get_transform('/base_link', '/camera_color_optical_frame'))
+		self.camPoses.append(actCamPose)
+		data = self.camPoses
 		self.write_json(data, self.pathFullRes, "_camera_poses.json")
 
 		print "Stored " + str(poseInfo) + " as " + str(fileName)
