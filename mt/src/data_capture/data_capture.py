@@ -219,6 +219,7 @@ class dataCapture():
 		transl = [pose.position.x*100, pose.position.y*100, pose.position.z*100, 1]
 		M_out = np.c_[M_out, np.zeros(3)]		# Add empty column as last column
 		M_out = np.append(M_out, values=transl)	# Add translation as last row
+		M_out = M_out.reshape(4, 4)
 		return M_out.tolist()
 
 	# Calculate projection of cuboidPoses on image plane
@@ -278,7 +279,7 @@ class dataCapture():
 		quaternion_xyzw = [camToObj.orientation.x, camToObj.orientation.y, camToObj.orientation.z, camToObj.orientation.w]
 		pose_transform = self.get_permuted_matrix_from_pose(camToObj)
 		
-		cuboid_centroid = [cuboidPoses.poses[8].position.x, cuboidPoses.poses[8].position.y, cuboidPoses.poses[8].position.z]
+		cuboid_centroid = [cuboidPoses.poses[8].position.x*100, cuboidPoses.poses[8].position.y*100, cuboidPoses.poses[8].position.z*100]
 		projected_cuboid_centroid = [cuboidProj[8][0], cuboidProj[8][1]]
 		bounding_box = {"top_left": "NaN", "bottom_right": "NaN"}
 		cuboid = []
@@ -287,9 +288,9 @@ class dataCapture():
 		projected_cuboid = []
 		for i in range(len(cuboidProj) - 1):
 			projected_cuboid.append([cuboidProj[i][0], cuboidProj[i][1]])
-		objects = {"class": self.objectName, "instance_id": 0, "visibility": 1, "location": location, "quaternion_xyzw": quaternion_xyzw,
+		objects = [{"class": self.objectName, "instance_id": 0, "visibility": 1, "location": location, "quaternion_xyzw": quaternion_xyzw,
 					"pose_transform": pose_transform, "cuboid_centroid": cuboid_centroid, "projected_cuboid_centroid": projected_cuboid_centroid,
-					"bounding_box": bounding_box, "cuboid": cuboid, "projected_cuboid": projected_cuboid}
+					"bounding_box": bounding_box, "cuboid": cuboid, "projected_cuboid": projected_cuboid}]
 
 		data = {'camera_data': camera_data, 'objects': objects}
 		return data, cuboidProj
@@ -451,7 +452,7 @@ class dataCapture():
 		# Segmentation-id = 255 since only 'Single'-images are produced (see FAT readme)
 		# Cuboid-Dimensions in cm extracted from dataset-synthesizer json-file
 		fixed_model_transform = self.get_permuted_matrix_from_pose(baseObjPose)
-		exported_objects = {"class": self.objectName, "segmentation_class_id": 255, "segmentation_instance_id": 255, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": [19.8, 90.0, 177.0]}
+		exported_objects = {"class": self.objectName, "segmentation_class_id": 255, "segmentation_instance_id": 255, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": [19.8, 9.0, 17.7]}
 		data = {"exported_object_classes": [self.objectName], "exported_objects": [exported_objects]}
 		self.write_json(data, self.path, "_object_settings.json")
 		self.write_json(data, self.pathFullRes, "_object_settings.json")
