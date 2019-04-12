@@ -360,14 +360,21 @@ class dataCapture():
 	# Move the robot, check if object is not cropped in image and store state
 	def move_check_store(self, joint, rot):
 		counter = 0
+		rotOrig = rot
 		while True:
 			self.ur5.move_joint(joint, rot)
 			if self.check_obj_in_img() == True:
 				break
+			rot = rot / 6 - rot
+			rotOrig = rotOrig - rot
 			if counter > 3:
 				print("Can't correct cropped object!")
+				#move_check_store(joint, -rotOrig)
 				return
-			rot = rot / 2 - rot
+			#if rotOrig < 0.5:
+			#	print("Can't correct cropped object! - minAngle")
+			#	return
+			#print rot
 			print_debug("Object cropped - correcting...")
 			counter = counter + 1
 		self.store_state()
