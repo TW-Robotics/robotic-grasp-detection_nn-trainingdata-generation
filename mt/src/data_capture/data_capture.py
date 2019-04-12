@@ -391,7 +391,8 @@ class dataCapture():
 		self.move_check_store(3, rotateTiltR - rotateTiltL)
 
 	# Drive to the goals and make random moves
-	def capture(self, startID):
+	def capture(self, startID, storeID):
+		self.actStoreID = storeID
 		for i in range(startID, len(self.goals.poses)):
 			self.actPoseID = i		
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
@@ -560,9 +561,11 @@ def main(args):
 	# Init dataCapture-Module and start capturing
 	dc = dataCapture(path, pathFullRes)
 	startID = 0
-	if len(args) == 3:
+	actStoreID = 0
+	if len(args) == 4:
 		startID = int(args[2])
-		print "Starting at pose no. " + str(startID)
+		actStoreID = int(args[3])
+		print "Starting at pose no. " + str(startID) + " to record data no. " + str(actStoreID)
 	rospy.logwarn("Don't forget to put away the marker!")
 
 	''' # DEBUG
@@ -573,7 +576,7 @@ def main(args):
 		elif inp == 'e':
 			return'''
 
-	dc.capture(startID)
+	dc.capture(startID, actStoreID)
 
 if __name__ == '__main__':
 	main(sys.argv)
