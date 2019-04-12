@@ -90,9 +90,10 @@ class capturePoseSampler():
 
 	# Lookup Transformation from object to camera
 	def get_start_pose_transformation(self):
-
 		try:
-			(trans, rot) = self.tfListener.lookupTransform('/object_img_center', '/camera_color_optical_frame', rospy.Time(0))	# transform from object to camera (anders als in Doku)
+			now = rospy.Time.now()
+			self.tfListener.waitForTransform('/object_img_center', '/camera_color_optical_frame', now, rospy.Duration(4.0))
+			(trans, rot) = self.tfListener.lookupTransform('/object_img_center', '/camera_color_optical_frame', now)	# transform from object to camera (anders als in Doku)
 			self.objImgCenterToCamPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)

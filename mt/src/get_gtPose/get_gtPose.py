@@ -83,8 +83,10 @@ class gtPose():
 	# Get transformation between base and marker
 	def get_pose(self):
 		try:
+			now = rospy.Time.now()
 			# Get transformation - which is refined by tf_marker_broadcaster
-			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/m_det', rospy.Time(0))
+			self.tfListener.waitForTransform('/base_link', '/m_det', now, rospy.Duration(4.0))
+			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/m_det', now)
 			self.poseBuff.append(self.listToPose(trans, rot))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
