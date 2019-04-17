@@ -47,17 +47,17 @@ def post_process(root):
 								min = img[i][j]
 					print min'''
 
-					dilation = cv2.erode(img, np.ones((globArgs.kernel,globArgs.kernel), np.uint8), iterations = 3)
+					eroded = cv2.erode(img, np.ones((globArgs.kernel,globArgs.kernel), np.uint8), iterations = 3)
 
-					x,y,w,h = cv2.boundingRect(~dilation)
+					x,y,w,h = cv2.boundingRect(~eroded)
 					data["objects"][0]["bounding_box"]["top_left"] = [x, y]
 					data["objects"][0]["bounding_box"]["bottom_right"] = [x+w, y+h]
 					write_json(data, jsonFilePath)
 
 					#print x, y, w, h
-					#cv2.rectangle(dilation,(x,y),(x+w,y+h),(0,255,0),2)
+					#cv2.rectangle(eroded,(x,y),(x+w,y+h),(0,255,0),2)
 					if globArgs.create_no_masks == False:
-						cv2.imwrite(pathToFiles + "/" + fileName + ".segmentation.png", dilation)
+						cv2.imwrite(pathToFiles + "/" + fileName + ".segmentation.png", eroded)
 					if globArgs.delete_render == True:
 						os.remove(imgpath)
 		if inLoop != True:
