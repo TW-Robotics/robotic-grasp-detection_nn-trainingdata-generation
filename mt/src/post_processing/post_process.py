@@ -22,6 +22,7 @@ def write_json(data, path):
 
 def post_process(root):
 	def create_data(pathToFiles):
+		inLoop = False
 		# Create mask and extract bounding box for each image in the folder
 		for imgpath in glob.glob(pathToFiles+"/*.render.png"):
 			inLoop = True
@@ -54,6 +55,23 @@ def post_process(root):
 					data["objects"][0]["bounding_box"]["bottom_right"] = [x+w, y+h]
 					write_json(data, jsonFilePath)
 
+					if globArgs.vis_contour:
+						# Visualisation of contour
+						imgOrig = cv2.imread(pathToFiles + "/" + fileName + ".png")
+						
+						# Not Eroded
+						ret, thresh = cv2.threshold(img, 127, 255, 0)
+						img, contoursImg, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+						# Eroded
+						ret, thresh = cv2.threshold(eroded, 127, 255, 0)
+						img, contoursEroded, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+						cv2.drawContours(imgOrig, contoursImg, 1, (255,0,0), 1)
+						cv2.drawContours(imgOrig, contoursEroded, 1, (0,0,255), 1)
+
+						eroded = imgOrig
+
 					#print x, y, w, h
 					#cv2.rectangle(eroded,(x,y),(x+w,y+h),(0,255,0),2)
 					if globArgs.create_no_masks == False:
@@ -62,6 +80,7 @@ def post_process(root):
 						os.remove(imgpath)
 		if inLoop != True:
 			print(".render.png-File not found")
+			print(pathToFiles)
 
 		if globArgs.delete_masks == True:
 			for imgpath in glob.glob(pathToFiles+"/*.segmentation.png"):
@@ -92,6 +111,7 @@ def main(args):
 	parser.add_argument('--delete_render', action="store_true", default=False, help='Delete rendered images after processing')
 	parser.add_argument('--delete_masks', action="store_true", default=False, help='Delete rendered masks')
 	parser.add_argument('--create_no_masks', action="store_true", default=False, help='Create no segmentation masks')
+	parser.add_argument('--vis_contour', action="store_true", default=False, help='Print contour on original image instead of segmentation mask')
 	globArgs = parser.parse_args()
 
 	if globArgs.kernel == 0:
