@@ -394,6 +394,11 @@ class dataCapture():
 	def capture(self, startID, storeID):
 		self.actStoreID = storeID
 		for i in range(startID, len(self.goals.poses)):
+			while True:
+				if rospy.get_param("pause") == False:
+					break
+				rospy.sleep(1)
+					
 			self.actPoseID = i		
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
 			self.move_check_store(0, 0)
