@@ -41,7 +41,8 @@ class marker_broadcaster():
 				print_debug("depth refined")
 				marker_poses.transforms[0].transform.translation.z = float(self.markerCenter.z) / 1000.
 			else:
-				print_debug("not refined")
+				print "Marker_Det: " + str(marker_poses.transforms[0].transform.translation.z)
+				#print_debug("not refined")
 			#print marker_poses.transforms[0].transform.translation.z
 			br.sendTransform((marker_poses.transforms[0].transform.translation.x, marker_poses.transforms[0].transform.translation.y, marker_poses.transforms[0].transform.translation.z),
 							 (marker_poses.transforms[0].transform.rotation.x, marker_poses.transforms[0].transform.rotation.y, marker_poses.transforms[0].transform.rotation.z, marker_poses.transforms[0].transform.rotation.w),

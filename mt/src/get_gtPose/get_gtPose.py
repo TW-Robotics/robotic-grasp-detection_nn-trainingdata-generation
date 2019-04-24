@@ -160,7 +160,6 @@ class gtPose():
 		self.poseBuff.clear()
 
 	def ringBuff_to_poseArray(self, ringBuff):
-		self.write_csv(ringBuff)
 		poseArray = PoseArray()
 		for i in range(len(ringBuff)):
 			poseArray.poses.append(ringBuff[i])
@@ -168,11 +167,16 @@ class gtPose():
 		return poseArray
 
 	def write_csv(self, buff):
-		with open(idx + "_ringbuff.csv", "wb") as f:
+		'''with open(str(self.idx) + "_ringbuff.csv", "wb") as f:
 			writer = csv.writer(f, delimiter=";")
 			for i in range(len(buff)):
-				writer.writerow(buff[i])
-		idx = idx + 1
+				writer.writerow(buff)'''
+		f = open(str(self.idx) + "_ringbuff.csv", "w")
+		for i in range(len(buff.poses)):
+			angles = tf.transformations.euler_from_quaternion([buff.poses[i].orientation.x, buff.poses[i].orientation.y, buff.poses[i].orientation.z, buff.poses[i].orientation.w])
+			f.write(str(buff.poses[i].position.x) + ";" + str(buff.poses[i].position.y) + ";" + str(buff.poses[i].position.z) + ";" + str(angles[0]*180/math.pi) + ";" + str(angles[1]*180/math.pi) + ";" + str(angles[2]*180/math.pi) + "\n")
+		self.idx = self.idx + 1
+		f.close()
 	
 	# Caclulate the mean pose of all given poses
 	def calc_mean_pose(self, poseArray):
@@ -353,6 +357,7 @@ def main(args):
 			pC.disp_metrics(minD, maxD)
 			inp = raw_input("Press 'y' to store Pose. ")[0]
 			if inp == 'y':
+				pC.write_csv(poseBuffLoc)
 				pC.store_pose(meanPose)								# Store pose to array
 				print "Pose stored"
 
