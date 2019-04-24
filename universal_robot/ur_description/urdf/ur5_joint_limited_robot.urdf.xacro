@@ -10,7 +10,7 @@
 
   <!-- arm -->
   <xacro:ur5_robot prefix="" joint_limited="true"
-    shoulder_pan_lower_limit="${-200/180*pi}" shoulder_pan_upper_limit="${160/180*pi}"
+    shoulder_pan_lower_limit="${0/180*pi}" shoulder_pan_upper_limit="${180/180*pi}"
     shoulder_lift_lower_limit="${-pi}" shoulder_lift_upper_limit="${pi}"
     elbow_joint_lower_limit="${-150/180*pi}" elbow_joint_upper_limit="${160/180*pi}"
     wrist_1_lower_limit="${-pi}" wrist_1_upper_limit="${pi/4}"
