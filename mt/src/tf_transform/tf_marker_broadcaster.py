@@ -36,6 +36,8 @@ class marker_broadcaster():
 		
 		if len(marker_poses.transforms) > 0:
 			if self.markerCenter.z != 0:
+				print "Marker_Det: " + str(marker_poses.transforms[0].transform.translation.z)
+				print "Refinement: " + str(float(self.markerCenter.z) / 1000.)
 				print_debug("depth refined")
 				marker_poses.transforms[0].transform.translation.z = float(self.markerCenter.z) / 1000.
 			else:
@@ -46,7 +48,6 @@ class marker_broadcaster():
 							 rospy.Time.now(),
 							 "m_det",
 							 "camera_color_optical_frame")
-
 			# Set zero to make sure it is refreshed
 			self.markerCenter.z = 0
 
