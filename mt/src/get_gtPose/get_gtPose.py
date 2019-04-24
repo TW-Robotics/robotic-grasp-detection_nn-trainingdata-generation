@@ -6,6 +6,7 @@ import rospy
 import tf
 import math
 import collections
+import csv
 
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
@@ -46,6 +47,7 @@ class gtPose():
 		self.markerPoses = PoseArray()
 		self.meanPose = Pose()
 		self.poseBuff = collections.deque(maxlen=self.poseBuffSize)
+		self.idx = 0
 
 		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/mean_marker_pose", True)
 
@@ -158,12 +160,20 @@ class gtPose():
 		self.poseBuff.clear()
 
 	def ringBuff_to_poseArray(self, ringBuff):
+		self.write_csv(ringBuff)
 		poseArray = PoseArray()
 		for i in range(len(ringBuff)):
 			poseArray.poses.append(ringBuff[i])
 
 		return poseArray
 
+	def write_csv(self, buff):
+		with open(idx + "_ringbuff.csv", "wb") as f:
+			writer = csv.writer(f, delimiter=";")
+			for i in range(len(buff)):
+				writer.writerow(buff[i])
+		idx = idx + 1
+	
 	# Caclulate the mean pose of all given poses
 	def calc_mean_pose(self, poseArray):
 		sumPose = Pose()

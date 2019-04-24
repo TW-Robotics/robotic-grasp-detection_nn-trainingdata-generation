@@ -18,6 +18,7 @@ path_to_store: '/home/mluser/catkin_ws/src/data/single/carrier_empty/'
 #path_to_store: '/home/johannes/catkin_ws/src/data/'
 
 print_debug: false
+pause: false
 
 PoseRandomization:
   phiInc: -10
