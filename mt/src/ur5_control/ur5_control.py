@@ -146,7 +146,7 @@ class ur5Controler():
 			self.group.set_joint_value_target(goal)
 		plan = self.group.plan()	# Show move in rviz
 
-		rospy.sleep(0.05)	# Give time for keyboard-interrupt
+		#rospy.sleep(0.05)	# Give time for keyboard-interrupt
 		if self.confirmation(goal):
 			self.group.go(wait=True)
 			self.group.clear_pose_targets()
@@ -157,7 +157,7 @@ class ur5Controler():
 		# Retime all timestamps of the way-points to make the robot move at a specified speed
 		plan = self.group.retime_trajectory(self.robot.get_current_state(), plan, self.speedScalingFactor)
 
-		rospy.sleep(0.05)	# Give time for keyboard-interrupt
+		#rospy.sleep(0.05)	# Give time for keyboard-interrupt
 		if self.confirmation(plan):
 			self.group.execute(plan, wait=True)
 
