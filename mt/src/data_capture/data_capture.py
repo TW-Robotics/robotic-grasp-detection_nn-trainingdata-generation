@@ -27,6 +27,7 @@ if rospy.get_param("print_debug") == True:
 	print "Debug-Mode ON"
 	debug = True		# Print Debug-Messages
 storePC = False			# Store Point-Cloud-Message
+storeFullRes = False
 
 class dataCapture():
 	def __init__(self, path, pathFullRes):
@@ -201,9 +202,10 @@ class dataCapture():
 
 	# Check if all cuboid-poses are visible in the resized image
 	def check_obj_in_img(self):
+		th = 50
 		positions = self.calculate_projection(self.get_cuboid_transforms(), self.intrinsics_resized)
 		for i in range(len(positions)-1):	# -1 because center can not be out of image
-			if positions[i][0] > self.imgOutputSize or positions[i][0] < 0 or positions[i][1] > self.imgOutputSize or positions[i][1] < 0:
+			if positions[i][0] > self.imgOutputSize+th or positions[i][0] < -th or positions[i][1] > self.imgOutputSize+th or positions[i][1] < -th:
 				return False
 		return True
 
@@ -503,11 +505,12 @@ class dataCapture():
 		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
 		cv2.imwrite(str(self.path) + str(fileName) + ".png", rgb_img_resized)
 
-		# Store Depth-Image as CSV-File
-		with open(str(self.pathFullRes) + str(fileName) + "_d.csv", "wb") as f:
-			writer = csv.writer(f, delimiter=";")
-			for line in d_img:
-				writer.writerow(line)
+		if storeFullRes == True:
+			# Store Depth-Image as CSV-File
+			with open(str(self.pathFullRes) + str(fileName) + "_d.csv", "wb") as f:
+				writer = csv.writer(f, delimiter=";")
+				for line in d_img:
+					writer.writerow(line)
 
 		# Store Depth-Image as Point-Cloud
 		if storePC == True:
@@ -521,6 +524,7 @@ class dataCapture():
 		# Store information-file
 		data = self.get_data_dict(self.intrinsics)
 		self.write_json(data, self.pathFullRes, str(fileName) + ".json")
+		
 		data, cuboidPoses = self.get_data_dict(self.intrinsics_resized)
 		self.write_json(data, self.path, str(fileName) + ".json")
 
@@ -530,10 +534,11 @@ class dataCapture():
 		cv2.waitKey(1)
 
 		# Store all camera-poses
-		actCamPose = self.poseToList(self.get_transform('/base_link', '/camera_color_optical_frame'))
-		self.camPoses.append(actCamPose)
-		data = self.camPoses
-		self.write_json(data, self.pathFullRes, "_camera_poses.json")
+		if storeFullRes == True:
+			actCamPose = self.poseToList(self.get_transform('/base_link', '/camera_color_optical_frame'))
+			self.camPoses.append(actCamPose)
+			data = self.camPoses
+			self.write_json(data, self.pathFullRes, "_camera_poses.json")
 
 		print "Stored " + str(poseInfo) + " as " + str(fileName)
 
