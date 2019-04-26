@@ -52,6 +52,8 @@ class ur5Controler():
 		self.scene = moveit_commander.PlanningSceneInterface()
 		self.group.set_end_effector_link(eef_link)
 		self.group.set_pose_reference_frame(pose_ref_frame)
+		self.setSpeed(self.speed, self.acceleration)
+
 		'''print self.robot.get_planning_frame()
 		print self.group.get_pose_reference_frame()
 		print self.group.get_current_pose().pose'''
@@ -137,7 +139,7 @@ class ur5Controler():
 
 	# Move the robot to goal pose or orientation
 	def execute_move(self, goal):
-		self.setSpeed()
+		#self.setSpeed()
 
 		# if the goal is a pose
 		if type(goal) is Pose:
@@ -182,9 +184,9 @@ class ur5Controler():
 		return False
 
 	# Define Speed and acceleration
-	def setSpeed(self):
-		self.group.set_max_velocity_scaling_factor(self.speed)
-		self.group.set_max_acceleration_scaling_factor(self.acceleration)
+	def setSpeed(self, speed, acceleration):
+		self.group.set_max_velocity_scaling_factor(speed)
+		self.group.set_max_acceleration_scaling_factor(acceleration)
 
 	# Function to make box at specific position - currently not needed
 	def addObject(self):

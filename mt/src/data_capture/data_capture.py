@@ -357,6 +357,7 @@ class dataCapture():
 	###########################################################
 	# Drive robot to given pose-id
 	def drive_to_pose(self, id):
+		self.ur5.setSpeed(0.1, 0.1)
 		self.ur5.execute_move(self.goals.poses[id])
 
 	# Move the robot, check if object is not cropped in image and store state
@@ -383,6 +384,7 @@ class dataCapture():
 
 	# Make random moves with last axes
 	def move_random(self):
+		self.ur5.setSpeed(0.8, 0.8)
 		# Sample random offsets
 		rotateUp = random.uniform(self.rotateUpRMin, self.rotateUpRMax)
 		rotateDown = random.uniform(-self.rotateUpRMin, -self.rotateUpRMax)
@@ -408,16 +410,19 @@ class dataCapture():
 					break
 				rospy.sleep(1)
 					
-			self.actPoseID = i		
+			self.actPoseID = i
+			self.ur5.setSpeed(0.1, 0.1)		
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
 			self.move_check_store(0, 0)
-			self.move_random()								# Make random moves
+			self.move_random()
+			#self.ur5.setSpeed(0.1, 0.1)									# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
 			rotateRand = random.uniform(self.rotateRMin, self.rotateRMax)
 			print_debug("Rotating1 " + str(rotateRand))
 			self.move_check_store(5, rotateRand)			# Rotate the EEF
-			self.move_random()								# Make random moves
+			self.move_random()
+			#self.ur5.setSpeed(0.1, 0.1)									# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
 			rotateRand = random.uniform(-self.rotateRMin, -self.rotateRMax)
