@@ -27,6 +27,7 @@ if rospy.get_param("print_debug") == True:
 	print "Debug-Mode ON"
 	debug = True		# Print Debug-Messages
 storePC = False			# Store Point-Cloud-Message
+storeFullRes = False
 
 class dataCapture():
 	def __init__(self, path, pathFullRes):
@@ -201,9 +202,10 @@ class dataCapture():
 
 	# Check if all cuboid-poses are visible in the resized image
 	def check_obj_in_img(self):
+		th = 50
 		positions = self.calculate_projection(self.get_cuboid_transforms(), self.intrinsics_resized)
 		for i in range(len(positions)-1):	# -1 because center can not be out of image
-			if positions[i][0] > self.imgOutputSize or positions[i][0] < 0 or positions[i][1] > self.imgOutputSize or positions[i][1] < 0:
+			if positions[i][0] > self.imgOutputSize+th or positions[i][0] < -th or positions[i][1] > self.imgOutputSize+th or positions[i][1] < -th:
 				return False
 		return True
 
@@ -355,25 +357,34 @@ class dataCapture():
 	###########################################################
 	# Drive robot to given pose-id
 	def drive_to_pose(self, id):
+		self.ur5.setSpeed(0.1, 0.1)
 		self.ur5.execute_move(self.goals.poses[id])
 
 	# Move the robot, check if object is not cropped in image and store state
 	def move_check_store(self, joint, rot):
 		counter = 0
+		rotOrig = rot
 		while True:
 			self.ur5.move_joint(joint, rot)
 			if self.check_obj_in_img() == True:
 				break
+			rot = rot / 6 - rot
+			rotOrig = rotOrig - rot
 			if counter > 3:
 				print("Can't correct cropped object!")
+				#move_check_store(joint, -rotOrig)
 				return
-			rot = rot / 2 - rot
+			#if rotOrig < 0.5:
+			#	print("Can't correct cropped object! - minAngle")
+			#	return
+			#print rot
 			print_debug("Object cropped - correcting...")
 			counter = counter + 1
 		self.store_state()
 
 	# Make random moves with last axes
 	def move_random(self):
+		self.ur5.setSpeed(0.8, 0.8)
 		# Sample random offsets
 		rotateUp = random.uniform(self.rotateUpRMin, self.rotateUpRMax)
 		rotateDown = random.uniform(-self.rotateUpRMin, -self.rotateUpRMax)
@@ -394,16 +405,24 @@ class dataCapture():
 	def capture(self, startID, storeID):
 		self.actStoreID = storeID
 		for i in range(startID, len(self.goals.poses)):
-			self.actPoseID = i		
+			while True:
+				if rospy.get_param("pause") == False:
+					break
+				rospy.sleep(1)
+					
+			self.actPoseID = i
+			self.ur5.setSpeed(0.1, 0.1)		
 			self.ur5.execute_move(self.goals.poses[i])		# Move to base-point
 			self.move_check_store(0, 0)
-			self.move_random()								# Make random moves
+			self.move_random()
+			#self.ur5.setSpeed(0.1, 0.1)									# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
 			rotateRand = random.uniform(self.rotateRMin, self.rotateRMax)
 			print_debug("Rotating1 " + str(rotateRand))
 			self.move_check_store(5, rotateRand)			# Rotate the EEF
-			self.move_random()								# Make random moves
+			self.move_random()
+			#self.ur5.setSpeed(0.1, 0.1)									# Make random moves
 			self.ur5.execute_move(self.goals.poses[i])		# Move back to base-point
 
 			rotateRand = random.uniform(-self.rotateRMin, -self.rotateRMax)
@@ -491,11 +510,12 @@ class dataCapture():
 		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
 		cv2.imwrite(str(self.path) + str(fileName) + ".png", rgb_img_resized)
 
-		# Store Depth-Image as CSV-File
-		with open(str(self.pathFullRes) + str(fileName) + "_d.csv", "wb") as f:
-			writer = csv.writer(f, delimiter=";")
-			for line in d_img:
-				writer.writerow(line)
+		if storeFullRes == True:
+			# Store Depth-Image as CSV-File
+			with open(str(self.pathFullRes) + str(fileName) + "_d.csv", "wb") as f:
+				writer = csv.writer(f, delimiter=";")
+				for line in d_img:
+					writer.writerow(line)
 
 		# Store Depth-Image as Point-Cloud
 		if storePC == True:
@@ -509,6 +529,7 @@ class dataCapture():
 		# Store information-file
 		data = self.get_data_dict(self.intrinsics)
 		self.write_json(data, self.pathFullRes, str(fileName) + ".json")
+		
 		data, cuboidPoses = self.get_data_dict(self.intrinsics_resized)
 		self.write_json(data, self.path, str(fileName) + ".json")
 
@@ -518,10 +539,11 @@ class dataCapture():
 		cv2.waitKey(1)
 
 		# Store all camera-poses
-		actCamPose = self.poseToList(self.get_transform('/base_link', '/camera_color_optical_frame'))
-		self.camPoses.append(actCamPose)
-		data = self.camPoses
-		self.write_json(data, self.pathFullRes, "_camera_poses.json")
+		if storeFullRes == True:
+			actCamPose = self.poseToList(self.get_transform('/base_link', '/camera_color_optical_frame'))
+			self.camPoses.append(actCamPose)
+			data = self.camPoses
+			self.write_json(data, self.pathFullRes, "_camera_poses.json")
 
 		print "Stored " + str(poseInfo) + " as " + str(fileName)
 

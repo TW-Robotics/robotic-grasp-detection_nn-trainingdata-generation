@@ -18,18 +18,19 @@ path_to_store: '/home/mluser/catkin_ws/src/data/single/carrier_empty/'
 #path_to_store: '/home/johannes/catkin_ws/src/data/'
 
 print_debug: false
+pause: false
 
 PoseRandomization:
   phiInc: -10
   thetaInc: 15
   numHorizontal: 15
-  thetaMax: 75
-  rRmin: -0.2
+  thetaMax: 65
+  rRmin: -0.1
   rRmax: 0.1
   numRandomGoals: 3
   rotate4Min: 2
-  rotate4Max: 15
+  rotate4Max: 6
   rotate5Min: 2
-  rotate5Max: 15
+  rotate5Max: 6
   rotate6Min: 5
   rotate6Max: 65
