@@ -72,7 +72,7 @@ def main(args):
 	global destPathTrain
 	global destPathTest
 	global dataPointId
-	parser = argparse.ArgumentParser(description='Visualize Data')
+	parser = argparse.ArgumentParser(description='Dataset creator')
 	parser.add_argument('Path', metavar='Path', type=str,	help='Path to folder, where recorded data is stored')
 	parser.add_argument('--percentTestData', type=int, default=20, help='Percentage of dataset which should go to test-dataset. Default: 20')
 
