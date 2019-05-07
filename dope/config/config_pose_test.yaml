@@ -1,4 +1,4 @@
-path_to_images: "/home/johannes/catkin_ws/src/test_data"
+path_to_images: "/home/mluser/Schreibtisch/data/test_synth/auszug"
 
 # Comment any of these lines to prevent detection / pose estimation of that object
 weights: {
@@ -8,7 +8,7 @@ weights: {
     # "mustard":"mustard_60.pth", 
     #"soup":"soup_60.pth",
     #"sugar":"sugar_60.pth"
-    "carrier_empty":"carrier_empty_34.pth"
+    "carrier_empty":"net_synthOnly_epoch_107.pth"
 }
 
 # Cuboid dimension in cm x,y,z

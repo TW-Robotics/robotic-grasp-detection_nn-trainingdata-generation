@@ -13,6 +13,7 @@ import sys
 import yaml
 import os
 import csv
+import glob
 
 import numpy as np
 import cv2
@@ -136,8 +137,10 @@ def test_dope(params, testDataFolder):
 	print ("Testing DOPE...")
 
 	# For all images in folder
+	print params['path_to_images']
 	for imgpath in glob.glob(params['path_to_images'] + "/*.png"):
-		if os.path.exists(imgpath) and o12642s.path.exists(imgpath.replace("png","json")):
+		print imgpath
+		if os.path.exists(imgpath) and os.path.exists(imgpath.replace("png","json")):
 			fileName = os.path.splitext(os.path.basename(imgpath))[0]
 			# Load image and json-file
 			with open(imgpath.replace("png","json")) as json_file:
@@ -181,30 +184,31 @@ def test_dope(params, testDataFolder):
 						points3d = []
 						for pair in result['projected_points']:
 							points2d.append(tuple(pair))
-						for pair in results['points_3d']:
-							points3d.append(tuple(pair))
+						#for pair in results['points_3d']:
+						#	points3d.append(tuple(pair))
 						DrawCube(points2d, draw_colors[m])
 				
-				dist3d, meanDist3d = calc_distance(points3d, gt_points3d)
-				dist2d, meanDist2d = calc_distance(points2d, gt_points2d)
-				dists3d.append(dist3d)
-				dists2d.append(dist2d)
-				meanDists3d.append(meanDist3d)
-				meanDists2d.append(meanDist2d)
-				filenames.append(fileName)
+					#dist3d, meanDist3d = calc_distance(points3d, gt_points3d)
+					#dist2d, meanDist2d = calc_distance(points2d, gt_points2d)
+					#dists3d.append(dist3d)
+					#dists2d.append(dist2d)
+					#meanDists3d.append(meanDist3d)
+					#meanDists2d.append(meanDist2d)
+					filenames.append(fileName)
 
-			# Store image with results overlaid
-			cv2.imwrite(testDataFolder + "/" + fileName + ".vis.png", img)
+					# Store image with results overlaid
+					#im.save(sys.stdout, "png")
+					cv2.imwrite(testDataFolder + "/" + fileName + ".vis.png", g_draw)
 
 	# filename; meanDist3d; meanDist2d; dist3D; dist2D
-	with open(testDataFolder + "/evaluation.csv", "wb") as f:
+	'''with open(testDataFolder + "/evaluation.csv", "wb") as f:
 		writer = csv.writer(f, delimiter=";")
 		writer.writerow("filename; meanDist3d; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;")
 		for i in range(len(filenames)):
 			line = str(filenames[i]) + " ;" + str(meanDist3d) + " ;" + str(meanDist2d) + " ;"
 			line = line + str(dist3d[0]) + " ;" + str(dist3d[1]) + " ;" + str(dist3d[2]) + " ;" + str(dist3d[3]) + " ;" + str(dist3d[4]) + " ;" + str(dist3d[5]) + " ;" + str(dist3d[6]) + " ;" + str(dist3d[7]) + " ;" + str(dist3d[8]) + " ;"
 			line = line + str(dist2d[0]) + " ;" + str(dist2d[1]) + " ;" + str(dist2d[2]) + " ;" + str(dist2d[3]) + " ;" + str(dist2d[4]) + " ;" + str(dist2d[5]) + " ;" + str(dist2d[6]) + " ;" + str(dist2d[7]) + " ;" + str(dist2d[8]) + " ;"
-			writer.writerow(line)
+			writer.writerow(line)'''
 
 if __name__ == "__main__":
 	'''Main routine to run DOPE test-code'''
