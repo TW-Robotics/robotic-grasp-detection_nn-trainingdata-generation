@@ -52,6 +52,49 @@ class marker_broadcaster():
 			# Set zero to make sure it is refreshed
 			self.markerCenter.z = 0
 
+
+	'''# Broadcast the refined, mean gt-pose (final gt-pose)
+	def marker_callback(self, marker_poses):
+		br = tf.TransformBroadcaster()
+		
+		if len(marker_poses.transforms) > 0:
+			if self.markerCenter.z != 0:
+				print "Marker_Det: " + str(marker_poses.transforms[0].transform.translation.z)
+				print "Refinement: " + str(float(self.markerCenter.z) / 1000.)
+				print_debug("depth refined")
+				#marker_poses.transforms[0].transform.translation.z = float(self.markerCenter.z) / 1000.
+				br.sendTransform((marker_poses.transforms[0].transform.translation.x, marker_poses.transforms[0].transform.translation.y, float(self.markerCenter.z) / 1000.),
+				 (marker_poses.transforms[0].transform.rotation.x, marker_poses.transforms[0].transform.rotation.y, marker_poses.transforms[0].transform.rotation.z, marker_poses.transforms[0].transform.rotation.w),
+				 rospy.Time.now(),
+				 "m_det_refined",
+				 "camera_color_optical_frame")
+				'''try:
+					now = rospy.Time.now()
+					tf.TransformListener().waitForTransform("base_link", "m_det_refined", now, rospy.Duration(4.0))
+					(trans, rot) = tf.TransformListener().lookupTransform("base_link", "m_det_refined", now)
+					print "Refinement: " + str(trans) + str(rot)
+				except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+					rospy.logerr(e)'''
+			else:
+				print "Marker_Det: " + str(marker_poses.transforms[0].transform.translation.z)
+				#print_debug("not refined")
+			#print marker_poses.transforms[0].transform.translation.z
+			br.sendTransform((marker_poses.transforms[0].transform.translation.x, marker_poses.transforms[0].transform.translation.y, marker_poses.transforms[0].transform.translation.z),
+							 (marker_poses.transforms[0].transform.rotation.x, marker_poses.transforms[0].transform.rotation.y, marker_poses.transforms[0].transform.rotation.z, marker_poses.transforms[0].transform.rotation.w),
+							 rospy.Time.now(),
+							 "m_det_notRefined",
+							 "camera_color_optical_frame")
+			'''rospy.sleep(1)
+			try:
+				now = rospy.Time.now()
+				tf.TransformListener().waitForTransform("base_link", "m_det_notRefined", now, rospy.Duration(4.0))
+				(trans, rot) = tf.TransformListener().lookupTransform("base_link", "m_det_notRefined", now)
+				print "Marker_Det: " + str(trans) + str(rot)
+			except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+				rospy.logerr(e)'''
+			# Set zero to make sure it is refreshed
+			self.markerCenter.z = 0'''
+
 	# Calculate center of marker
 	def marker_vert_callback(self, data):
 		# If at least one marker could be found, calculate its center
