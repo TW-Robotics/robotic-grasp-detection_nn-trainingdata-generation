@@ -7,20 +7,20 @@ from __future__ import print_function
 ######################################################
 """
 REQUIREMENTS:
-matplotlib==2.2.2
-simplejson==3.16.0
-numpy==1.14.1
-opencv_python==3.4.3.18
-horovod==0.13.5
-photutils==0.5
-scipy==1.1.0
-torch==0.4.0
-pyquaternion==0.9.2
-tqdm==4.25.0
-pyrr==0.9.2
-Pillow==5.2.0
-torchvision==0.2.1
-PyYAML==3.13
+matplotlib==2.2.2			x
+simplejson==3.16.0			x
+numpy==1.14.1				1.16.3
+opencv_python==3.4.3.18		x 				cv2 version 3.3.1-dev
+horovod==0.13.5				x
+photutils==0.5				ERST AB 3.5
+scipy==1.1.0				x
+torch==0.4.0				1.0.1.post2 automatisch installed
+pyquaternion==0.9.2			x 				no attribute version
+tqdm==4.25.0				x
+pyrr==0.9.2					x
+Pillow==5.2.0				x 				PIL version 6.0.0
+torchvision==0.2.1			x
+PyYAML==3.13				x 				yaml version 3.13
 """
 
 ######################################################
@@ -1364,7 +1364,7 @@ def _runnetwork(epoch, loader, train=True):
 
         with open (opt.outf+namefile,'a') as file:
             s = '{}, {},{:.15f}\n'.format(
-                epoch,batch_idx,loss.data[0]) 
+                epoch,batch_idx,loss.item()) 
             # print (s)
             file.write(s)
 
@@ -1372,12 +1372,12 @@ def _runnetwork(epoch, loader, train=True):
             if batch_idx % opt.loginterval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.15f}'.format(
                     epoch, batch_idx * len(data), len(loader.dataset),
-                    100. * batch_idx / len(loader), loss.data[0]))
+                    100. * batch_idx / len(loader), loss.item()))
         else:
             if batch_idx % opt.loginterval == 0:
                 print('Test Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.15f}'.format(
                     epoch, batch_idx * len(data), len(loader.dataset),
-                    100. * batch_idx / len(loader), loss.data[0]))
+                    100. * batch_idx / len(loader), loss.item()))
 
         # break
         if not opt.nbupdates is None and nb_update_network > int(opt.nbupdates):
