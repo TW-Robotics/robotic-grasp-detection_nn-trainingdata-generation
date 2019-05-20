@@ -28,6 +28,7 @@ from cv_bridge import CvBridge, CvBridgeError
 sys.path.append('../inference')
 from cuboid import *
 from detector import *
+from pyquaternion import Quaternion
 
 import tf
 
@@ -242,14 +243,41 @@ def test_dope(params, testDataFolder):
 					#print type(cuboid_points_3d_transfrom)
 					#print gt_points3d
 
+					M_trans = tf.transformations.quaternion_matrix(gt_ori)
+					M_trans[0][3] = gt_pos[0]
+					M_trans[1][3] = gt_pos[1]
+					M_trans[2][3] = gt_pos[2]
+					#print M_trans
+
+					#gt_cuboid_points_3d_transfrom = []
+					#for point in cuboid_points_3d:
+					#	gt_cuboid_points_3d_transfrom.append(M_trans.dot(point))
+					#gt_cuboid_points_3d_transfrom = np.delete(gt_cuboid_points_3d_transfrom, 3, 1)	# Delete 1s from homogenous transformation
+					#print gt_cuboid_points_3d_transfrom
+					#print gt_points3d
+					#print cuboid_points_3d_transfrom
+					res = pnp_solvers[m].solve_pnp(gt_points2d)
+					print res[1]#["quaternion"]
+					print ori
+
 					dist3d, meanDist3d, minDist3d, maxDist3d = calc_distance(cuboid_points_3d_transfrom, np.array(gt_points3d))
 					#print dist3d, meanDist3d, minDist3d, maxDist3d
 					dist2d, meanDist2d, minDist2d, minDist3d = calc_distance(points2d, np.array(gt_points2d))
 
 					rot = tf.transformations.euler_from_quaternion(ori)	# TODO Achsreihenfolge?!
 					rot = [rot[i] / math.pi*180 for i in range(len(rot))]
-					gt_rot = tf.transformations.euler_from_quaternion(gt_ori)
+					gt_rot = tf.transformations.euler_from_quaternion(res[1])#, axes='szyx')
 					gt_rot = [gt_rot[i] / math.pi*180 for i in range(len(gt_rot))]
+
+					'''est_rot = Quaternion(ori[3], ori[0], ori[1], ori[2])
+					gt_rot = Quaternion(res[1][3], res[1][0], res[1][1], res[1][2])
+					diff = est_rot - gt_rot
+					#print diff.is_unit()
+					diff = diff.normalised
+					#print diff.is_unit()
+					#print diff
+					diffEuler = tf.transformations.euler_from_quaternion((diff[1], diff[2], diff[3], diff[0]))
+					print [diffEuler[i] / math.pi*180 for i in range(len(diffEuler))]'''
 
 					locs.append([loc[i] * 10 for i in range(len(loc))])
 					oris.append(ori)
@@ -281,12 +309,12 @@ def test_dope(params, testDataFolder):
 		f.write("filename; success; failure; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; q1; q2; q3; q4; gtQ1; gtQ2; gtQ3; gtQ4; rx; ry; rz; gtRx; gtRy; gtRz; meanDist3d; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;\n")
 		for i in range(len(filenamesSuccess)):
 			line = str(filenamesSuccess[i]) + "; " + str(1) + "; " + str(0) + "; "
-			line = line + str(locs[i][0]) + "; " + str(locs[i][1]) + "; " + str(locs[i][2]) + "; " + str(gt_locs[i][0]) + "; " + str(gt_locs[i][1]) + "; " + str(gt_locs[i][2]) + "; "
-			line = line + str(oris[i][0]) + "; " + str(oris[i][1]) + "; " + str(oris[i][2]) + "; " + str(oris[i][3]) + "; " + str(gt_oris[i][0]) + "; " + str(gt_oris[i][1]) + "; " + str(gt_oris[i][2]) + "; " + str(gt_oris[i][3]) + "; "
-			line = line + str(rots[i][0]) + "; " + str(rots[i][1]) + "; " + str(rots[i][2]) + "; " + str(gt_rots[i][0]) + "; " + str(gt_rots[i][1]) + "; " + str(gt_rots[i][2]) + "; "
-			line = line + str(meanDists3d[i]) + "; " + str(meanDists2d[i]) + "; "
-			line = line + str(dists3d[i][0]) + "; " + str(dists3d[i][1]) + "; " + str(dists3d[i][2]) + "; " + str(dists3d[i][3]) + "; " + str(dists3d[i][4]) + "; " + str(dists3d[i][5]) + "; " + str(dists3d[i][6]) + "; " + str(dists3d[i][7]) + "; " + str(dists3d[i][8]) + "; "
-			line = line + str(dists2d[i][0]) + "; " + str(dists2d[i][1]) + "; " + str(dists2d[i][2]) + "; " + str(dists2d[i][3]) + "; " + str(dists2d[i][4]) + "; " + str(dists2d[i][5]) + "; " + str(dists2d[i][6]) + "; " + str(dists2d[i][7]) + "; " + str(dists2d[i][8]) + "; "
+			line = line + "\n" + str(locs[i][0]) + "; " + str(locs[i][1]) + "; " + str(locs[i][2]) + "; " + str(gt_locs[i][0]) + "; " + str(gt_locs[i][1]) + "; " + str(gt_locs[i][2]) + "; "
+			line = line + "\n" + str(oris[i][0]) + "; " + str(oris[i][1]) + "; " + str(oris[i][2]) + "; " + str(oris[i][3]) + "; " + str(gt_oris[i][0]) + "; " + str(gt_oris[i][1]) + "; " + str(gt_oris[i][2]) + "; " + str(gt_oris[i][3]) + "; "
+			line = line + "\n" + str(rots[i][0]) + "; " + str(rots[i][1]) + "; " + str(rots[i][2]) + "; " + str(gt_rots[i][0]) + "; " + str(gt_rots[i][1]) + "; " + str(gt_rots[i][2]) + "; "
+			line = line + "\n" + str(meanDists3d[i]) + "; " + str(meanDists2d[i]) + "; "
+			line = line + "\n" + str(dists3d[i][0]) + "; " + str(dists3d[i][1]) + "; " + str(dists3d[i][2]) + "; " + str(dists3d[i][3]) + "; " + str(dists3d[i][4]) + "; " + str(dists3d[i][5]) + "; " + str(dists3d[i][6]) + "; " + str(dists3d[i][7]) + "; " + str(dists3d[i][8]) + "; "
+			line = line + "\n" + str(dists2d[i][0]) + "; " + str(dists2d[i][1]) + "; " + str(dists2d[i][2]) + "; " + str(dists2d[i][3]) + "; " + str(dists2d[i][4]) + "; " + str(dists2d[i][5]) + "; " + str(dists2d[i][6]) + "; " + str(dists2d[i][7]) + "; " + str(dists2d[i][8]) + "; "
 			f.write(line + "\n")
 
 		for i in range(len(filenamesFailure)):
