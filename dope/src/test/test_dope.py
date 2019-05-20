@@ -124,6 +124,23 @@ def test_dope(params, testDataFolder):
 	matrix_camera[2,2] = 1
 	dist_coeffs = np.zeros((4,1))
 
+	# Open json-file and extract camera-info
+	cameraSettingsPath = params['path_to_images'] + "/_camera_settings" + ".json"
+	if os.path.exists(cameraSettingsPath):
+		intrinsics = []
+		with open(cameraSettingsPath) as json_file:
+			data = json.load(json_file)
+			settings = data["camera_settings"]
+			matrix_camera_gt = np.zeros((3,3))
+			matrix_camera_gt[0,0] = settings[0]["intrinsic_settings"]["fx"]
+			matrix_camera_gt[1,1] = settings[0]["intrinsic_settings"]['fy']
+			matrix_camera_gt[0,2] = settings[0]["intrinsic_settings"]['cx']
+			matrix_camera_gt[1,2] = settings[0]["intrinsic_settings"]['cy']
+			matrix_camera_gt[2,2] = 1
+	else:
+		print("No camera settings path found in test-folder! File not found: " + str(cameraSettingsPath))
+		return
+
 	if "dist_coeffs" in params["camera_settings"]:
 		dist_coeffs = np.array(params["camera_settings"]['dist_coeffs'])
 	config_detect = lambda: None
@@ -144,6 +161,7 @@ def test_dope(params, testDataFolder):
 		
 		draw_colors[model] = tuple(params["draw_colors"][model])
 		pnp_solvers[model] = CuboidPNPSolver(model,	matrix_camera, Cuboid3d(params['dimensions'][model]), dist_coeffs=dist_coeffs)
+		pnp_solver_gt = CuboidPNPSolver(model, matrix_camera_gt, Cuboid3d(params['dimensions'][model]), dist_coeffs=dist_coeffs)
 
 	cuboid_points_3d = np.array([[ 9.9,-4.5, 8.85, 1],
 								[-9.9,-4.5, 8.85, 1],
@@ -243,22 +261,27 @@ def test_dope(params, testDataFolder):
 					#print type(cuboid_points_3d_transfrom)
 					#print gt_points3d
 
-					M_trans = tf.transformations.quaternion_matrix(gt_ori)
+					res = pnp_solver_gt.solve_pnp(gt_points2d)
+					print res[1]#["quaternion"]
+					print ori
+					print res[0]
+					print gt_pos
+					print np.array(gt_points2d)
+					print res[2]
+
+					M_trans = tf.transformations.quaternion_matrix(res[1])
 					M_trans[0][3] = gt_pos[0]
 					M_trans[1][3] = gt_pos[1]
 					M_trans[2][3] = gt_pos[2]
 					#print M_trans
 
-					#gt_cuboid_points_3d_transfrom = []
-					#for point in cuboid_points_3d:
-					#	gt_cuboid_points_3d_transfrom.append(M_trans.dot(point))
-					#gt_cuboid_points_3d_transfrom = np.delete(gt_cuboid_points_3d_transfrom, 3, 1)	# Delete 1s from homogenous transformation
-					#print gt_cuboid_points_3d_transfrom
-					#print gt_points3d
-					#print cuboid_points_3d_transfrom
-					res = pnp_solvers[m].solve_pnp(gt_points2d)
-					print res[1]#["quaternion"]
-					print ori
+					'''gt_cuboid_points_3d_transfrom = []
+					for point in cuboid_points_3d:
+						gt_cuboid_points_3d_transfrom.append(M_trans.dot(point))
+					gt_cuboid_points_3d_transfrom = np.delete(gt_cuboid_points_3d_transfrom, 3, 1)	# Delete 1s from homogenous transformation
+					print gt_cuboid_points_3d_transfrom
+					print np.array(gt_points3d)
+					print cuboid_points_3d_transfrom'''
 
 					dist3d, meanDist3d, minDist3d, maxDist3d = calc_distance(cuboid_points_3d_transfrom, np.array(gt_points3d))
 					#print dist3d, meanDist3d, minDist3d, maxDist3d
@@ -310,7 +333,7 @@ def test_dope(params, testDataFolder):
 		for i in range(len(filenamesSuccess)):
 			line = str(filenamesSuccess[i]) + "; " + str(1) + "; " + str(0) + "; "
 			line = line + "\n" + str(locs[i][0]) + "; " + str(locs[i][1]) + "; " + str(locs[i][2]) + "; " + str(gt_locs[i][0]) + "; " + str(gt_locs[i][1]) + "; " + str(gt_locs[i][2]) + "; "
-			line = line + "\n" + str(oris[i][0]) + "; " + str(oris[i][1]) + "; " + str(oris[i][2]) + "; " + str(oris[i][3]) + "; " + str(gt_oris[i][0]) + "; " + str(gt_oris[i][1]) + "; " + str(gt_oris[i][2]) + "; " + str(gt_oris[i][3]) + "; "
+			#line = line + "\n" + str(oris[i][0]) + "; " + str(oris[i][1]) + "; " + str(oris[i][2]) + "; " + str(oris[i][3]) + "; " + str(gt_oris[i][0]) + "; " + str(gt_oris[i][1]) + "; " + str(gt_oris[i][2]) + "; " + str(gt_oris[i][3]) + "; "
 			line = line + "\n" + str(rots[i][0]) + "; " + str(rots[i][1]) + "; " + str(rots[i][2]) + "; " + str(gt_rots[i][0]) + "; " + str(gt_rots[i][1]) + "; " + str(gt_rots[i][2]) + "; "
 			line = line + "\n" + str(meanDists3d[i]) + "; " + str(meanDists2d[i]) + "; "
 			line = line + "\n" + str(dists3d[i][0]) + "; " + str(dists3d[i][1]) + "; " + str(dists3d[i][2]) + "; " + str(dists3d[i][3]) + "; " + str(dists3d[i][4]) + "; " + str(dists3d[i][5]) + "; " + str(dists3d[i][6]) + "; " + str(dists3d[i][7]) + "; " + str(dists3d[i][8]) + "; "
