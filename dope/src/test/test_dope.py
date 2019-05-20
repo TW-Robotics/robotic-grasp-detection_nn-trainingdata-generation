@@ -9,6 +9,7 @@ This file takes all test-images from a folder, runs them through dope
 and compares the output of dope with the ground-truth.
 """
 
+import time
 import sys
 import yaml
 import os
@@ -16,15 +17,19 @@ import csv
 import glob
 
 import numpy as np
+import math
 import cv2
 
 from PIL import Image
 from PIL import ImageDraw
+from cv_bridge import CvBridge, CvBridgeError
 
 # Import DOPE code
 sys.path.append('../inference')
 from cuboid import *
 from detector import *
+
+import tf
 
 ### Global Variables
 g_draw = None
@@ -90,9 +95,14 @@ def DrawCube(points, color=(255, 0, 0)):
 def calc_distance(est_points, gt_points):
 	dist = []
 	for i in range(len(est_points)):
-		squared_dist = np.sum(est_points[i]**2 + gt_points[i]**2, axis=0)
-		dist[i] = np.sqrt(squared_dist)
-	return dist, sum(dist)/len(dist)
+		if len(est_points[i]) == 3:
+			dist.append(math.sqrt(  math.pow(est_points[i][0] - gt_points[i][0], 2) +
+									math.pow(est_points[i][1] - gt_points[i][1], 2) +
+									math.pow(est_points[i][2] - gt_points[i][2], 2)* 1.0))
+		elif len(est_points[i]) == 2:
+			dist.append(math.sqrt(  math.pow(est_points[i][0] - gt_points[i][0], 2) +
+									math.pow(est_points[i][1] - gt_points[i][1], 2)* 1.0))	
+	return dist, sum(dist)/len(dist), min(dist), max(dist)
 
 def test_dope(params, testDataFolder):
 	global g_draw
@@ -134,43 +144,58 @@ def test_dope(params, testDataFolder):
 		draw_colors[model] = tuple(params["draw_colors"][model])
 		pnp_solvers[model] = CuboidPNPSolver(model,	matrix_camera, Cuboid3d(params['dimensions'][model]), dist_coeffs=dist_coeffs)
 
+	cuboid_points_3d = np.array([[ 9.9,-4.5, 8.85, 1],
+								[-9.9,-4.5, 8.85, 1],
+								[-9.9, 4.5, 8.85, 1],
+								[ 9.9, 4.5, 8.85, 1],
+								[ 9.9,-4.5,-8.85, 1],
+								[-9.9,-4.5,-8.85, 1],
+								[-9.9, 4.5,-8.85, 1],
+								[ 9.9, 4.5,-8.85, 1],
+								[ 0. , 0. , 0.  , 1]])
+
 	print ("Testing DOPE...")
+
+	model_testing_start_time = time.time()
+
+	filenamesSuccess = []
+	filenamesFailure = []
+	dists3d = []
+	dists2d = []
+	meanDists3d = []
+	meanDists2d = []
+	locs = []
+	oris = []
+	rots = []
+	gt_locs = []
+	gt_oris = []
+	gt_rots = []
 
 	# For all images in folder
 	print params['path_to_images']
 	for imgpath in glob.glob(params['path_to_images'] + "/*.png"):
-		print imgpath
+		#print imgpath
 		if os.path.exists(imgpath) and os.path.exists(imgpath.replace("png","json")):
 			fileName = os.path.splitext(os.path.basename(imgpath))[0]
-			# Load image and json-file
-			with open(imgpath.replace("png","json")) as json_file:
-				data = json.load(json_file)
-				img = cv2.imread(imgpath)
-				
-				gt_pos = data["objects"][0]["location"]
-				gt_ori = data["objects"][0]["quaternion_xyzw"]
-				gt_points2d = data["objects"][0]["projected_cuboid"]
-				gt_points3d = data["objects"][0]["cuboid"]
-				gt_centroid_point2d = data["objects"][0]["projected_cuboid_centroid"]
-				gt_centroid_point3d = data["objects"][0]["cuboid_centroid"]
-				gt_points2d.append(data["objects"][0]["projected_cuboid_centroid"])
-				gt_points3d.append(data["objects"][0]["cuboid_centroid"])
-
+			
+			img = cv2.imread(imgpath)
+			
 			# Copy and draw image
 			img_copy = img.copy()
 			im = Image.fromarray(img_copy)
 			g_draw = ImageDraw.Draw(im)
 
-			filenames = []
-			dists3d = []
-			dists2d = []
-			meanDists3d = []
-			meanDists2d = []
-
 			for m in models:
 				# Detect object
 				results = ObjectDetector.detect_object_in_image(models[m].net, pnp_solvers[m], img, config_detect)
 				
+				#print results
+				#print results[0]['points_3d']
+
+				if len(results) == 0:
+					cv2.imwrite(testDataFolder + "/" + "fail" + "/" + fileName + ".failed.png", np.array(im)[...,::-1])
+					filenamesFailure.append(fileName)
+
 				# Get pose and overlay cube on image
 				for i_r, result in enumerate(results):
 					if result["location"] is None:
@@ -178,36 +203,108 @@ def test_dope(params, testDataFolder):
 					loc = result["location"]
 					ori = result["quaternion"]
 
+					# Get homogenous transformation matrix and put translation in last column
+					M_trans = tf.transformations.quaternion_matrix(ori)
+					M_trans[0][3] = loc[0]
+					M_trans[1][3] = loc[1]
+					M_trans[2][3] = loc[2]
+					#print M_trans
+
+					# Transform cuboid-corners and centroid and store them
+					cuboid_points_3d_transfrom = []
+					for point in cuboid_points_3d:
+						cuboid_points_3d_transfrom.append(M_trans.dot(point))
+					cuboid_points_3d_transfrom = np.delete(cuboid_points_3d_transfrom, 3, 1)	# Delete 1s from homogenous transformation
+					#print cuboid_points_3d_transfrom
+
 					# Draw the cube
 					if None not in result['projected_points']:
 						points2d = []
 						points3d = []
 						for pair in result['projected_points']:
 							points2d.append(tuple(pair))
-						#for pair in results['points_3d']:
-						#	points3d.append(tuple(pair))
 						DrawCube(points2d, draw_colors[m])
-				
-					#dist3d, meanDist3d = calc_distance(points3d, gt_points3d)
-					#dist2d, meanDist2d = calc_distance(points2d, gt_points2d)
-					#dists3d.append(dist3d)
-					#dists2d.append(dist2d)
-					#meanDists3d.append(meanDist3d)
-					#meanDists2d.append(meanDist2d)
-					filenames.append(fileName)
+
+					# Load json-file
+					with open(imgpath.replace("png","json")) as json_file:
+						data = json.load(json_file)
+						
+						gt_pos = data["objects"][0]["location"]
+						gt_ori = data["objects"][0]["quaternion_xyzw"]
+						gt_points2d = data["objects"][0]["projected_cuboid"]
+						gt_points3d = data["objects"][0]["cuboid"]
+						#gt_centroid_point2d = data["objects"][0]["projected_cuboid_centroid"]
+						#gt_centroid_point3d = data["objects"][0]["cuboid_centroid"]
+						gt_points2d.append(data["objects"][0]["projected_cuboid_centroid"])
+						gt_points3d.append(data["objects"][0]["cuboid_centroid"])
+					
+					#print type(gt_points3d)
+					#print type(cuboid_points_3d_transfrom)
+					#print gt_points3d
+
+					dist3d, meanDist3d, minDist3d, maxDist3d = calc_distance(cuboid_points_3d_transfrom, np.array(gt_points3d))
+					#print dist3d, meanDist3d, minDist3d, maxDist3d
+					dist2d, meanDist2d, minDist2d, minDist3d = calc_distance(points2d, np.array(gt_points2d))
+
+					rot = tf.transformations.euler_from_quaternion(ori)	# TODO Achsreihenfolge?!
+					rot = [rot[i] / math.pi*180 for i in range(len(rot))]
+					gt_rot = tf.transformations.euler_from_quaternion(gt_ori)
+					gt_rot = [gt_rot[i] / math.pi*180 for i in range(len(gt_rot))]
+
+					locs.append([loc[i] * 10 for i in range(len(loc))])
+					oris.append(ori)
+					rots.append(rot)
+
+					gt_locs.append([gt_pos[i] * 10 for i in range(len(gt_pos))])
+					gt_oris.append(gt_ori)
+					gt_rots.append(gt_rot)
+
+					dists3d.append([dist3d[i] * 10 for i in range(len(dist3d))])
+					dists2d.append(dist2d)
+					meanDists3d.append(meanDist3d * 10)
+					meanDists2d.append(meanDist2d)
+					filenamesSuccess.append(fileName)
 
 					# Store image with results overlaid
 					#im.save(sys.stdout, "png")
-					cv2.imwrite(testDataFolder + "/" + fileName + ".vis.png", g_draw)
-
+					#convImg = CvBridge().cv2_to_imgmsg(np.array(im)[...,::-1], "bgr8")
+					#print type(myImg)
+					#print type(np.array(im)[...,::-1])
+					#print imgpath
+					cv2.imwrite(testDataFolder + "/" + fileName + ".vis.png", np.array(im)[...,::-1])
+	
+	#print filenamesSuccess
 	# filename; meanDist3d; meanDist2d; dist3D; dist2D
-	'''with open(testDataFolder + "/evaluation.csv", "wb") as f:
-		writer = csv.writer(f, delimiter=";")
-		writer.writerow("filename; meanDist3d; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;")
+	print type(oris[0])
+	with open(testDataFolder + "/evaluation.csv", "wb") as f:
+		#writer = csv.writer(f, delimiter=";")
+		f.write("filename; success; failure; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; q1; q2; q3; q4; gtQ1; gtQ2; gtQ3; gtQ4; rx; ry; rz; gtRx; gtRy; gtRz; meanDist3d; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;\n")
+		for i in range(len(filenamesSuccess)):
+			line = str(filenamesSuccess[i]) + "; " + str(1) + "; " + str(0) + "; "
+			line = line + str(locs[i][0]) + "; " + str(locs[i][1]) + "; " + str(locs[i][2]) + "; " + str(gt_locs[i][0]) + "; " + str(gt_locs[i][1]) + "; " + str(gt_locs[i][2]) + "; "
+			line = line + str(oris[i][0]) + "; " + str(oris[i][1]) + "; " + str(oris[i][2]) + "; " + str(oris[i][3]) + "; " + str(gt_oris[i][0]) + "; " + str(gt_oris[i][1]) + "; " + str(gt_oris[i][2]) + "; " + str(gt_oris[i][3]) + "; "
+			line = line + str(rots[i][0]) + "; " + str(rots[i][1]) + "; " + str(rots[i][2]) + "; " + str(gt_rots[i][0]) + "; " + str(gt_rots[i][1]) + "; " + str(gt_rots[i][2]) + "; "
+			line = line + str(meanDists3d[i]) + "; " + str(meanDists2d[i]) + "; "
+			line = line + str(dists3d[i][0]) + "; " + str(dists3d[i][1]) + "; " + str(dists3d[i][2]) + "; " + str(dists3d[i][3]) + "; " + str(dists3d[i][4]) + "; " + str(dists3d[i][5]) + "; " + str(dists3d[i][6]) + "; " + str(dists3d[i][7]) + "; " + str(dists3d[i][8]) + "; "
+			line = line + str(dists2d[i][0]) + "; " + str(dists2d[i][1]) + "; " + str(dists2d[i][2]) + "; " + str(dists2d[i][3]) + "; " + str(dists2d[i][4]) + "; " + str(dists2d[i][5]) + "; " + str(dists2d[i][6]) + "; " + str(dists2d[i][7]) + "; " + str(dists2d[i][8]) + "; "
+			f.write(line + "\n")
+
+		for i in range(len(filenamesFailure)):
+			line = str(filenamesFailure[i]) + "; " + str(0) + "; " + str(1) + "; "
+			f.write(line + "\n")
+
+	print('    Model tested in {} seconds.'.format(time.time() - model_testing_start_time))
+
+	'''writer = csv.writer(f, delimiter=";")
+		writer.writerow("filename; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; q1; q2; q3; q4; gtQ1; gtQ2; gtQ3; gtQ4; rx; ry; rz; gtRx; gtRy; gtRz; meanDist3d; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;")
 		for i in range(len(filenames)):
-			line = str(filenames[i]) + " ;" + str(meanDist3d) + " ;" + str(meanDist2d) + " ;"
-			line = line + str(dist3d[0]) + " ;" + str(dist3d[1]) + " ;" + str(dist3d[2]) + " ;" + str(dist3d[3]) + " ;" + str(dist3d[4]) + " ;" + str(dist3d[5]) + " ;" + str(dist3d[6]) + " ;" + str(dist3d[7]) + " ;" + str(dist3d[8]) + " ;"
-			line = line + str(dist2d[0]) + " ;" + str(dist2d[1]) + " ;" + str(dist2d[2]) + " ;" + str(dist2d[3]) + " ;" + str(dist2d[4]) + " ;" + str(dist2d[5]) + " ;" + str(dist2d[6]) + " ;" + str(dist2d[7]) + " ;" + str(dist2d[8]) + " ;"
+			line = str(filenames[i]) + "; "
+			line = line + str(loc[0]) + ";" + str(loc[1]) + ";" + str(loc[2]) + ";" + str(gt_pos[0]) + ";" + str(gt_pos[1]) + ";" + str(gt_pos[2]) + ";"
+			line = line + str(ori[0]) + ";" + str(ori[1]) + ";" + str(ori[2]) + ";" + str(ori[3]) + ";" + str(gt_ori[0]) + ";" + str(gt_ori[1]) + ";" + str(gt_ori[2]) + ";" + str(gt_ori[3]) + ";"
+			line = line + str(rot[0]) + ";" + str(rot[1]) + ";" + str(rot[2]) + ";" + str(gt_rot[0]) + ";" + str(gt_rot[1]) + ";" + str(gt_rot[2]) + ";"
+			line = line + str(meanDist3d) + "; " + str(meanDist2d) + "; "
+			line = line + str(dist3d[0]) + "; " + str(dist3d[1]) + "; " + str(dist3d[2]) + "; " + str(dist3d[3]) + "; " + str(dist3d[4]) + "; " + str(dist3d[5]) + "; " + str(dist3d[6]) + "; " + str(dist3d[7]) + "; " + str(dist3d[8]) + "; "
+			line = line + str(dist2d[0]) + "; " + str(dist2d[1]) + "; " + str(dist2d[2]) + "; " + str(dist2d[3]) + "; " + str(dist2d[4]) + "; " + str(dist2d[5]) + "; " + str(dist2d[6]) + "; " + str(dist2d[7]) + "; " + str(dist2d[8]) + "; "
 			writer.writerow(line)'''
 
 if __name__ == "__main__":
@@ -230,5 +327,8 @@ if __name__ == "__main__":
 	testDataFolder = params['path_to_images'] + "/" + "test_data"
 	if not os.path.exists(testDataFolder):
 		os.makedirs(testDataFolder)
+	testDataFolderFail = testDataFolder + "/" + "fail"
+	if not os.path.exists(testDataFolderFail):
+		os.makedirs(testDataFolderFail)
 
 	test_dope(params, testDataFolder)
