@@ -103,13 +103,23 @@ def DrawCube(points, color=(255, 0, 0)):
 def calc_distance(est_points, gt_points):
 	dist = []
 	for i in range(len(est_points)):
-		if len(est_points[i]) == 3:
-			dist.append(math.sqrt(  math.pow(est_points[i][0] - gt_points[i][0], 2) +
-									math.pow(est_points[i][1] - gt_points[i][1], 2) +
-									math.pow(est_points[i][2] - gt_points[i][2], 2)* 1.0))
-		elif len(est_points[i]) == 2:
-			dist.append(math.sqrt(  math.pow(est_points[i][0] - gt_points[i][0], 2) +
-									math.pow(est_points[i][1] - gt_points[i][1], 2)* 1.0))	
+		try:
+			if len(est_points[i]) == 3:
+				dist.append(math.sqrt(  math.pow(est_points[i][0] - gt_points[i][0], 2) +
+										math.pow(est_points[i][1] - gt_points[i][1], 2) +
+										math.pow(est_points[i][2] - gt_points[i][2], 2)* 1.0))
+		except:
+			print "Error when calculating distance!"
+			return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0, 0, 0
+
+		try:
+			if len(est_points[i]) == 2:
+				dist.append(math.sqrt(  math.pow(est_points[i][0] - gt_points[i][0], 2) +
+										math.pow(est_points[i][1] - gt_points[i][1], 2)* 1.0))
+		except:
+			print "Error when calculating distance!"
+			return [0, 0, 0, 0, 0, 0, 0, 0, 0], 0, 0, 0
+
 	return dist, sum(dist)/len(dist), min(dist), max(dist)
 
 def test_dope(params, testDataFolder):
