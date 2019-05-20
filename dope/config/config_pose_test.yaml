@@ -1,4 +1,4 @@
-path_to_images: "/home/mluser/Schreibtisch/data/test_real_sub/subsubsub"
+path_to_images: "/home/mluser/Schreibtisch/data/test_real_sub/subsub"
 
 # Comment any of these lines to prevent detection / pose estimation of that object
 weights: {
