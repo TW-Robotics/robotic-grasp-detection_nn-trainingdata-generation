@@ -239,7 +239,19 @@ class ur5Controler():
 	####### SPECIFIC FUNCTIONS FOR TASK EXECUTION #######
 	#####################################################
 
-	# To be added
+	# Move the robot to the position, where it starts to search for the object
+	def moveToSearchPose(self, orientation):
+		# Drive to position where r = 0.4 and h = 0.6
+		jointStates = [110*pi/180, -pi/2, pi/2, -110*pi/180, -pi/2, 0]
+
+		if orientation == "left":
+			jointStates[0] = 65*pi/180
+		elif orientation == "right":
+			jointStates[0] = -115*pi/180
+		elif orientation == "front":
+			jointStates[0] = -25*pi/180
+
+		self.execute_move(jointStates)
 
 def main(args):
 	try:
