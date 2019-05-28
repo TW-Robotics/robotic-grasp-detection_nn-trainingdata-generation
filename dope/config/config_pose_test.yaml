@@ -1,4 +1,4 @@
-path_to_images: "/home/johannes/catkin_ws/src/test_data"
+path_to_images: "/home/mluser/Schreibtisch/data/test_real"
 
 # Comment any of these lines to prevent detection / pose estimation of that object
 weights: {
@@ -8,7 +8,12 @@ weights: {
     # "mustard":"mustard_60.pth", 
     #"soup":"soup_60.pth",
     #"sugar":"sugar_60.pth"
-    "carrier_empty":"carrier_empty_34.pth"
+    
+    #"carrier_empty":"0_net_synthOnly_107.pth"
+    #"carrier_empty":"1_net_synth107+real120.pth"
+    #"carrier_empty":"2_net_pretrained+real_120.pth"
+    #"carrier_empty":"3_net_real_2958.pth"
+    "carrier_empty":"4_net_real_8874.pth"
 }
 
 # Cuboid dimension in cm x,y,z

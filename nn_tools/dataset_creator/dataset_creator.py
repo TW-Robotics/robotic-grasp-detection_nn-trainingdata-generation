@@ -54,7 +54,7 @@ def createDatasets(root):
 		global destPathTest
 		#numDataPoints = dataPointId + 1
 
-		numTestDataPoints = int(dataPointId * float(percentTestData)/100)
+		numTestDataPoints = int(dataPointId * float(percentTestData)/100) #2958
 		list = range(dataPointId)
 		sampling = random.sample(list, k=numTestDataPoints)
 
@@ -77,10 +77,9 @@ def main(args):
 	parser.add_argument('--percentTestData', type=int, default=20, help='Percentage of dataset which should go to test-dataset. Default: 20')
 
 	globArgs = parser.parse_args()
-	destPathTrain = globArgs.Path + "/" + "dataset_train"
-	destPathTest = globArgs.Path + "/" + "dataset_test"
-	destPathTrain = "/home/johannes/catkin_ws/src/data" + "/" + "dataset_train"
-	destPathTest =  "/home/johannes/catkin_ws/src/data" + "/" + "dataset_test"
+	path = os.path.dirname(os.path.dirname(globArgs))	# Go one level up so this folder will not be searched
+	destPathTrain = path + "/" + "dataset_train"
+	destPathTest = path + "/" + "dataset_test"
 
 	os.makedirs(destPathTrain)
 	os.makedirs(destPathTest)
