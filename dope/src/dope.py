@@ -250,10 +250,10 @@ def run_dope_node(params, freq=5):
 if __name__ == "__main__":
     '''Main routine to run DOPE'''
 
-    if len(sys.argv) > 1:
+    '''if len(sys.argv) > 1:
         config_name = sys.argv[1]
-    else:
-        config_name = "config_pose.yaml"
+    else:'''
+    config_name = "config_pose.yaml"
     rospack = rospkg.RosPack()
     params = None
     yaml_path = g_path2package + '/config/{}'.format(config_name)
