@@ -79,6 +79,8 @@ def main(args):
 	globArgs = parser.parse_args()
 	destPathTrain = globArgs.Path + "/" + "dataset_train"
 	destPathTest = globArgs.Path + "/" + "dataset_test"
+	destPathTrain = "/home/johannes/catkin_ws/src/data" + "/" + "dataset_train"
+	destPathTest =  "/home/johannes/catkin_ws/src/data" + "/" + "dataset_test"
 
 	os.makedirs(destPathTrain)
 	os.makedirs(destPathTest)
