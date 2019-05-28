@@ -37,7 +37,7 @@ draw_colors: {
     "carrier_empty": [0, 104, 255],  # blue
 }
 
-# Camera intrinsics (Logitech C920)
+# Camera intrinsics
 camera_settings: {
     "name": "Realsense",
     "width": 400,
