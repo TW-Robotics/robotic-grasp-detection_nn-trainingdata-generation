@@ -1,4 +1,5 @@
-path_to_images: "/home/mluser/Schreibtisch/data/test_real"
+#path_to_images: "/home/mluser/catkin_ws/src/data/single/carrier_empty/testOnTable"
+path_to_images: "/home/mluser/Desktop/real_testdata_forNetwork/train"
 
 # Comment any of these lines to prevent detection / pose estimation of that object
 weights: {
@@ -13,7 +14,9 @@ weights: {
     #"carrier_empty":"1_net_synth107+real120.pth"
     #"carrier_empty":"2_net_pretrained+real_120.pth"
     #"carrier_empty":"3_net_real_2958.pth"
-    "carrier_empty":"4_net_real_8874.pth"
+    #"carrier_empty":"4_net_real_8874.pth"
+    #"carrier_empty":"2_net_pretrained+real_14789_120.pth"
+    "carrier_empty":"6_net_pretrained+real_2958_120.pth"
 }
 
 # Cuboid dimension in cm x,y,z
