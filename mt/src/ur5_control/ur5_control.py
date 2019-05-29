@@ -32,7 +32,7 @@ from math import pi
 debug = False
 
 class ur5Controler():
-	def __init__(self, eef_link="camera_planning_frame", pose_ref_frame="/base_link", checkBeforeDo=True):
+	def __init__(self, eef_link="gripper", pose_ref_frame="/base_link", checkBeforeDo=True):
 		# Set Robot paramters: position over floor, speed and acceloration [0, 1] (only 0.1 steps)
 		self.speed = 0.1
 		self.acceleration = 0.1
@@ -54,9 +54,10 @@ class ur5Controler():
 		self.group.set_pose_reference_frame(pose_ref_frame)
 		self.setSpeed(self.speed, self.acceleration)
 
-		'''print self.robot.get_planning_frame()
+		print self.robot.get_planning_frame()
 		print self.group.get_pose_reference_frame()
-		print self.group.get_current_pose().pose'''
+		print self.group.get_current_pose().pose
+		print self.group.get_end_effector_link()
 
 	######################################################
 	###### GENERAL FUNCTIONS FOR BASIC MOVING TASKS ######
@@ -74,16 +75,21 @@ class ur5Controler():
 
 	# Move robot to a specific pose
 	def move_to_pose(self, goalPose):
-		goal_pose = Pose()
+		#print self.group.get_current_pose().pose
 
-		goal_pose.position.x = goalPose[0]
-		goal_pose.position.y = goalPose[1]
-		goal_pose.position.z = goalPose[2]
-		goal_pose.orientation.x = goalPose[3]
-		goal_pose.orientation.y = goalPose[4]
-		goal_pose.orientation.y = goalPose[5]
-		goal_pose.orientation.w = goalPose[6]
+		if type(goalPose) is not Pose:
+			goal_pose = Pose()
+			goal_pose.position.x = goalPose[0]
+			goal_pose.position.y = goalPose[1]
+			goal_pose.position.z = goalPose[2]
+			goal_pose.orientation.x = goalPose[3]
+			goal_pose.orientation.y = goalPose[4]
+			goal_pose.orientation.z = goalPose[5]
+			goal_pose.orientation.w = goalPose[6]
+		else:
+			goal_pose = goalPose
 
+		print goal_pose
 		self.execute_move(goal_pose)
 
 	# Move to x/y/z-position (incremental)
@@ -269,9 +275,9 @@ def main(args):
 		ur5.go_home()
 		
 		# Move to pose
-		# Info: Get actual pose: rosrun tf tf_echo base_link tool0
+		# Info: Get actual pose: rosrun tf tf_echo base_link tool0'''
 		print "Moving to pose"
-		goalPose = [0, 0.191, 0.937, 0.707, 0, 0, 0.707] # Point x, y, z in Meter; Orientation x, y, z, w in Quaternionen
+		goalPose = [0.6, 0.1, 0.37, 0, 0, 0.707, 0.707] # Point x, y, z in Meter; Orientation x, y, z, w in Quaternionen
 		ur5.move_to_pose(goalPose)
 		
 		# Move to x/y/z-position (incremental)
@@ -282,7 +288,7 @@ def main(args):
 		ur5.move_xyz(x_inc, y_inc, z_inc)
 
 		# Move along a cartesian path
-		print "Moving along cartesian path"
+		'''print "Moving along cartesian path"
 		ur5.move_cartesian_path(x_inc, y_inc, z_inc)
 		
 		# Move to joint-orientations

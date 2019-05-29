@@ -14,12 +14,13 @@ debug = True
 
 class graspPoint_broadcaster():
 	def __init__(self):
+		self.bridge = CvBridge()
+		self.br = tf.TransformBroadcaster()
+
 		# Init subscriber
 		rospy.Subscriber("/dope/pose_carrier_empty", PoseStamped, self.pose_callback, queue_size=1)					# Pose transform camera to grasp-point
-		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)									# RGB-Image
-		pub = rospy.Publisher("/dope/pose_update", Bool)
-
-		self.br = tf.TransformBroadcaster()
+		rospy.Subscriber("/dope/rgb_points", Image, self.rgb_image_callback)									# RGB-Image
+		self.pub = rospy.Publisher("/dope/pose_update", Bool, queue_size=10)
 
 	def rgb_image_callback(self, data):
 		rgb_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -44,7 +45,7 @@ def print_debug(dStr):
 
 def main(args):
 	# Init Node
-	rospy.init_node('tf_graspPoint_broadcaster', disable_signals=True)
+	rospy.init_node('tf_dope_pose_broadcaster', disable_signals=True)
 
 	graspPoint_br = graspPoint_broadcaster()
 
