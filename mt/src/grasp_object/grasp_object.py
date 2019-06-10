@@ -7,6 +7,7 @@ import tf
 import math
 import collections
 import csv
+import time
 
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import Image
@@ -144,7 +145,7 @@ def main(args):
 
 	#grasper.ur5.moveToSearchPose("left")
 	while (True):
-		inp = raw_input("p to publish image, g to drive to grasp pose, a for automatic: ")[0]
+		inp = raw_input("p to publish image, g to drive to grasp pose, ha for half-automatic: ")[0]
 		if inp == 'p':
 			grasper.publish_image()
 		elif inp == 'g':
@@ -155,7 +156,7 @@ def main(args):
 				grasper.ur5.move_to_pose(grasper.graspPose)
 			else:
 				print "No update"
-		elif inp == 'a':
+		elif inp == 'ha':
 			grasper.publish_image()
 			# Wait until updated pose arrives
 			while grasper.poseIsUpdated == False:
@@ -178,7 +179,25 @@ def main(args):
 
 			##### Move the robot up and to transport-pose
 			ur5.move_xyz(0, 0, 0.1)
+		elif inp == 'a':
+			grasper.ur5.moveToSearchPose("front")
+			posID = 0
+			while grasper.ur5.searchObject(posID) == True:
+				grasper.publish_image()
 
+				timeout = time.time() + 1   # 1 seconds from now
+				# Wait until updated pose arrives or timeout occurs (pose not visible)
+				while time.time() <= timeout:
+					if grasper.poseIsUpdated == True:
+						print "Received pose update - driving to object."
+						break
+					rospy.sleep(0.1)
+				print "Object not found - moving on..."
+				posID = posID + 1
+			else:
+				print "No object found!"
+
+			 # TODO Copy code from above when working
 
 if __name__ == '__main__':
 	main(sys.argv)
