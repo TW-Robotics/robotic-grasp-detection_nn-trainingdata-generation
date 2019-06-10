@@ -321,7 +321,7 @@ if __name__ == "__main__":
 	if len(sys.argv) > 1:
 		config_name = sys.argv[1]
 	else:
-		config_name = "config_pose_test.yaml"
+		config_name = "config_quantitative.yaml"
 	params = None
 	yaml_path = '../../config/{}'.format(config_name)
 	with open(yaml_path, 'r') as stream:
