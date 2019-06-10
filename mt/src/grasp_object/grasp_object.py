@@ -39,6 +39,8 @@ class grasp_process():
 		self.rgb_img = Image()
 		self.poseIsUpdated = False
 
+		self.publishResized == True
+
 		self.imgOutputSize = rospy.get_param("outputImage_size")
 		self.imgWidth = rospy.get_param("camera_width")
 		self.imgHeight = rospy.get_param("camera_height")
@@ -93,8 +95,10 @@ class grasp_process():
 
 	def publish_image(self):
 		self.poseIsUpdated = False
-		#self.rawImgPub.publish(self.rgb_img)
-		self.rawImgPub.publish(self.bridge.cv2_to_imgmsg(self.rgb_img_resized, "bgr8"))
+		if self.publishResized == False:
+			self.rawImgPub.publish(self.rgb_img)
+		else:
+			self.rawImgPub.publish(self.bridge.cv2_to_imgmsg(self.rgb_img_resized, "bgr8"))
 
 	def calcPrePose(self):
 		prePose = self.copyPose(self.graspPose)
@@ -136,51 +140,56 @@ def main(args):
 
 	grasper = grasp_process() # TODO Dont forget to update config_pose camera intrinsics
 
+	rospy.loginfo("Make sure correct camera intrinsics are set!")
+
 	#grasper.ur5.moveToSearchPose("left")
 	while (True):
-		inp = raw_input("p to publish image, g to drive to grasp pose: ")[0]
+		inp = raw_input("p to publish image, g to drive to grasp pose, a for automatic: ")[0]
 		if inp == 'p':
 			grasper.publish_image()
 		elif inp == 'g':
-			#if grasper.poseIsUpdated == True:
+			if grasper.poseIsUpdated == True:
 				#print grasper.graspPose
 				prePose = grasper.calcPrePose()
-
-		  		pose = Pose()
-				pose.position.x = 0.6
-				pose.position.y = 0.1
-				pose.position.z = 0.37
-				pose.orientation.x = 0.#-0.4778
-				pose.orientation.y = 0.707#0.4731
-				pose.orientation.z = 0#-0.5263
-				pose.orientation.w = 0.707#0.5203
-				#grasper.ur5.move_to_pose(prePose)
-				goalPose = [0.6, 0.1, 0.37, 0, 0, 0.707, 0.707]
-
+				grasper.ur5.move_to_pose(prePose)
 				grasper.ur5.move_to_pose(grasper.graspPose)
-			#else:
-			#	print "No update"
-		#grasper.publish_image()
-		#rospy.sleep(0.5)
-	if grasper.poseIsUpdated == True:
-		return True
-		prePose = grasper.calcPrePose()
-		grasper.ur5.move_to_pose(prePose)
-		grasper.ur5.move_to_pose(grasper.graspPose)
-		rospy.sleep(5)
+			else:
+				print "No update"
+		elif inp == 'a':
+			grasper.publish_image()
+			# Wait until updated pose arrives
+			while grasper.poseIsUpdated == False:
+				rospy.sleep(0.05)
+			print "Received pose update - driving to object"
 
-		##### Close the gripper to grasp object
-		grasper.gripper.close()
-		rospy.sleep(5)
-		if grasper.gripper.hasGripped() == True:
-			print "Successfully grasped object!"
-		else:
-			print "Error grasping object!"
-			return False
+			prePose = grasper.calcPrePose()
+			grasper.ur5.move_to_pose(prePose)
+			grasper.ur5.move_to_pose(grasper.graspPose)
+			rospy.sleep(5)
 
-		##### Move the robot up and to transport-pose
-		ur5.move_xyz(0, 0, 0.1)
+			##### Close the gripper to grasp object
+			grasper.gripper.close()
+			rospy.sleep(5)
+			if grasper.gripper.hasGripped() == True:
+				print "Successfully grasped object!"
+			else:
+				print "Error grasping object!"
+				return False
+
+			##### Move the robot up and to transport-pose
+			ur5.move_xyz(0, 0, 0.1)
 
 
 if __name__ == '__main__':
 	main(sys.argv)
+
+
+	'''pose = Pose()
+	pose.position.x = 0.6
+	pose.position.y = 0.1
+	pose.position.z = 0.37
+	pose.orientation.x = 0.#-0.4778
+	pose.orientation.y = 0.707#0.4731
+	pose.orientation.z = 0#-0.5263
+	pose.orientation.w = 0.707#0.5203
+	goalPose = [0.6, 0.1, 0.37, 0, 0, 0.707, 0.707]'''
