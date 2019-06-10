@@ -77,7 +77,7 @@ def main(args):
 	parser.add_argument('--percentTestData', type=int, default=20, help='Percentage of dataset which should go to test-dataset. Default: 20')
 
 	globArgs = parser.parse_args()
-	path = os.path.dirname(os.path.dirname(globArgs))	# Go one level up so this folder will not be searched
+	path = os.path.dirname(os.path.dirname(globArgs.Path))	# Go one level up so this folder will not be searched
 	destPathTrain = path + "/" + "dataset_train"
 	destPathTest = path + "/" + "dataset_test"
 
