@@ -259,6 +259,24 @@ class ur5Controler():
 
 		self.execute_move(jointStates)
 
+	# Turn the robot around R1 and R4 to search the object
+	def searchObject(self, num):
+		if num == 0:
+			return True
+		elif num == 1:
+			self.move_joint(0, 25)
+		elif num == 2:
+			self.move_joint(0, 25)
+		elif num == 3:
+			self.move_joint(3, 15)
+		elif num == 4:
+			self.move_joint(0, -25)
+		elif num == 5:
+			self.move_joint(0, -25)
+		else:
+			return False
+		return True
+
 def main(args):
 	try:
 		# Initialize ros-node and Class
