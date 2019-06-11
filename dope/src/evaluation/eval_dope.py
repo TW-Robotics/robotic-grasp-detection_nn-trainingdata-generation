@@ -18,6 +18,7 @@ import glob
 import argparse
 import shutil
 from scipy import spatial
+import re
 
 import numpy as np
 import math
@@ -32,7 +33,9 @@ sys.path.append('../inference')
 from cuboid import *
 from detector import *
 from pyquaternion import Quaternion
+from obj_pose_eval import pose_error, inout, renderer, transform #pip install git+https://github.com/thodan/obj_pose_eval.git
 
+import json
 import tf
 
 class eval_dope():
@@ -77,14 +80,19 @@ class eval_dope():
 
 		# For each object to detect, load network model and create PNP solver
 		self.model = "carrier_empty"
-		self.models[self.model] = self.modelData(self.model, "../../weights/" + net)
-		self.models[self.model].load_net_self.model()
+		self.models[self.model] = ModelData(self.model, "../../weights/" + net)
+		self.models[self.model].load_net_model()
 		
 		self.draw_colors[self.model] = tuple(params["self.draw_colors"][self.model])
 		self.pnp_solvers[self.model] = CuboidPNPSolver(self.model,	self.matrix_camera, Cuboid3d(params['dimensions'][self.model]), dist_coeffs=self.dist_coeffs)
 
 		# Init pnp-Solver for ground-truth pose calculation
 		self.pnp_solvers["gt"] = CuboidPNPSolver(self.model, self.matrix_camera, Cuboid3d(params['dimensions'][self.model]), dist_coeffs=self.dist_coeffs)
+
+		net = net.replace(".pth","")
+
+		# Load object model ply-file
+		self.obj_model = inout.load_ply('carrier.ply')
 
 		print ("Evaluatinging DOPE...")
 		model_evaling_start_time = time.time()
@@ -94,7 +102,10 @@ class eval_dope():
 		self.filenamesFailure = []
 		self.dists3d = []
 		self.dists2d = []
-		self.meanDists3d = []
+		self.ADDCuboids = []
+		self.ADDModels = []
+		self.transl_errors = []
+		self.rot_errors = []
 		self.meanDists2d = []
 		self.locs_est = []
 		self.oris_est = []
@@ -104,12 +115,15 @@ class eval_dope():
 		self.rots_gt = []
 		self.Ms_est = []
 		self.Ms_gt = []
+		self.poses_gt = []
+		self.poses_est = []
 
 		self.createFolders(params, net)
 		self.eval(params['path_to_images'])
 		self.writeCSV(net)
+		self.exportJson(net)
 
-		print('    self.model evaled in {} seconds.'.format(time.time() - model_evaling_start_time))
+		print('    model evaluated in {} seconds.'.format(time.time() - model_evaling_start_time))
 		print '    Number of samples success / failure: ' + str(len(self.filenamesSuccess)) + " / " + str(len(self.filenamesFailure))
 
 	def createFolders(self, params, net):
@@ -117,14 +131,15 @@ class eval_dope():
 		path_to_store_results = os.path.dirname(os.path.dirname(path_to_images))	# Go one level up so this folder will not be searched
 		
 		self.evalDataFolder = path_to_store_results + "/" + "eval_data_" + net
-		if not os.path.exists(evalDataFolder):
-			os.makedirs(evalDataFolder)
-		self.evalDataFolderFail = evalDataFolder + "/" + "fail_" + net
-		if not os.path.exists(evalDataFolderFail):
-			os.makedirs(evalDataFolderFail)
-		self.evalDataFolderSuccess = evalDataFolder + "/" + "success_" + net
-		if not os.path.exists(evalDataFolderSuccess):
-			os.makedirs(evalDataFolderSuccess)
+		print(self.evalDataFolder)
+		if not os.path.exists(self.evalDataFolder):
+			os.makedirs(self.evalDataFolder)
+		self.evalDataFolderFail = self.evalDataFolder + "/" + "fail_" + net
+		if not os.path.exists(self.evalDataFolderFail):
+			os.makedirs(self.evalDataFolderFail)
+		self.evalDataFolderSuccess = self.evalDataFolder + "/" + "success_" + net
+		if not os.path.exists(self.evalDataFolderSuccess):
+			os.makedirs(self.evalDataFolderSuccess)
 
 	###########################################################
 	# EVALUATION ##############################################
@@ -153,6 +168,22 @@ class eval_dope():
 		dist = spatial.distance.cdist(est_points, gt_points, 'euclidean')
 		true_dist = [dist[i][i] for i in range(len(dist))]
 		return true_dist, np.mean(true_dist)		
+
+	def calc_PoseDicts(self, gt_loc, gt_M, est_loc, est_M):		# TODO herausfinden ob das mm oder cm oder was ist -> Vermutlich aber cm weil ja loc in cm ist
+		# Make matrices to 3x3
+		gt_M = np.delete(gt_M, 3, 1)
+		gt_M = np.delete(gt_M, 3, 0)
+		est_M = np.delete(est_M, 3, 1)
+		est_M = np.delete(est_M, 3, 0)
+
+		# Make vector for translation
+		gt_t = np.array([gt_loc[0], gt_loc[1], gt_loc[2]]).reshape((3, 1))
+		est_t = np.array([est_loc[0], est_loc[1], est_loc[2]]).reshape((3, 1))
+		
+		# Copy R, t to dictionary and calculate ADD metric
+		pose_gt = {'R': gt_M, 't': gt_t}
+		pose_est = {'R': est_M, 't': est_t}
+		return pose_gt, pose_est
 
 	def calc_distance(self, est_points, gt_points):
 		dist = []
@@ -210,13 +241,32 @@ class eval_dope():
 			gt_points3d.append(data["objects"][0]["cuboid_centroid"])
 		return gt_loc, gt_ori, gt_points2d, gt_points3d
 
+	def exportJson(self, net):
+		data_s = []
+		data_f = []
+		for i in range(len(self.filenamesSuccess)):
+			data_s.append({ "filename": self.filenamesSuccess[i], "cuboid_dists3d": self.dists3d[i],
+							"ADDCuboids": self.ADDCuboids[i], "ADDModel": self.ADDModels[i],
+							"transl_error": self.transl_errors[i], "rot_error": self.rot_errors[i],
+							"pose_gt": self.poses_gt[i], "pose_est": self.poses_est[i]})
+		for i in range(len(self.filenamesFailure)):
+			data_f.append({"filename": self.filenamesFailure[i]})
+
+		write_data = {"success": data_s, "failure": data_f}
+		self.write_json(write_data, self.evalDataFolder, "evaluation_" + net +".json")
+
+	# Write data to json-file (formatted)
+	def write_json(self, data, path, filename):
+		dump = json.dumps(data, sort_keys=False, indent=4)
+		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
+		print >> open(str(path) + str(filename), 'w'), new_data
+
 	def eval(self, pathToFiles):
 		# For all images in folder
-		print "Analysing images in folder " + pathToFiles)
-		for imgpath in pathToFiles + "/*.png"):
+		print ("Analysing images in folder " + pathToFiles)
+		for imgpath in glob.glob(pathToFiles + "/*.png"):
 			if os.path.exists(imgpath) and os.path.exists(imgpath.replace("png","json")):
 				fileName = os.path.splitext(os.path.basename(imgpath))[0]
-		
 				# Read and copy image
 				img = cv2.imread(imgpath)
 				img_copy = img.copy()
@@ -256,8 +306,13 @@ class eval_dope():
 					#gt_grasp_point = self.transformPoint(self.graspPoint_3d, M_gt) Not necessary since same point is transformed for gt and est -> hebt sich auf
 
 					# Calculate distance between ground truth and estimation
-					dist3d, meanDist3d = self.calc_ADD_cuboid(points3d_est, np.array(points3d_gt))
-					#dist3d, meanDist3d = self.calc_distance(points3d_est, np.array(points3d_gt))
+					dist3d, ADDCuboid = self.calc_ADD_cuboid(points3d_est, np.array(points3d_gt))
+					pose_gt, pose_est = self.calc_PoseDicts(gt_loc, M_gt, est_loc, M_est)
+					ADDModel = pose_error.add(pose_est, pose_gt, self.obj_model)
+					transl_error = pose_error.te(pose_est['t'], pose_gt['t'])
+					rot_error = pose_error.re(pose_est['R'], pose_gt['R'])
+
+					#dist3d, ADDCuboid = self.calc_distance(points3d_est, np.array(points3d_gt))
 					#dist2d, meanDist2d = self.calc_distance(points2d_est, np.array(points2d_gt))
 
 					# Transform rotations into euler angles
@@ -280,7 +335,13 @@ class eval_dope():
 
 					self.dists3d.append([dist3d[i] * 10 for i in range(len(dist3d))])
 					#self.dists2d.append(dist2d)
-					self.meanDists3d.append(meanDist3d * 10)
+					self.ADDCuboids.append(ADDCuboid * 10)
+					self.ADDModels.append(ADDModel)
+					self.transl_errors.append(transl_error * 10)
+					self.rot_errors.append(rot_error * 180/math.pi)
+
+					self.poses_gt.append(pose_gt)
+					self.poses_est.append(poses_est)
 					#self.meanDists2d.append(meanDist2d)
 
 				# Draw ground-truth cube to image
@@ -289,7 +350,7 @@ class eval_dope():
 				if len(results) == 0:
 					self.filenamesFailure.append(fileName)
 					cv2.imwrite(self.evalDataFolderFail + "/" + fileName + ".failed.png", np.array(im)[...,::-1])
-					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail "/" + fileName + ".failed.png")
+					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.png")
 				else:
 					self.filenamesSuccess.append(fileName)
 					# Draw the cube
@@ -299,16 +360,16 @@ class eval_dope():
 					cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + ".success.png", np.array(im)[...,::-1])
 					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderSuccess + "/" + fileName + ".success.json")
 
-	def writeCSV(net):
+	def writeCSV(self, net):
 		# Write results to file
 		with open(self.evalDataFolder + "/evaluation_" + net +".csv", "wb") as f: #q1; q2; q3; q4; gtQ1; gtQ2; gtQ3; gtQ4;
-			f.write("filename; success; failure; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; rx; ry; rz; gtRx; gtRy; gtRz; meanDist3d; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist3DGrasp; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;\n")
+			f.write("filename; success; failure; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; rx; ry; rz; gtRx; gtRy; gtRz; ADDCuboid; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist3DGrasp; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;\n")
 			for i in range(len(self.filenamesSuccess)):
 				line = str(self.filenamesSuccess[i]) + "; " + str(1) + "; " + str(0) + "; "
 				line = line + str(self.locs_est[i][0]) + "; " + str(self.locs_est[i][1]) + "; " + str(self.locs_est[i][2]) + "; " + str(self.locs_gt[i][0]) + "; " + str(self.locs_gt[i][1]) + "; " + str(self.locs_gt[i][2]) + "; "
 				#line = line + str(self.oris_est[i][0]) + "; " + str(self.oris_est[i][1]) + "; " + str(self.oris_est[i][2]) + "; " + str(oris[i][3]) + "; " + str(self.oris_gt[i][0]) + "; " + str(self.oris_gt[i][1]) + "; " + str(self.oris_gt[i][2]) + "; " + str(self.oris_gt[i][3]) + "; "
 				line = line + str(self.rots_est[i][0]) + "; " + str(self.rots_est[i][1]) + "; " + str(self.rots_est[i][2]) + "; " + str(self.rots_gt[i][0]) + "; " + str(self.rots_gt[i][1]) + "; " + str(self.rots_gt[i][2]) + "; "
-				line = line + str(self.meanDists3d[i]) + "; "# + str(self.meanDists2d[i]) + "; "
+				line = line + str(self.ADDCuboids[i]) + "; "# + str(self.meanDists2d[i]) + "; "
 				line = line + str(self.dists3d[i][0]) + "; " + str(self.dists3d[i][1]) + "; " + str(self.dists3d[i][2]) + "; " + str(self.dists3d[i][3]) + "; " + str(self.dists3d[i][4]) + "; " + str(self.dists3d[i][5]) + "; " + str(self.dists3d[i][6]) + "; " + str(self.dists3d[i][7]) + "; " + str(self.dists3d[i][8]) + "; " + str(str(self.dists3d[i][9])) + "; "
 				#line = line + str(self.dists2d[i][0]) + "; " + str(self.dists2d[i][1]) + "; " + str(self.dists2d[i][2]) + "; " + str(self.dists2d[i][3]) + "; " + str(self.dists2d[i][4]) + "; " + str(self.dists2d[i][5]) + "; " + str(self.dists2d[i][6]) + "; " + str(self.dists2d[i][7]) + "; " + str(self.dists2d[i][8]) + "; "
 				f.write(line + "\n")
@@ -382,7 +443,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Evaluate Dope')
 	parser.add_argument('Net', metavar='Net', type=str, help='Name of network in folder "weights" to evaluate')
 	net = parser.parse_args().Net
-	print("Using network self.model '{}'...".format(net))
+	print("Using network model '{}'...".format(net))
 
 	params = None
 	config_name = "config_quantitative.yaml"
