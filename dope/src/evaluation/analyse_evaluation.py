@@ -41,6 +41,7 @@ class analyse_evaluation():
 		self.poses_gt = []
 		self.poses_est = []
 
+		self.load_json(path)
 		self.analyse()
 
 		print('    Evaluation analysed in {} seconds.'.format(time.time() - model_evaling_start_time))
@@ -49,7 +50,26 @@ class analyse_evaluation():
 	# EVALUATION ##############################################
 	###########################################################
 
+	def load_json(self, path):
+		with open(path) as json_file:  
+			data = json.load(json_file)
+		
+		for i in range(len(data["success"])):
+			self.filenamesSuccess.append(data["success"][i]["filename"])
+			self.dists3d.append(data["success"][i]["cuboid_dists3d"])
+			self.ADDCuboids.append(data["success"][i]["ADDCuboids"])
+			self.ADDModels.append(data["success"][i]["ADDModel"])
+			self.transl_errors.append(data["success"][i]["transl_error"])
+			self.rot_errors.append(data["success"][i]["rot_error"])
+			self.poses_gt.append(data["success"][i]["pose_gt"])
+			self.poses_est.append(data["success"][i]["pose_est"])
+
+		for i in range(len(data["failure"])):
+			self.filenamesFailure.append(data["failure"][i]["filename"])
+
 	def analyse(self):
+		#TODO
+
 
 ###########################################################
 # VISUALISATION ###########################################
