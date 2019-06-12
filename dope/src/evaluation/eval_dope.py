@@ -122,8 +122,8 @@ class eval_dope():
 
 		self.createFolders(params, net)
 		self.eval(params['path_to_images'])
-		self.writeCSV(net)
 		self.exportJson(net)
+		self.writeCSV(net)
 
 		print('    model evaluated in {} seconds.'.format(time.time() - model_evaling_start_time))
 		print '    Number of samples success / failure: ' + str(len(self.filenamesSuccess)) + " / " + str(len(self.filenamesFailure))
@@ -270,6 +270,17 @@ class eval_dope():
 		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
 		print >> open(str(path) + "/" + str(filename), 'w'), new_data
 
+	def copyData(self, im, pathToFiles, fileName, success):
+		# Store image with results overlaid and json-file
+		if success == True:
+			self.filenamesSuccess.append(fileName)
+			cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + ".success.png", np.array(im)[...,::-1])
+			shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderSuccess + "/" + fileName + ".success.json")
+		else:
+			self.filenamesFailure.append(fileName)
+			cv2.imwrite(self.evalDataFolderFail + "/" + fileName + ".failed.png", np.array(im)[...,::-1])
+			shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.json")
+
 	def eval(self, pathToFiles):
 		# For all images in folder
 		print ("Analysing images in folder " + pathToFiles)
@@ -282,13 +293,17 @@ class eval_dope():
 				im = Image.fromarray(img_copy)
 				self.image_draw = ImageDraw.Draw(im)
 
-				# Detect object
-				m = self.model
-				results = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
-
 				# Get ground-truth data
 				gt_loc, gt_ori, points2d_gt, points3d_gt = self.loadJson(imgpath)
 				points2d_gt = self.convertPointsToTuple(points2d_gt)
+
+				# Draw ground-truth cube to image
+				self.DrawCube(points2d_gt, self.color_gt)
+
+				# Detect object
+				detection_success_flag = False
+				m = self.model
+				results = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
 
 				# Get pose and overlay cube on image, if results is not empty
 				for i_r, result in enumerate(results):
@@ -353,21 +368,14 @@ class eval_dope():
 					self.poses_est.append(pose_est)
 					#self.meanDists2d.append(meanDist2d)
 
-				# Draw ground-truth cube to image
-				self.DrawCube(points2d_gt, self.color_gt)
-				# If no object could be detected copy file to failed-folder
-				if len(results) == 0:
-					self.filenamesFailure.append(fileName)
-					cv2.imwrite(self.evalDataFolderFail + "/" + fileName + ".failed.png", np.array(im)[...,::-1])
-					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.json")
-				else:
-					self.filenamesSuccess.append(fileName)
 					# Draw the cube
 					self.DrawCube(points2d_est, self.draw_colors[m])
+					self.copyData(im, pathToFiles, fileName, True)
+					detection_success_flag = True
 
-					# Store image with results overlaid and json-file
-					cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + ".success.png", np.array(im)[...,::-1])
-					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderSuccess + "/" + fileName + ".success.json")
+				# If no object could be detected copy file to failed-folder
+				if detection_success_flag == False:
+					self.copyData(im, pathToFiles, fileName, False)
 
 	def writeCSV(self, net):
 		# Write results to file
