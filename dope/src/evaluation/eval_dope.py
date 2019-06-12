@@ -262,7 +262,7 @@ class eval_dope():
 			data_f.append({"filename": self.filenamesFailure[i]})
 
 		write_data = {"success": data_s, "failure": data_f}
-		self.write_json(write_data, self.evalDataFolder, "evaluation_" + net +".json")
+		self.write_json(write_data, self.evalDataFolder, net + "_evaluation.json")
 
 	# Write data to json-file (formatted)
 	def write_json(self, data, path, filename):
