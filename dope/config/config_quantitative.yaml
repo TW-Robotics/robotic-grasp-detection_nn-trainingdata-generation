@@ -1,5 +1,5 @@
 #path_to_images: "/home/mluser/catkin_ws/src/data/single/carrier_empty/testOnTable"
-path_to_images: "/home/mluser/Desktop/real_testdata_forNetwork/train/"
+path_to_images: "/home/mluser/Schreibtisch/data/test_real_sub/subsub/"  # / at end!
 
 # Comment any of these lines to prevent detection / pose estimation of that object
 weights: {

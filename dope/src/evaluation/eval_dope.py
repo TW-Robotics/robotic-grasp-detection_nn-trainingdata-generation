@@ -78,12 +78,14 @@ class eval_dope():
 									[ 0. , 0. , 0.  , 1]])   # Centroid
 		#self.graspPoint_3d = [ 0. , 2.5, 7.527, 1]])
 
+		self.color_gt = tuple([13, 255, 128]) # Green
+
 		# For each object to detect, load network model and create PNP solver
 		self.model = "carrier_empty"
 		self.models[self.model] = ModelData(self.model, "../../weights/" + net)
 		self.models[self.model].load_net_model()
 		
-		self.draw_colors[self.model] = tuple(params["self.draw_colors"][self.model])
+		self.draw_colors[self.model] = tuple(params["draw_colors"][self.model])
 		self.pnp_solvers[self.model] = CuboidPNPSolver(self.model,	self.matrix_camera, Cuboid3d(params['dimensions'][self.model]), dist_coeffs=self.dist_coeffs)
 
 		# Init pnp-Solver for ground-truth pose calculation
@@ -169,21 +171,17 @@ class eval_dope():
 		true_dist = [dist[i][i] for i in range(len(dist))]
 		return true_dist, np.mean(true_dist)		
 
-	def calc_PoseDicts(self, gt_loc, gt_M, est_loc, est_M):		# TODO herausfinden ob das mm oder cm oder was ist -> Vermutlich aber cm weil ja loc in cm ist
-		# Make matrices to 3x3
-		gt_M = np.delete(gt_M, 3, 1)
-		gt_M = np.delete(gt_M, 3, 0)
-		est_M = np.delete(est_M, 3, 1)
-		est_M = np.delete(est_M, 3, 0)
+	def calc_PoseDict(self, loc, M):
+		# Make matrix to 3x3
+		M = np.delete(M, 3, 1)
+		M = np.delete(M, 3, 0)
 
 		# Make vector for translation
-		gt_t = np.array([gt_loc[0], gt_loc[1], gt_loc[2]]).reshape((3, 1))
-		est_t = np.array([est_loc[0], est_loc[1], est_loc[2]]).reshape((3, 1))
+		t = np.array([loc[0]*10, loc[1]*10, loc[2]*10]).reshape((3, 1))
 		
 		# Copy R, t to dictionary and calculate ADD metric
-		pose_gt = {'R': gt_M, 't': gt_t}
-		pose_est = {'R': est_M, 't': est_t}
-		return pose_gt, pose_est
+		pose = {'R': M, 't': t}
+		return pose
 
 	def calc_distance(self, est_points, gt_points):
 		dist = []
@@ -218,7 +216,9 @@ class eval_dope():
 	def transformPoints(self, points_3d, M):
 		points_3d = np.rot90(points_3d, 3)
 		points_3d_transf = np.matmul(M, points_3d) #M.dot(points_3d)
-		return np.rot90(points_3d_transf)
+		points_3d_transf = np.rot90(points_3d_transf)
+		return np.delete(points_3d_transf, 3, 1)
+
 
 		'''points_3d_transform = []
 		for point in points_3d:
@@ -228,6 +228,15 @@ class eval_dope():
 	def transformPoint(self, point_3d, M):
 		point = M.dot(point_3d)
 		return point[:-1]	# Delete 1 from homogenous transformation
+
+	def convertPointsToTuple(self, points):
+		points_ret = []
+		for pair in points:
+			points_ret.append(tuple(pair))
+		return points_ret
+
+	def poseDictArray_to_poseDictList(self, poseDictArray):
+		return {"R": poseDictArray["R"].tolist(), "t": poseDictArray["t"].tolist()}
 
 	def loadJson(self, path):
 		# Load json-file and get ground-truth data
@@ -245,10 +254,10 @@ class eval_dope():
 		data_s = []
 		data_f = []
 		for i in range(len(self.filenamesSuccess)):
-			data_s.append({ "filename": self.filenamesSuccess[i], "cuboid_dists3d": self.dists3d[i],
-							"ADDCuboids": self.ADDCuboids[i], "ADDModel": self.ADDModels[i],
-							"transl_error": self.transl_errors[i], "rot_error": self.rot_errors[i],
-							"pose_gt": self.poses_gt[i], "pose_est": self.poses_est[i]})
+			data_s.append({ "filename": self.filenamesSuccess[i], "cuboid_dists3d_mm": self.dists3d[i],
+							"ADDCuboids_mm": self.ADDCuboids[i], "ADDModel_mm": self.ADDModels[i],
+							"transl_error_mm": self.transl_errors[i], "rot_error_deg": self.rot_errors[i],
+							"pose_gt_mm": self.poseDictArray_to_poseDictList(self.poses_gt[i]), "pose_est_mm": self.poseDictArray_to_poseDictList(self.poses_est[i])})
 		for i in range(len(self.filenamesFailure)):
 			data_f.append({"filename": self.filenamesFailure[i]})
 
@@ -259,7 +268,7 @@ class eval_dope():
 	def write_json(self, data, path, filename):
 		dump = json.dumps(data, sort_keys=False, indent=4)
 		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
-		print >> open(str(path) + str(filename), 'w'), new_data
+		print >> open(str(path) + "/" + str(filename), 'w'), new_data
 
 	def eval(self, pathToFiles):
 		# For all images in folder
@@ -278,10 +287,11 @@ class eval_dope():
 				results = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
 
 				# Get ground-truth data
-				gt_loc, gt_ori, points2d_gt, points3d_gt = loadJson(imgpath)
+				gt_loc, gt_ori, points2d_gt, points3d_gt = self.loadJson(imgpath)
+				points2d_gt = self.convertPointsToTuple(points2d_gt)
 
 				# Get pose and overlay cube on image, if results is not empty
-				for result in enumerate(results):
+				for i_r, result in enumerate(results):
 					if result["location"] is None:
 						continue
 					est_loc = result["location"]
@@ -292,9 +302,7 @@ class eval_dope():
 					points3d_est = self.transformPoints(self.cuboid_points_3d, M_est)
 
 					if None not in result['projected_points']:
-						points2d_est = []
-						for pair in result['projected_points']:
-							points2d_est.append(tuple(pair))
+						points2d_est = self.convertPointsToTuple(result['projected_points'])
 
 					# Calculate ground-truth quaternions from pnp-solver
 					gt_result = self.pnp_solvers["gt"].solve_pnp(points2d_gt)
@@ -307,7 +315,8 @@ class eval_dope():
 
 					# Calculate distance between ground truth and estimation
 					dist3d, ADDCuboid = self.calc_ADD_cuboid(points3d_est, np.array(points3d_gt))
-					pose_gt, pose_est = self.calc_PoseDicts(gt_loc, M_gt, est_loc, M_est)
+					pose_gt = self.calc_PoseDict(gt_loc, M_gt)
+					pose_est = self.calc_PoseDict(est_loc, M_est)
 					ADDModel = pose_error.add(pose_est, pose_gt, self.obj_model)
 					transl_error = pose_error.te(pose_est['t'], pose_gt['t'])
 					rot_error = pose_error.re(pose_est['R'], pose_gt['R'])
@@ -337,24 +346,24 @@ class eval_dope():
 					#self.dists2d.append(dist2d)
 					self.ADDCuboids.append(ADDCuboid * 10)
 					self.ADDModels.append(ADDModel)
-					self.transl_errors.append(transl_error * 10)
+					self.transl_errors.append(transl_error)
 					self.rot_errors.append(rot_error * 180/math.pi)
 
 					self.poses_gt.append(pose_gt)
-					self.poses_est.append(poses_est)
+					self.poses_est.append(pose_est)
 					#self.meanDists2d.append(meanDist2d)
 
 				# Draw ground-truth cube to image
-				DrawCube(points2d_gt, tuple([13, 255, 128])) # Green		
+				self.DrawCube(points2d_gt, self.color_gt)
 				# If no object could be detected copy file to failed-folder
 				if len(results) == 0:
 					self.filenamesFailure.append(fileName)
 					cv2.imwrite(self.evalDataFolderFail + "/" + fileName + ".failed.png", np.array(im)[...,::-1])
-					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.png")
+					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.json")
 				else:
 					self.filenamesSuccess.append(fileName)
 					# Draw the cube
-					DrawCube(points2d_est, self.draw_colors[m])
+					self.DrawCube(points2d_est, self.draw_colors[m])
 
 					# Store image with results overlaid and json-file
 					cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + ".success.png", np.array(im)[...,::-1])
@@ -363,14 +372,15 @@ class eval_dope():
 	def writeCSV(self, net):
 		# Write results to file
 		with open(self.evalDataFolder + "/evaluation_" + net +".csv", "wb") as f: #q1; q2; q3; q4; gtQ1; gtQ2; gtQ3; gtQ4;
-			f.write("filename; success; failure; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; rx; ry; rz; gtRx; gtRy; gtRz; ADDCuboid; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist3DGrasp; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;\n")
+			#f.write("filename; success; failure; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; rx; ry; rz; gtRx; gtRy; gtRz; ADDCuboid; meanDist2d; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid; dist3DGrasp; dist2D0; dist2D1; dist2D2; dist2D3; dist2D4; dist2D5; dist2D6; dist2D7; dist2Dcentroid;\n")
+			f.write("filename; success; failure; ADDCuboid; ADDModel; rot_errror; transl_error; locX; locY; locZ; gtLocX; gtLocY; gtLocZ; oriX; oriY; oriZ; oriW; gtOriX; gtOriY; gtOriZ; gtOriW; dist3D0; dist3D1; dist3D2; dist3D3; dist3D4; dist3D5; dist3D6; dist3D7; dist3Dcentroid;\n")
 			for i in range(len(self.filenamesSuccess)):
 				line = str(self.filenamesSuccess[i]) + "; " + str(1) + "; " + str(0) + "; "
+				line = line + str(self.ADDCuboids[i]) + "; " + str(self.ADDModels[i]) + "; " + str(self.rot_errors[i]) + "; " + str(self.transl_errors[i]) + "; "# + str(self.meanDists2d[i]) + "; "
 				line = line + str(self.locs_est[i][0]) + "; " + str(self.locs_est[i][1]) + "; " + str(self.locs_est[i][2]) + "; " + str(self.locs_gt[i][0]) + "; " + str(self.locs_gt[i][1]) + "; " + str(self.locs_gt[i][2]) + "; "
-				#line = line + str(self.oris_est[i][0]) + "; " + str(self.oris_est[i][1]) + "; " + str(self.oris_est[i][2]) + "; " + str(oris[i][3]) + "; " + str(self.oris_gt[i][0]) + "; " + str(self.oris_gt[i][1]) + "; " + str(self.oris_gt[i][2]) + "; " + str(self.oris_gt[i][3]) + "; "
-				line = line + str(self.rots_est[i][0]) + "; " + str(self.rots_est[i][1]) + "; " + str(self.rots_est[i][2]) + "; " + str(self.rots_gt[i][0]) + "; " + str(self.rots_gt[i][1]) + "; " + str(self.rots_gt[i][2]) + "; "
-				line = line + str(self.ADDCuboids[i]) + "; "# + str(self.meanDists2d[i]) + "; "
-				line = line + str(self.dists3d[i][0]) + "; " + str(self.dists3d[i][1]) + "; " + str(self.dists3d[i][2]) + "; " + str(self.dists3d[i][3]) + "; " + str(self.dists3d[i][4]) + "; " + str(self.dists3d[i][5]) + "; " + str(self.dists3d[i][6]) + "; " + str(self.dists3d[i][7]) + "; " + str(self.dists3d[i][8]) + "; " + str(str(self.dists3d[i][9])) + "; "
+				line = line + str(self.oris_est[i][0]) + "; " + str(self.oris_est[i][1]) + "; " + str(self.oris_est[i][2]) + "; " + str(self.oris_est[i][3]) + "; " + str(self.oris_gt[i][0]) + "; " + str(self.oris_gt[i][1]) + "; " + str(self.oris_gt[i][2]) + "; " + str(self.oris_gt[i][3]) + "; "
+				#line = line + str(self.rots_est[i][0]) + "; " + str(self.rots_est[i][1]) + "; " + str(self.rots_est[i][2]) + "; " + str(self.rots_gt[i][0]) + "; " + str(self.rots_gt[i][1]) + "; " + str(self.rots_gt[i][2]) + "; "
+				line = line + str(self.dists3d[i][0]) + "; " + str(self.dists3d[i][1]) + "; " + str(self.dists3d[i][2]) + "; " + str(self.dists3d[i][3]) + "; " + str(self.dists3d[i][4]) + "; " + str(self.dists3d[i][5]) + "; " + str(self.dists3d[i][6]) + "; " + str(self.dists3d[i][7]) + "; " + str(self.dists3d[i][8]) + "; "# + str(str(self.dists3d[i][9])) + "; "
 				#line = line + str(self.dists2d[i][0]) + "; " + str(self.dists2d[i][1]) + "; " + str(self.dists2d[i][2]) + "; " + str(self.dists2d[i][3]) + "; " + str(self.dists2d[i][4]) + "; " + str(self.dists2d[i][5]) + "; " + str(self.dists2d[i][6]) + "; " + str(self.dists2d[i][7]) + "; " + str(self.dists2d[i][8]) + "; "
 				f.write(line + "\n")
 
@@ -411,30 +421,30 @@ class eval_dope():
 		lineWidthForDrawing = 2
 
 		# draw front
-		DrawLine(points[0], points[1], color, lineWidthForDrawing)
-		DrawLine(points[1], points[2], color, lineWidthForDrawing)
-		DrawLine(points[3], points[2], color, lineWidthForDrawing)
-		DrawLine(points[3], points[0], color, lineWidthForDrawing)
+		self.DrawLine(points[0], points[1], color, lineWidthForDrawing)
+		self.DrawLine(points[1], points[2], color, lineWidthForDrawing)
+		self.DrawLine(points[3], points[2], color, lineWidthForDrawing)
+		self.DrawLine(points[3], points[0], color, lineWidthForDrawing)
 		
 		# draw back
-		DrawLine(points[4], points[5], color, lineWidthForDrawing)
-		DrawLine(points[6], points[5], color, lineWidthForDrawing)
-		DrawLine(points[6], points[7], color, lineWidthForDrawing)
-		DrawLine(points[4], points[7], color, lineWidthForDrawing)
+		self.DrawLine(points[4], points[5], color, lineWidthForDrawing)
+		self.DrawLine(points[6], points[5], color, lineWidthForDrawing)
+		self.DrawLine(points[6], points[7], color, lineWidthForDrawing)
+		self.DrawLine(points[4], points[7], color, lineWidthForDrawing)
 		
 		# draw sides
-		DrawLine(points[0], points[4], color, lineWidthForDrawing)
-		DrawLine(points[7], points[3], color, lineWidthForDrawing)
-		DrawLine(points[5], points[1], color, lineWidthForDrawing)
-		DrawLine(points[2], points[6], color, lineWidthForDrawing)
+		self.DrawLine(points[0], points[4], color, lineWidthForDrawing)
+		self.DrawLine(points[7], points[3], color, lineWidthForDrawing)
+		self.DrawLine(points[5], points[1], color, lineWidthForDrawing)
+		self.DrawLine(points[2], points[6], color, lineWidthForDrawing)
 
 		# draw dots
-		DrawDot(points[0], pointColor=color, pointRadius = 4)
-		DrawDot(points[1], pointColor=color, pointRadius = 4)
+		self.DrawDot(points[0], pointColor=color, pointRadius = 4)
+		self.DrawDot(points[1], pointColor=color, pointRadius = 4)
 
 		# draw x on the top 
-		DrawLine(points[0], points[5], color, lineWidthForDrawing)
-		DrawLine(points[1], points[4], color, lineWidthForDrawing)
+		self.DrawLine(points[0], points[5], color, lineWidthForDrawing)
+		self.DrawLine(points[1], points[4], color, lineWidthForDrawing)
 
 
 if __name__ == "__main__":
