@@ -1,6 +1,6 @@
 <launch>
 	<!-- Static transform object-pose estimated by dope to grasp-point -->
-	<node pkg="tf" type="static_transform_publisher" name="grasp_point_publisher" args="0. 0.025 0.07527 0.707 0.707 0 0 dope_object_pose dope_grasp_point 100" />
+	<node pkg="tf" type="static_transform_publisher" name="grasp_point_publisher" args="0. 0.025 0.10527 0.707 0.707 0 0 dope_object_pose dope_grasp_point 100" />
 	<node pkg="mt" type="tf_dope_pose_broadcaster.py" name="dope_pose_broadcaster" output="screen" />
 	<!--<node pkg="dope" type="dope.py" name="dope" output="screen" />-->
 </launch>

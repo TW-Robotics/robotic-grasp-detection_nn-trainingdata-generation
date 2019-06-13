@@ -248,7 +248,7 @@ class ur5Controler():
 	# Move the robot to the position, where it starts to search for the object
 	def moveToSearchPose(self, orientation):
 		# Drive to position where r = 0.4 and h = 0.6
-		jointStates = [110*pi/180, -pi/2, pi/2, -110*pi/180, -pi/2, 0]
+		jointStates = [110*pi/180, -100*pi/180, 75*pi/180, -115*pi/180, -90*pi/180, 90*pi/180]
 
 		if orientation == "left":
 			jointStates[0] = 65*pi/180

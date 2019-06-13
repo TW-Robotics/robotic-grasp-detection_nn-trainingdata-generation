@@ -207,7 +207,7 @@ def run_dope_node(params, freq=5):
                             g_img,
                             config_detect
                             )
-                
+                g_img = None
                 # Publish pose and overlay cube on image
                 for i_r, result in enumerate(results):
                     if result["location"] is None:

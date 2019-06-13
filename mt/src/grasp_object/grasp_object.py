@@ -8,6 +8,7 @@ import math
 import collections
 import csv
 import time
+from math import pi
 
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import Image
@@ -40,7 +41,7 @@ class grasp_process():
 		self.rgb_img = Image()
 		self.poseIsUpdated = False
 
-		self.publishResized == True
+		self.publishResized = True
 
 		self.imgOutputSize = rospy.get_param("outputImage_size")
 		self.imgWidth = rospy.get_param("camera_width")
@@ -61,6 +62,7 @@ class grasp_process():
 
 	def rgb_image_callback(self, data):
 		try:
+			self.img_raw = data
 			cv_rgb_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
 			# Store image locally and resize it
 			self.rgb_img = cv_rgb_image.copy()
@@ -87,6 +89,7 @@ class grasp_process():
 
 	# Get transformation between base and grasp-point
 	def update_grasp_pose(self):
+		rospy.sleep(0.1)
 		try:
 			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/dope_grasp_point', rospy.Time(0))
 			self.graspPose =self.listToPose(trans, rot)
@@ -97,13 +100,13 @@ class grasp_process():
 	def publish_image(self):
 		self.poseIsUpdated = False
 		if self.publishResized == False:
-			self.rawImgPub.publish(self.rgb_img)
+			self.rawImgPub.publish(self.img_raw)
 		else:
 			self.rawImgPub.publish(self.bridge.cv2_to_imgmsg(self.rgb_img_resized, "bgr8"))
 
 	def calcPrePose(self):
 		prePose = self.copyPose(self.graspPose)
-		prePose.position.z = prePose.position.z - 0.08
+		prePose.position.x = prePose.position.x - 0.08
 		return prePose
 
 	# Convert lists to pose-obect so a standard pose message can be published
@@ -145,24 +148,36 @@ def main(args):
 
 	#grasper.ur5.moveToSearchPose("left")
 	while (True):
-		inp = raw_input("p to publish image, g to drive to grasp pose, ha for half-automatic: ")[0]
+		inp = raw_input("p to publish image, g to drive to grasp pose, h for half-automatic: ")[0]
 		if inp == 'p':
 			grasper.publish_image()
 		elif inp == 'g':
 			if grasper.poseIsUpdated == True:
 				#print grasper.graspPose
-				prePose = grasper.calcPrePose()
+				pose = Pose()
+				pose.position.x = grasper.graspPose.position.x#0.6
+				pose.position.y = grasper.graspPose.position.y#0.1
+				pose.position.z = grasper.graspPose.position.z#0.37
+				pose.orientation.x = 0.#-0.4778
+				pose.orientation.y = 0.707#0.4731
+				pose.orientation.z = 0#-0.5263
+				pose.orientation.w = 0.707#0.5203
+				#goalPose = [0.6, 0.1, 0.37, 0, 0, 0.707, 0.707]
+				#grasper.ur5.move_to_pose(pose)
+				grasper.ur5.execute_move([grasper.ur5.group.get_current_joint_values()[0], -90*pi/180, 150*pi/180, -240*pi/180, -85*pi/180, 0*pi/180])
+				prePose = grasper.calcPrePose() #TODO Pre-Pose fix publishen
 				grasper.ur5.move_to_pose(prePose)
 				grasper.ur5.move_to_pose(grasper.graspPose)
 			else:
 				print "No update"
-		elif inp == 'ha':
+		elif inp == 'h':
 			grasper.publish_image()
 			# Wait until updated pose arrives
 			while grasper.poseIsUpdated == False:
 				rospy.sleep(0.05)
 			print "Received pose update - driving to object"
 
+			grasper.ur5.execute_move([grasper.ur5.group.get_current_joint_values()[0], -90*pi/180, 150*pi/180, -240*pi/180, -85*pi/180, 0*pi/180])
 			prePose = grasper.calcPrePose()
 			grasper.ur5.move_to_pose(prePose)
 			grasper.ur5.move_to_pose(grasper.graspPose)
@@ -178,24 +193,33 @@ def main(args):
 				return False
 
 			##### Move the robot up and to transport-pose
-			ur5.move_xyz(0, 0, 0.1)
+			grasper.ur5.move_xyz(0, 0, 0.1)
 		elif inp == 'a':
-			grasper.ur5.moveToSearchPose("front")
+			grasper.ur5.moveToSearchPose("left") #TODO als argument übergeben
+			rospy.sleep(0.1)	# TODO ganzen ablauf programmieren, roboter vielleicht doch drehen bei erkannter pose?
+			grasper.publish_image() #TODO achswinkel so ändern von vorposition, dass er mehr oben hat und daher eher greifen kann
 			posID = 0
-			while grasper.ur5.searchObject(posID) == True:
+			#hasFound == False
+			rospy.sleep(1) # wait for image to arrive
+			while grasper.poseIsUpdated == False:# and hasFound == False:
+				if grasper.ur5.searchObject(posID) == False:
+					print "No object found!"
+					break
+				posID = posID + 1
+				rospy.sleep(0.1)
 				grasper.publish_image()
-
-				timeout = time.time() + 1   # 1 seconds from now
+				timeout = time.time() + 1.5   # 1 seconds from now
 				# Wait until updated pose arrives or timeout occurs (pose not visible)
 				while time.time() <= timeout:
 					if grasper.poseIsUpdated == True:
 						print "Received pose update - driving to object."
+						#hasFound = True
 						break
 					rospy.sleep(0.1)
+				#if grasper.poseIsUpdated == True:
+				#	break
 				print "Object not found - moving on..."
-				posID = posID + 1
-			else:
-				print "No object found!"
+			
 
 			 # TODO Copy code from above when working
 

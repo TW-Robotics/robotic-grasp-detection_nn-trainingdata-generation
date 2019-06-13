@@ -10,8 +10,8 @@ weights: {
     # "mustard":"mustard_60.pth",
     #"soup":"soup_60.pth",
     #"sugar":"sugar_60.pth"
-    #"carrier_empty":"2_net_pretrained+real_14789_120.pth"
-    "carrier_empty":"6_net_pretrained+real_2958_120.pth"
+    "carrier_empty":"2_net_pretrained+real_14789_120.pth"
+    #"carrier_empty":"6_net_pretrained+real_2958_120.pth"
     #"carrier_empty":"4_net_real_8874.pth"
 }
 
