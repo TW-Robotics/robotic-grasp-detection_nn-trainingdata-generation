@@ -126,7 +126,7 @@ class eval_dope():
 		self.writeCSV(net)
 
 		print('    model evaluated in {} seconds.'.format(time.time() - model_evaling_start_time))
-		print '    Number of samples success / failure: ' + str(len(self.filenamesSuccess)) + " / " + str(len(self.filenamesFailure))
+		print('    Number of samples success / failure: ' + str(len(self.filenamesSuccess)) + " / " + str(len(self.filenamesFailure)))
 
 	def createFolders(self, params, net):
 		path_to_images = params['path_to_images']
@@ -455,9 +455,7 @@ class eval_dope():
 		self.DrawLine(points[1], points[4], color, lineWidthForDrawing)
 
 
-if __name__ == "__main__":
-	'''Main routine to run DOPE eval-code'''
-
+def main():
 	parser = argparse.ArgumentParser(description='Evaluate Dope')
 	parser.add_argument('Net', metavar='Net', type=str, help='Name of network in folder "weights" to evaluate')
 	net = parser.parse_args().Net
@@ -475,3 +473,8 @@ if __name__ == "__main__":
 			print(exc)
 
 	eval_dope(params, net)
+	return
+
+if __name__ == "__main__":
+	'''Main routine to run DOPE eval-code'''
+	main()
