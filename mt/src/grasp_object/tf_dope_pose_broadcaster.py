@@ -53,16 +53,15 @@ class graspPoint_broadcaster():
 							 "camera_color_optical_frame")
 
 		rospy.sleep(0.1)
-		# Lookup base -> object
+		# Lookup and store base -> object
 		try:
 			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/dope_object_pose', now)
-			objectPose = self.listToPose(trans, rot)
+			self.objectPose = self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
 		rospy.sleep(0.1)
 
-		self.objectPose = objectPose
 		# Inform other nodes that object pose has been updated
 		self.pose_update_pub.publish(Bool(True))
 
@@ -80,15 +79,14 @@ def main(args):
 
 	rospy.loginfo("TF-Grasp-Point-Broadcaster sucessfully launched!\nBroadcasting to tf...")
 
-	rate = rospy.Rate(50)
+	rate = rospy.Rate(10)
 	while not rospy.is_shutdown():
 		if graspPoint_br.objectPose is not None:
-			now = rospy.Time.now()
 			objectPose = graspPoint_br.objectPose
 			# Broadcast base -> object (So object does not move if camera moves)
 			graspPoint_br.br.sendTransform((objectPose.position.x, objectPose.position.y, objectPose.position.z),
 								 (objectPose.orientation.x, objectPose.orientation.y, objectPose.orientation.z, objectPose.orientation.w),
-								 now,
+								 rospy.Time.now(),
 								 "dope_object_pose",
 								 "base_link")
 			rate.sleep()
