@@ -20,6 +20,7 @@ import shutil
 import re
 import matplotlib.pyplot as plt
 from matplotlib import cycler
+from scipy import interpolate
 
 import numpy as np
 import math
@@ -85,12 +86,16 @@ class analyse_evaluation():
 	def calc_sub_metrics(self, thresholds, x, y):
 		numSmallerThresholds = [0] * len(thresholds)
 		for i_thr in range(len(thresholds)):
-			for i in range(len(y)):
+			for i in range(len(x)):
+				#print x[i]
 				if x[i] <= thresholds[i_thr]:
-					numSmallerThresholds[i_thr] = numSmallerThresholds[i_thr] + y[i]
-				else:
-					break
-		return self.calc_perc_from_num(numSmallerThresholds)
+					if x[i+1] >= thresholds[i_thr]:
+						x_range = [x[i], x[i+1]]
+						y_range = [y[i], y[i+1]]
+						numSmallerThresholds[i_thr] = np.interp(thresholds[i_thr], x_range, y_range)
+						break
+
+		return numSmallerThresholds
 
 	def calc_perc_from_num(self, numSmallerThresholds):
 		percSmallerThresholds = numSmallerThresholds
@@ -141,7 +146,7 @@ class analyse_evaluation():
 	def write_csv(self, path, b, n_addC, n_addM, n_trans, n_rot, b_cum, n_addC_cum, n_addM_cum, n_trans_cum, n_rot_cum):
 		total, numFailDet, percFailDet, percSuccDet = self.calc_total_metrics()
 		# Write results to file
-		with open(os.path.dirname(path) + "/" + os.path.splitext(os.path.basename(path))[0] +"_analysis.csv", "wb") as f:
+		with open(os.path.dirname(path) + "/" + "analyse_output/" + os.path.splitext(os.path.basename(path))[0] +"_analysis.csv", "wb") as f:
 			f.write("numEvalImages; numFailDet; percFailDet; percSuccDet;\n")
 			f.write(val(total) + "; " + val(numFailDet) + "; " + val(percFailDet) + "; " + val(percSuccDet) + ";\n\n")
 			f.write("Threshold; ADD_model_cum_mm; ADD_cuboids_cum_mm; Transl_error_cum_mm; Rot_error_cum_mm; Threshold; ; ADD_model_mm; ADD_cuboids_mm; Transl_error_mm; Rot_error_mm; \n")
@@ -157,15 +162,15 @@ class analyse_evaluation():
 				f.write(line)
 
 	def analyse(self, path):
-		pathToStore = os.path.dirname(path) + "/" + os.path.splitext(os.path.basename(path))[0]
+		pathToStore = os.path.dirname(path) + "/" + "analyse_output/" + os.path.splitext(os.path.basename(path))[0]
 		fileName = os.path.splitext(os.path.basename(path))[0].replace("_evaluation","")
 		plt.style.use('fivethirtyeight')
 		plt.rc('patch', edgecolor='#30A2DA') # edges of bins in same color as face
 
 		# Calculate Histogramms
 		plt.subplot(2, 2, 1)
-		plt.text(-5.6, 345, fileName, size=10)
 		b_addC, n_addC = self.plot_hist(self.ADDCuboids, "ADD Cuboids", "Threshold [mm]", 60, [0, 30])
+		plt.text(0, 0, fileName, size=10)
 		plt.subplot(2, 2, 3)
 		b_addM, n_addM = self.plot_hist(self.ADDModels, "ADD Models", "Threshold [mm]", 60, [0, 30])
 		plt.subplot(2, 2, 2)
@@ -181,25 +186,26 @@ class analyse_evaluation():
 		b_addM_cum, n_addM_cum = self.calc_cumulative_accuracy(self.ADDModels, 100, [0, 30])
 		b_trans_cum, n_trans_cum = self.calc_cumulative_accuracy(self.transl_errors, 100, [0, 30])
 		b_rot_cum, n_rot_cum = self.calc_cumulative_accuracy(self.rot_errors, 100, [0, 30])
-	
+
 		# Calculate Accuracy-Threshold-Curve
 		plt.style.use('fivethirtyeight')
 		plt.title("Accuracy vs. Threshold", size=20)
 		plt.xlabel("Threshold [mm]", size=15)
 		plt.ylabel("Accuracy [%]", size=15)
+		plt.ylim(0,100)
 		l1 = plt.plot(b_addC_cum, n_addC_cum, label="ADD Cuboids")
 		l2 = plt.plot(b_addM_cum, n_addM_cum, label="ADD Models")
 		l3 = plt.plot(b_trans_cum, n_trans_cum, label="Tranlational Errors")
 		l4 = plt.plot(b_rot_cum, n_rot_cum, label="Rotational Errors")
 
 		# Horizontal and Vertical Line
-		drawLimit = self.calc_sub_metrics([15, 20], b_trans, n_trans)
+		drawLimit = self.calc_sub_metrics([15, 20], b_trans_cum, n_trans_cum)
 		plt.axvline(x=15, color='black', linewidth="1", linestyle='--')
 		#plt.axvline(x=20, color='black', linewidth="1", linestyle='--')
 		plt.axhline(y=drawLimit[0], color='black', linewidth="1", linestyle='--')
 		plt.text(12, drawLimit[0] + 2, str(round(drawLimit[0],2)) + "%") #rotation=90
 		plt.text(-3.5, 106.7, fileName, size="10")
-		#plt.axhline(y=drawLimit[1], color='black', linewidth="1", linestyle='--')
+		#plt.axhline(y=drawLimit[1], color='black', linewidth="1", linestyle='--') #s_40k_106+r_14789_30, p+r_2958_30
 
 		plt.tight_layout()
 		plt.legend(loc="lower right", fontsize="15")
@@ -207,9 +213,9 @@ class analyse_evaluation():
 		#plt.show()
 
 		print(self.calc_total_metrics())
-		print(self.calc_sub_metrics([15, 20, 28], b_addC, n_addC))
-		print(self.calc_sub_metrics([15, 20, 28], b_addM, n_addM))
-		print(self.calc_sub_metrics([15, 20, 28], b_trans, n_trans))
+		print(self.calc_sub_metrics([15, 20, 28], b_addC_cum, n_addC_cum))
+		print(self.calc_sub_metrics([15, 20, 28], b_addM_cum, n_addM_cum))
+		print(self.calc_sub_metrics([15, 20, 28], b_trans_cum, n_trans_cum))
 
 		return b_addC, n_addC, n_addM, n_trans, n_rot, b_addC_cum, n_addC_cum, n_addM_cum, n_trans_cum, n_rot_cum
 
