@@ -3,7 +3,7 @@ import rospy
 import tf
 import sys
 import numpy as np
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Pose, PoseArray
 from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
 
@@ -18,9 +18,10 @@ class graspPoint_broadcaster():
 		self.br = tf.TransformBroadcaster()
 		self.tfListener = tf.TransformListener()
 		self.objectPose = None
+		self.thr = 0.1 # Threshold to use pose for calculation of mean pose
 
 		# Init subscriber
-		rospy.Subscriber("/dope/pose_carrier_empty", PoseStamped, self.pose_callback, queue_size=1)					# Pose transform camera to grasp-point
+		rospy.Subscriber("/dope/pose_carrier_empty", PoseStamped, self.pose_callback, queue_size=1)				# Pose transform camera to grasp-point
 		rospy.Subscriber("/dope/rgb_points", Image, self.rgb_image_callback)									# RGB-Image
 		self.pose_update_pub = rospy.Publisher("/dope/pose_update", Bool, queue_size=10)
 
@@ -42,7 +43,46 @@ class graspPoint_broadcaster():
 		pose.orientation.w = rot[3]
 		return pose
 
-	# Broadcast the grasp-point to tf
+	# Caclulate the mean pose of all given poses
+	def calc_mean_pose(self, poseArray):
+		sumPose = Pose()
+		meanPose = Pose()
+		sumAngles = [0.0, 0.0, 0.0]
+		numPoses = len(poseArray.poses)
+		if numPoses == 0:
+			return
+
+		# Calculate sum of poses for mean pose
+		for i in range(numPoses):
+			sumPose.position.x = sumPose.position.x + poseArray.poses[i].position.x
+			sumPose.position.y = sumPose.position.y + poseArray.poses[i].position.y
+			sumPose.position.z = sumPose.position.z + poseArray.poses[i].position.z
+			angles = tf.transformations.euler_from_quaternion([poseArray.poses[i].orientation.x, poseArray.poses[i].orientation.y, poseArray.poses[i].orientation.z, poseArray.poses[i].orientation.w])
+			sumAngles = [sumAngles[i] + angles[i] for i in range(len(sumAngles))]
+
+		# Calculate mean pose
+		meanPose.position.x = sumPose.position.x / numPoses
+		meanPose.position.y = sumPose.position.y / numPoses
+		meanPose.position.z = sumPose.position.z / numPoses
+
+		meanAngles = [sumAngles[i] / numPoses for i in range(len(sumAngles))]
+		meanOrientations = tf.transformations.quaternion_from_euler(meanAngles[0], meanAngles[1], meanAngles[2])
+		meanPose.orientation.x = meanOrientations[0]
+		meanPose.orientation.y = meanOrientations[1]
+		meanPose.orientation.z = meanOrientations[2]
+		meanPose.orientation.w = meanOrientations[3]
+		return meanPose
+
+	def check_deviation(self, ref, pose):
+		if abs(objectPose_tmp.position.x - self.objectPose.position.x) <= self.thr:
+			if abs(objectPose_tmp.position.y - self.objectPose.position.y) <= self.thr:
+				if abs(objectPose_tmp.position.z - self.objectPose.position.z) <= self.thr:
+					return True
+		print "Pose deviation too big!"
+		print ref, pose
+		return False
+
+	# Broadcast the grasp-point w.r.t camera to tf and then lookup transform grasp-point w.r.t. base_link
 	def pose_callback(self, objectPose):
 		now = rospy.Time.now()
 		# Broadcast camera -> object
@@ -56,7 +96,13 @@ class graspPoint_broadcaster():
 		# Lookup and store base -> object
 		try:
 			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/dope_object_pose', now)
-			self.objectPose = self.listToPose(trans, rot)
+			objectPose_tmp = self.listToPose(trans, rot)
+			if self.check_deviation(self.objectPose, objectPose_tmp) == True:
+				poseArray = PoseArray()
+				poseArray.poses.append(self.objectPose)
+				poseArray.poses.append(objectPose_tmp)
+				self.objectPose = calc_mean_pose(poseArray) 	# Calculate mean pose of pose up to now and new pose 
+				print "Mean pose calculated."
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 
@@ -83,7 +129,7 @@ def main(args):
 	while not rospy.is_shutdown():
 		if graspPoint_br.objectPose is not None:
 			objectPose = graspPoint_br.objectPose
-			# Broadcast base -> object (So object does not move if camera moves)
+			# Broadcast obejct-pose w.r.t. base (So object does not move if camera moves)
 			graspPoint_br.br.sendTransform((objectPose.position.x, objectPose.position.y, objectPose.position.z),
 								 (objectPose.orientation.x, objectPose.orientation.y, objectPose.orientation.z, objectPose.orientation.w),
 								 rospy.Time.now(),

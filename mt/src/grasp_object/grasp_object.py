@@ -54,7 +54,7 @@ class grasp_process():
 		self.resized_img_horizontalStart = int(round(self.resized_imgWidth/2., 0)) - self.imgOutputSize/2
 
 		# Subscriber to pose update
-		rospy.Subscriber("/dope/pose_update", Bool, self.pose_update)
+		rospy.Subscriber("/dope/pose_update", Bool, self.pose_update_callback)
 		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)					# RGB-Image
 		self.rawImgPub = rospy.Publisher("/dope/camera_images", Image, queue_size=10)		
 
@@ -87,7 +87,7 @@ class grasp_process():
 		#cv2.waitKey(1)
 
 	# Get the last grasp-pose, if a new pose has been sent to tf
-	def pose_update(self, data):
+	def pose_update_callback(self, data):
 		self.update_grasp_pose()
 
 	def get_pose(self, fromF, toF):
@@ -118,7 +118,9 @@ class grasp_process():
 		self.ur5.execute_move([actJointValues[0], -90*pi/180, 150*pi/180, actJointValues[3], actJointValues[4], actJointValues[5]])
 
 	def make_grasp(self):
+		print "Moving joints in grasp-configuration..."
 		self.prepare_grasp()
+		print "Driving to object"
 		self.ur5.move_to_pose(self.preGraspPose)
 		self.ur5.move_to_pose(self.graspPose)
 		rospy.sleep(5)
@@ -131,6 +133,26 @@ class grasp_process():
 		else:
 			print "Error grasping object!"
 			return False
+
+	def move_and_publish(self, jointID, angle):
+		self.ur5.move_joint(jointID, angle)
+		rospy.sleep(0.1)
+		self.publish_image()
+		timeout = time.time() + 1
+		# Wait until updated pose arrives or timeout occurs (pose not visible)
+		while self.poseIsUpdated == False:
+			rospy.sleep(0.05)
+			if time.time() >= timeout
+				print "Object not detectable"
+				return False
+		return True
+
+	def refine_pose(self):
+		print "Refining pose..."
+		self.move_and_publish(5, 3)
+		self.move_and_publish(5, -6)
+		self.move_and_publish(4, 3)
+		self.move_and_publish(4, -6)
 
 	# Convert lists to pose-obect so a standard pose message can be published
 	def listToPose(self, trans, rot):
@@ -196,7 +218,8 @@ def main(args):
 					print "Error locating object"
 					break
 			else:
-				print "Received pose update - driving to object"
+				print "Received pose update"
+				grasper.refine_pose()
 				if grasper.make_grasp() == True:
 					##### Move the robot up and to transport-pose
 					grasper.ur5.move_xyz(0, 0, 0.2)
@@ -223,7 +246,8 @@ def main(args):
 						print "Object not found - moving on..."
 						break
 				else:
-					print "Received pose update - driving to object."
+					print "Received pose update"
+					grasper.refine_pose()
 					if grasper.make_grasp() == True:
 						##### Move the robot up and to transport-pose
 						grasper.ur5.move_xyz(0, 0, 0.2)
