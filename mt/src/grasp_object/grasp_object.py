@@ -56,7 +56,8 @@ class grasp_process():
 		# Subscriber to pose update
 		rospy.Subscriber("/dope/pose_update", Bool, self.pose_update_callback)
 		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)					# RGB-Image
-		self.rawImgPub = rospy.Publisher("/dope/camera_images", Image, queue_size=10)		
+		self.rawImgPub = rospy.Publisher("/dope/camera_images", Image, queue_size=10)
+		self.hasGraspedPub = rospy.Publisher("/dope/has_grasped", Bool, queue_size=10)				# Publish Signal so pose is no more published to tf by other program
 
 		rospy.sleep(1)	# Wait to register at tf
 
@@ -133,6 +134,10 @@ class grasp_process():
 		else:
 			print "Error grasping object!"
 			return False
+		self.hasGraspedPub.publish(Bool(True))
+		rospy.sleep(0.5)
+		self.hasGraspedPub.publish(Bool(False))
+		return True
 
 	def move_and_publish(self, jointID, angle):
 		self.ur5.move_joint(jointID, angle)
@@ -151,6 +156,7 @@ class grasp_process():
 		print "Refining pose..."
 		self.move_and_publish(5, 3)
 		self.move_and_publish(5, -6)
+		self.ur5.move_joint(5, 3) 	# move back to base position
 		self.move_and_publish(4, 3)
 		self.move_and_publish(4, -6)
 

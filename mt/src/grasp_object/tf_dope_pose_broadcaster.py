@@ -18,12 +18,18 @@ class graspPoint_broadcaster():
 		self.br = tf.TransformBroadcaster()
 		self.tfListener = tf.TransformListener()
 		self.objectPose = None
+		self.resetPose = False
 		self.thr = 0.1 # Threshold to use pose for calculation of mean pose
 
 		# Init subscriber
 		rospy.Subscriber("/dope/pose_carrier_empty", PoseStamped, self.pose_callback, queue_size=1)				# Pose transform camera to grasp-point
 		rospy.Subscriber("/dope/rgb_points", Image, self.rgb_image_callback)									# RGB-Image
+		rospy.Subscriber("/dope/has_grasped", Bool, self.has_grasped_callback)
 		self.pose_update_pub = rospy.Publisher("/dope/pose_update", Bool, queue_size=10)
+
+	def has_grasped_callback(self, data):
+		if data == True:
+			self.resetPose = True
 
 	def rgb_image_callback(self, data):
 		rgb_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -97,7 +103,9 @@ class graspPoint_broadcaster():
 		try:
 			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/dope_object_pose', now)
 			objectPose_tmp = self.listToPose(trans, rot)
-			if self.check_deviation(self.objectPose, objectPose_tmp) == True:
+			if self.objectPose is None:
+				self.objectPose = objectPose_tmp
+			elif self.check_deviation(self.objectPose, objectPose_tmp) == True:
 				poseArray = PoseArray()
 				poseArray.poses.append(self.objectPose)
 				poseArray.poses.append(objectPose_tmp)
@@ -127,6 +135,9 @@ def main(args):
 
 	rate = rospy.Rate(10)
 	while not rospy.is_shutdown():
+		if graspPoint_br.resetPose == True:
+			graspPoint_br.objectPose = None
+			graspPoint_br.resetPose = False
 		if graspPoint_br.objectPose is not None:
 			objectPose = graspPoint_br.objectPose
 			# Broadcast obejct-pose w.r.t. base (So object does not move if camera moves)
