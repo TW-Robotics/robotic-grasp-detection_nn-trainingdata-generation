@@ -54,10 +54,10 @@ class ur5Controler():
 		self.group.set_pose_reference_frame(pose_ref_frame)
 		self.setSpeed(self.speed, self.acceleration)
 
-		print self.robot.get_planning_frame()
-		print self.group.get_pose_reference_frame()
-		print self.group.get_current_pose().pose
-		print self.group.get_end_effector_link()
+		#print self.robot.get_planning_frame()
+		#print self.group.get_pose_reference_frame()
+		#print self.group.get_current_pose().pose
+		#print self.group.get_end_effector_link()
 
 	######################################################
 	###### GENERAL FUNCTIONS FOR BASIC MOVING TASKS ######
@@ -258,6 +258,11 @@ class ur5Controler():
 			jointStates[0] = -25*pi/180
 
 		self.execute_move(jointStates)
+
+
+	def moveToTransportPose(self):
+		jointStates = [110*pi/180, -100*pi/180, 75*pi/180, -115*pi/180, -90*pi/180, 90*pi/180]
+		self.execute_move(jointStates)		
 
 	# Turn the robot around R1 and R4 to search the object
 	def searchObject(self, num):
