@@ -1,0 +1,7 @@
+in mt/launch/config.yaml change and add:
+	- object_name
+	- path_to_obj_stl
+	- path_to_store
+	- transformTo (from CAD, synth data)
+
+after capturing all images create a blender-file for dataset creation

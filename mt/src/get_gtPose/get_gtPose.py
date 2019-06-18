@@ -48,6 +48,8 @@ class gtPose():
 		self.meanPose = Pose()
 		self.poseBuff = collections.deque(maxlen=self.poseBuffSize)
 		self.idx = 0
+		objName = rospy.get_param("object_name")
+		self.transformToPoints = rospy.get_param(str(objName) + "/transformTo")
 
 		self.ur5 = ur5_control.ur5Controler("camera_planning_frame", "/mean_marker_pose", True)
 
@@ -220,45 +222,27 @@ class gtPose():
 							 "gt_" + str(i),
 							 "base_link")
 
+	def broadcast_transfrom(self, parentFrame, childFrame):
+		t = self.transformToPoints[childFrame]
+		self.tfBroadcaster.sendTransform((t[0], t[1], t[2]),
+						 (tf.transformations.quaternion_from_euler(t[3]*math.pi/180, t[4]*math.pi/180, t[5]*math.pi/180, "rxyz")),
+						 rospy.Time.now(),
+						 childFrame,
+						 parentFrame)
+
 	# Broadcast the final mean pose and other frames dependent on that frame
 	def broadcast_transformations(self):
-		self.tfBroadcaster.sendTransform((self.meanPose.position.x , self.meanPose.position.y , self.meanPose.position.z ),
+		# marker-pose wrt to base_link		
+		self.tfBroadcaster.sendTransform((self.meanPose.position.x , self.meanPose.position.y , self.meanPose.position.z),
 						 (self.meanPose.orientation.x, self.meanPose.orientation.y, self.meanPose.orientation.z, self.meanPose.orientation.w),
 						 rospy.Time.now(),
 						 "mean_marker_pose",
-						 "base_link")	# marker-pose wrt to base_link
-		self.tfBroadcaster.sendTransform((0, 0, 0.05),
-						 (0, 0, 0, 1),
-						 rospy.Time.now(),
-						 "object_img_center",
-						 "mean_marker_pose")  # calculated pose where camera should point to
-		self.tfBroadcaster.sendTransform((-0.1185, 0, 0.0625),
-						 (tf.transformations.quaternion_from_euler(90*math.pi/180, 90*math.pi/180, 0, "ryzx")),
-						 rospy.Time.now(),
-						 "object_grasp",
-						 "mean_marker_pose")  # calculated pose where the object can be grasped
-		self.tfBroadcaster.sendTransform((0, 0, -0.0075),
-						 (0, 0, 0, 1),
-						 rospy.Time.now(),
-						 "object",
-						 "mean_marker_pose")  # calculated pose where the object base is (z pointing up)
-		self.tfBroadcaster.sendTransform((0, 0, -0.0075),
-						 (tf.transformations.quaternion_from_euler(-90*math.pi/180, 0, -180*math.pi/180, "rxyz")),
-						 rospy.Time.now(),
-						 "object_origin",
-						 "mean_marker_pose")  # calculated pose where the object base is (for placement of cad-file)
-		self.tfBroadcaster.sendTransform((-0.1185, -0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_0", "object")
-		self.tfBroadcaster.sendTransform((-0.1185, 0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_1", "object")
-		self.tfBroadcaster.sendTransform((-0.1185, 0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_2", "object")
-		self.tfBroadcaster.sendTransform((-0.1185, -0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_3", "object")
-		self.tfBroadcaster.sendTransform((0.0585, -0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_4", "object")
-		self.tfBroadcaster.sendTransform((0.0585, 0.099, 0), (0, 0, 0, 1), rospy.Time.now(), "c_5", "object")
-		self.tfBroadcaster.sendTransform((0.0585, 0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_6", "object")
-		self.tfBroadcaster.sendTransform((0.0585, -0.099, 0.09), (0, 0, 0, 1), rospy.Time.now(), "c_7", "object")
-		self.tfBroadcaster.sendTransform((-0.03, 0, 0.045), (0, 0, 0, 1), rospy.Time.now(), "c_8", "object")		# Center
-
-		# TODO DELETE
-		#self.tfBroadcaster.sendTransform((1.+0.03, 1.-0.2, 0.5), (tf.transformations.quaternion_from_euler(math.pi, 0, 0, "rxyz")), rospy.Time.now(), "camera_color_optical_frame", "base_link")
+						 "base_link")
+		self.broadcast_transfrom("mean_marker_pose", "object_img_center") 	# calculated pose where camera should point to
+		self.broadcast_transfrom("mean_marker_pose", "object")				# calculated pose where the object base is (z pointing up)
+		self.broadcast_transfrom("mean_marker_pose", "object_origin")		# calculated pose where the object base is (for placement of cad-file)
+		for i in range(9):
+			self.broadcast_transfrom("object", "c_" + str(i)) # Cuboids and Centroid
 
 # Print debug messages
 def print_debug(dStr):
