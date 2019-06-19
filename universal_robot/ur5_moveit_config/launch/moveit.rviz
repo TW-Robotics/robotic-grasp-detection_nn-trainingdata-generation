@@ -88,6 +88,11 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
+          camera_planning_frame:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           controlbox:
             Alpha: 1
             Show Axes: false
@@ -196,6 +201,11 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
           base_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          camera_planning_frame:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -312,7 +322,7 @@ Visualization Manager:
         camera_depth_frame:
           Value: false
         camera_depth_optical_frame:
-          Value: true
+          Value: false
         camera_infra1_frame:
           Value: false
         camera_infra1_optical_frame:
@@ -320,11 +330,19 @@ Visualization Manager:
         camera_infra2_frame:
           Value: false
         camera_infra2_optical_frame:
-          Value: true
+          Value: false
         camera_link:
+          Value: false
+        camera_planning_frame:
           Value: false
         controlbox:
           Value: false
+        dope_grasp_point:
+          Value: true
+        dope_grasp_point_pre:
+          Value: true
+        dope_object_pose:
+          Value: true
         ee_link:
           Value: false
         eef:
@@ -333,10 +351,6 @@ Visualization Manager:
           Value: false
         gripper:
           Value: false
-        marker_245:
-          Value: true
-        object:
-          Value: true
         shoulder_link:
           Value: false
         tool0:
@@ -370,9 +384,7 @@ Visualization Manager:
                     {}
                   camera_color_frame:
                     camera_color_optical_frame:
-                      marker_245:
-                        object:
-                          {}
+                      {}
                   camera_depth_frame:
                     camera_depth_optical_frame:
                       {}
@@ -394,8 +406,9 @@ Visualization Manager:
                           eef:
                             {}
                         tool0:
-                          gripper:
-                            {}
+                          camera_planning_frame:
+                            gripper:
+                              {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -438,10 +451,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.549796164
+      Pitch: 0.504796207
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.72040939
+      Yaw: 5.73040628
     Saved: ~
 Window Geometry:
   Displays:
