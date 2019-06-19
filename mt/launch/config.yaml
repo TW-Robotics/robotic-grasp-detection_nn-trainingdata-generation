@@ -52,9 +52,9 @@ carrier_empty:
 
 holder_empty:
   transformTo:
-    object_img_center: [0.05106, -0.03775, 0, 0, 0, 0] # from marker - x, y, z, rx, ry, rz [deg] for rxyz
-    object: [-0.01215, -0.0375, -0.038, 0, 0, 0]
-    object_origin: [-0.01215, -0.0375, -0.038, -90, 0, -180]
+    object_img_center: [0.05806, -0.0305, 0, 0, 0, 0] # from marker - x, y, z, rx, ry, rz [deg] for rxyz
+    object: [-0.01915, -0.0305, -0.038, 0, 0, 0]
+    object_origin: [-0.01915, -0.0305, -0.038, -90, 0, -180]
     c_0: [-0.01685, -0.099, 0,    0, 0, 0]
     c_1: [-0.01685,  0.099, 0,    0, 0, 0]
     c_2: [-0.01685,  0.099, 0.06, 0, 0, 0]
