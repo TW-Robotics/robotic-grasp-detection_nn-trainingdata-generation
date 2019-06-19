@@ -28,6 +28,7 @@ if rospy.get_param("print_debug") == True:
 	debug = True		# Print Debug-Messages
 storePC = False			# Store Point-Cloud-Message
 storeFullRes = False
+storeFullCSV = False
 
 class dataCapture():
 	def __init__(self, path, pathFullRes):
@@ -460,7 +461,8 @@ class dataCapture():
 			print ("Waiting for camera-settings to arrive...")
 			rospy.sleep(0.5)
 		data = {"camera_settings": [self.camera_settings_rgb, self.camera_settings_depth]}
-		self.write_json(data, self.pathFullRes, "_camera_settings.json")
+		if storeFullRes == True:
+			self.write_json(data, self.pathFullRes, "_camera_settings.json")
 		data = {"camera_settings": [self.camera_settings_rgb_resized]}
 		self.write_json(data, self.path, "_camera_settings.json")
 
@@ -475,7 +477,8 @@ class dataCapture():
 		exported_objects = {"class": self.objectName, "segmentation_class_id": 255, "segmentation_instance_id": 255, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": [19.8, 9.0, 17.7]}
 		data = {"exported_object_classes": [self.objectName], "exported_objects": [exported_objects]}
 		self.write_json(data, self.path, "_object_settings.json")
-		self.write_json(data, self.pathFullRes, "_object_settings.json")
+		if storeFullRes == True:
+			self.write_json(data, self.pathFullRes, "_object_settings.json")
 
 	# Store images and poses at actual position to json-files
 	def store_state(self):
@@ -506,11 +509,12 @@ class dataCapture():
 		rgb_img_resized = self.rgb_img_resized.copy()
 
 		# Save OpenCV2 images
-		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_rgb.png", rgb_img)
-		cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
+		if storeFullRes == True:
+			cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_rgb.png", rgb_img)
+			cv2.imwrite(str(self.pathFullRes) + str(fileName) + "_d.png", d_img*255)	# *255 to rescale from 0-1 to 0-255
 		cv2.imwrite(str(self.path) + str(fileName) + ".png", rgb_img_resized)
 
-		if storeFullRes == True:
+		if storeFullRes == True and storeFullCSV == True:
 			# Store Depth-Image as CSV-File
 			with open(str(self.pathFullRes) + str(fileName) + "_d.csv", "wb") as f:
 				writer = csv.writer(f, delimiter=";")
@@ -527,8 +531,9 @@ class dataCapture():
 			f1.close()
 
 		# Store information-file
-		data = self.get_data_dict(self.intrinsics)
-		self.write_json(data, self.pathFullRes, str(fileName) + ".json")
+		if storeFullRes == True:
+			data = self.get_data_dict(self.intrinsics)
+			self.write_json(data, self.pathFullRes, str(fileName) + ".json")
 		
 		data, cuboidPoses = self.get_data_dict(self.intrinsics_resized)
 		self.write_json(data, self.path, str(fileName) + ".json")
@@ -576,7 +581,8 @@ def main(args):
 		path = path + str(args[1]) + "/"
 		if not os.path.exists(path):
 			os.makedirs(path)
-			os.makedirs(pathFullRes)
+			if storeFullRes == True:
+				os.makedirs(pathFullRes)
 		else:
 			rospy.logwarn("You are writing to an existing folder!")
 	
