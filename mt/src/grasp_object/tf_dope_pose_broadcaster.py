@@ -28,7 +28,6 @@ class graspPoint_broadcaster():
 		self.pose_update_pub = rospy.Publisher("/dope/pose_update", Bool, queue_size=10)
 
 	def has_grasped_callback(self, data):
-		if data == True:
 			self.resetPose = True
 
 	def rgb_image_callback(self, data):
@@ -80,9 +79,9 @@ class graspPoint_broadcaster():
 		return meanPose
 
 	def check_deviation(self, ref, pose):
-		if abs(objectPose_tmp.position.x - self.objectPose.position.x) <= self.thr:
-			if abs(objectPose_tmp.position.y - self.objectPose.position.y) <= self.thr:
-				if abs(objectPose_tmp.position.z - self.objectPose.position.z) <= self.thr:
+		if abs(pose.position.x - ref.position.x) <= self.thr:
+			if abs(pose.position.y - ref.position.y) <= self.thr:
+				if abs(pose.position.z - ref.position.z) <= self.thr:
 					return True
 		print "Pose deviation too big!"
 		print ref, pose
@@ -109,7 +108,7 @@ class graspPoint_broadcaster():
 				poseArray = PoseArray()
 				poseArray.poses.append(self.objectPose)
 				poseArray.poses.append(objectPose_tmp)
-				self.objectPose = calc_mean_pose(poseArray) 	# Calculate mean pose of pose up to now and new pose 
+				self.objectPose = self.calc_mean_pose(poseArray) 	# Calculate mean pose of pose up to now and new pose 
 				print "Mean pose calculated."
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -136,6 +135,7 @@ def main(args):
 	rate = rospy.Rate(10)
 	while not rospy.is_shutdown():
 		if graspPoint_br.resetPose == True:
+			print "Deleting pose from TF"
 			graspPoint_br.objectPose = None
 			graspPoint_br.resetPose = False
 		if graspPoint_br.objectPose is not None:
@@ -146,7 +146,7 @@ def main(args):
 								 rospy.Time.now(),
 								 "dope_object_pose",
 								 "base_link")
-			rate.sleep()
+		rate.sleep()
 
 	#rospy.spin()
 

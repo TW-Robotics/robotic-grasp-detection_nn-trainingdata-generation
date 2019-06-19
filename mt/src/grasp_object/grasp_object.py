@@ -35,7 +35,7 @@ class grasp_process():
 		self.tfListener = tf.TransformListener()
 		self.tfBroadcaster = tf.TransformBroadcaster()
 
-		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link", True)
+		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link", False)
 		self.gripper = gripper_control.gripper()
 		self.side = side
 
@@ -116,6 +116,7 @@ class grasp_process():
 		actJointValues = self.ur5.group.get_current_joint_values()
 		# Pre-position last joints so robot does not jeopardize environment 
 		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], -240*pi/180, -85*pi/180, 0*pi/180])
+		actJointValues = self.ur5.group.get_current_joint_values()
 		self.ur5.execute_move([actJointValues[0], -90*pi/180, 150*pi/180, actJointValues[3], actJointValues[4], actJointValues[5]])
 
 	def make_grasp(self):
@@ -124,41 +125,39 @@ class grasp_process():
 		print "Driving to object"
 		self.ur5.move_to_pose(self.preGraspPose)
 		self.ur5.move_to_pose(self.graspPose)
-		rospy.sleep(5)
 
 		##### Close the gripper to grasp object
 		self.gripper.close()
 		rospy.sleep(5)
-		if self.gripper.hasGripped() == True:
+		'''if self.gripper.hasGripped() == True:
 			print "Successfully grasped object!"
 		else:
 			print "Error grasping object!"
-			return False
+			return False'''
 		self.hasGraspedPub.publish(Bool(True))
-		rospy.sleep(0.5)
-		self.hasGraspedPub.publish(Bool(False))
+		#rospy.sleep(0.5)
 		return True
 
 	def move_and_publish(self, jointID, angle):
 		self.ur5.move_joint(jointID, angle)
 		rospy.sleep(0.1)
 		self.publish_image()
-		timeout = time.time() + 1
+		timeout = time.time() + 1.5
 		# Wait until updated pose arrives or timeout occurs (pose not visible)
 		while self.poseIsUpdated == False:
 			rospy.sleep(0.05)
-			if time.time() >= timeout
+			if time.time() >= timeout:
 				print "Object not detectable"
 				return False
 		return True
 
 	def refine_pose(self):
 		print "Refining pose..."
-		self.move_and_publish(5, 3)
-		self.move_and_publish(5, -6)
-		self.ur5.move_joint(5, 3) 	# move back to base position
-		self.move_and_publish(4, 3)
-		self.move_and_publish(4, -6)
+		self.move_and_publish(5, 20)
+		self.move_and_publish(5, -40)
+		self.ur5.move_joint(5, 20) 	# move back to base position
+		self.move_and_publish(4, 10)
+		self.move_and_publish(4, -20)
 
 	# Convert lists to pose-obect so a standard pose message can be published
 	def listToPose(self, trans, rot):
@@ -220,7 +219,7 @@ def main(args):
 			# Wait until updated pose arrives or timeout occurs (pose not visible)
 			while grasper.poseIsUpdated == False:
 				rospy.sleep(0.05)
-				if time.time() >= timeout
+				if time.time() >= timeout:
 					print "Error locating object"
 					break
 			else:
@@ -229,14 +228,17 @@ def main(args):
 				if grasper.make_grasp() == True:
 					##### Move the robot up and to transport-pose
 					grasper.ur5.move_xyz(0, 0, 0.2)
-					grasper.ur5.moveToTransportPose()	# TODO Change joint angles
+					grasper.ur5.moveToTransportPose()
 
 		elif inp == 'a':
-			grasper.ur5.moveToSearchPose(grasper.side) 	# TODO Change search-position so robot sees more
+			grasper.ur5.moveToSearchPose(grasper.side)
 			rospy.sleep(0.1)	# wait to arrive at position
 			grasper.publish_image()
+			timeout = time.time() + 1.5   # 1.5 seconds from now
+			# Wait until updated pose arrives or timeout occurs (pose not visible)
+			while grasper.poseIsUpdated == False and time.time() <= timeout:
+				rospy.sleep(0.05)
 			posID = 0
-			rospy.sleep(1) 		# wait for image to arrive
 			while grasper.poseIsUpdated == False:		# if the object has been found, this is going to be True and outer loop is exited
 				if grasper.ur5.searchObject(posID) == False:
 					print "No object found!"
