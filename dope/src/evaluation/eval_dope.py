@@ -288,7 +288,7 @@ class eval_dope():
 			cv2.imwrite(self.evalDataFolderFail + "/" + fileName + "_" + net + ".failed.png", np.array(im)[...,::-1])
 			shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.json")
 
-	def OverlayBeliefOnImage(self, in_img, beliefs, filename):
+	def OverlayBeliefOnImage(self, in_img, beliefs, v_aff, p_det, filename):
 		# Convert images to float-datatype (in_img = background)
 		in_img = in_img.astype(float)/255 
 		in_img_size = in_img.shape[0]
@@ -300,6 +300,19 @@ class eval_dope():
 		# Prepare empty white image for foreground (is masked by belief-map)            
 		foreground_ = np.zeros([in_img_size,in_img_size,3],dtype=np.float64)
 		foreground_.fill(255)
+
+		# Convert input arrays
+		v_aff = np.asarray(v_aff)
+		p_det = np.asarray(p_det)
+
+		# Calculate values for point/vector drawing
+		numPoints = p_det.shape[0]
+		p_scale = in_img_size/beliefs.shape[1]
+		v_scale = 50
+
+		# Resclae points and vetors
+		p_det = [i * p_scale for i in p_det]
+		v_aff = [i * v_scale for i in v_aff]
 
 		# beliefs in format numMaps x width x heigth (9x50x50) -> for all 9 belief maps
 		for i in range(beliefs.shape[0]):
@@ -317,6 +330,13 @@ class eval_dope():
 			 
 			# Add the masked foreground and background
 			in_img = cv2.add(foreground, in_img) 
+
+		# Draw circle at estimated point and line for affinity vector
+		for i in range(numPoints):
+			cv2.circle(in_img, (int(p_det[i][0]), int(p_det[i][1])), 1, (255, 0, 0), 3)
+			# Draw line if the point is not the last point (centroid)
+			if i < numPoints-1:
+				cv2.line(in_img, (int(p_det[i][0]), int(p_det[i][1])), (int(p_det[i][0]+v_aff[i][0]), int(p_det[i][1] + v_aff[i][1])), (0, 0, 255))
 
 		if self.show_belief_maps:
 			cv2.imshow("Belief map", in_img)
@@ -346,7 +366,7 @@ class eval_dope():
 				# Detect object
 				detection_success_flag = False
 				m = self.model
-				results, beliefMaps = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
+				results, beliefMaps, v_aff, p_det = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
 
 				# Get pose and overlay cube on image, if results is not empty
 				for i_r, result in enumerate(results):
@@ -423,7 +443,7 @@ class eval_dope():
 					fileName = "f_" + fileName
 
 				if self.store_belief_maps or self.show_belief_maps:
-					self.OverlayBeliefOnImage(img_copy, beliefMaps, fileName + "_" + net)
+					self.OverlayBeliefOnImage(img_copy, beliefMaps, v_aff, p_det, fileName + "_" + net)
 
 	def writeCSV(self, net):
 		# Write results to file
