@@ -44,6 +44,9 @@ class eval_dope():
 		self.pnp_solvers = {}
 		self.draw_colors = {}
 
+		self.show_belief_maps = params["show_belief_maps"]
+		self.store_belief_maps = params["store_belief_maps"]
+
 		# Initialize parameters
 		# Camera-Matrix for eval-images
 		self.matrix_camera = np.zeros((3,3))
@@ -121,7 +124,7 @@ class eval_dope():
 		self.poses_est = []
 
 		self.createFolders(params, net)
-		self.eval(params['path_to_images'])
+		self.eval(params['path_to_images'], net)
 		self.exportJson(net)
 		self.writeCSV(net)
 
@@ -142,6 +145,10 @@ class eval_dope():
 		self.evalDataFolderSuccess = self.evalDataFolder + "/" + "success_" + net
 		if not os.path.exists(self.evalDataFolderSuccess):
 			os.makedirs(self.evalDataFolderSuccess)
+		if self.store_belief_maps:
+			self.dataFolderBeliefMaps = self.evalDataFolder + "/" + "beliefmaps_" + net
+			if not os.path.exists(self.dataFolderBeliefMaps):
+				os.makedirs(self.dataFolderBeliefMaps)
 
 	###########################################################
 	# EVALUATION ##############################################
@@ -270,18 +277,54 @@ class eval_dope():
 		new_data = re.sub('\n +', lambda match: '\n' + '\t' * (len(match.group().strip('\n')) / 3), dump)
 		print >> open(str(path) + "/" + str(filename), 'w'), new_data
 
-	def copyData(self, im, pathToFiles, fileName, success):
+	def copyData(self, im, pathToFiles, fileName, net, success):
 		# Store image with results overlaid and json-file
 		if success == True:
 			self.filenamesSuccess.append(fileName)
-			cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + ".success.png", np.array(im)[...,::-1])
+			cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + "_" + net + ".success.png", np.array(im)[...,::-1])
 			shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderSuccess + "/" + fileName + ".success.json")
 		else:
 			self.filenamesFailure.append(fileName)
-			cv2.imwrite(self.evalDataFolderFail + "/" + fileName + ".failed.png", np.array(im)[...,::-1])
+			cv2.imwrite(self.evalDataFolderFail + "/" + fileName + "_" + net + ".failed.png", np.array(im)[...,::-1])
 			shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.json")
 
-	def eval(self, pathToFiles):
+	def OverlayBeliefOnImage(self, in_img, beliefs, filename):
+		# Convert images to float-datatype (in_img = background)
+		in_img = in_img.astype(float)/255 
+		in_img_size = in_img.shape[0]
+
+		# Darken image so dots are more visible
+		black = np.zeros([in_img_size,in_img_size,3],dtype=np.float64)
+		in_img = cv2.addWeighted(in_img, 0.5, black, 0.3, 0)
+
+		# Prepare empty white image for foreground (is masked by belief-map)            
+		foreground_ = np.zeros([in_img_size,in_img_size,3],dtype=np.float64)
+		foreground_.fill(255)
+
+		# beliefs in format numMaps x width x heigth (9x50x50) -> for all 9 belief maps
+		for i in range(beliefs.shape[0]):
+			# Copy and normalize the alpha mask (=bel_img) to keep intensity between 0 and 1
+			bel_img = beliefs[i].astype(float)/255
+			
+			# Make belief-map to 3-channel image and rescale to in_img size
+			bel_img = cv2.merge((bel_img, bel_img, bel_img))
+			bel_img = cv2.resize(bel_img, dsize=(in_img_size, in_img_size), interpolation=cv2.INTER_CUBIC)
+
+			# Copy white image, Multiply the foreground with the alpha matte and multiply the background with ( 1 - alpha )
+			foreground = foreground_.copy()
+			foreground = cv2.multiply(bel_img, foreground)
+			in_img = cv2.multiply(1.0 - bel_img, in_img)
+			 
+			# Add the masked foreground and background
+			in_img = cv2.add(foreground, in_img) 
+
+		if self.show_belief_maps:
+			cv2.imshow("Belief map", in_img)
+			cv2.waitKey(1)
+		if self.store_belief_maps:
+			cv2.imwrite(self.dataFolderBeliefMaps + "/" + filename + ".belief.png", in_img*255)
+
+	def eval(self, pathToFiles, net):
 		# For all images in folder
 		print ("Analysing images in folder " + pathToFiles)
 		for imgpath in glob.glob(pathToFiles + "/*.png"):
@@ -303,7 +346,7 @@ class eval_dope():
 				# Detect object
 				detection_success_flag = False
 				m = self.model
-				results, beliefMap, img_tensor = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
+				results, beliefMaps = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
 
 				# Get pose and overlay cube on image, if results is not empty
 				for i_r, result in enumerate(results):
@@ -370,23 +413,14 @@ class eval_dope():
 
 					# Draw the cube
 					self.DrawCube(points2d_est, self.draw_colors[m])
-					self.copyData(im, pathToFiles, fileName, True)
+					self.copyData(im, pathToFiles, fileName, net, True)
+					if self.store_belief_maps or self.show_belief_maps:
+						self.OverlayBeliefOnImage(img_copy, beliefMaps, fileName + "_" + net)
 					detection_success_flag = True
-
-					# Visualize Belive-Maps
-					#print type(im)
-					#self.OverlayBeliefOnImage(img_tensor, beliefMap, "output.png")
-					
-					'''take as input 
-					img: a tensor image in pytorch normalized at 0.5
-							3xwxh
-					belief: tensor of the same size as the image to overlay over img 
-							nb_beliefxwxh
-					name: str to name the image, e.g., output.png'''
 
 				# If no object could be detected copy file to failed-folder
 				if detection_success_flag == False:
-					self.copyData(im, pathToFiles, fileName, False)
+					self.copyData(im, pathToFiles, fileName, net, False)
 
 	def writeCSV(self, net):
 		# Write results to file

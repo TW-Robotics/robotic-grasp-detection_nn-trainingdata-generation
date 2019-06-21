@@ -252,50 +252,6 @@ class ModelData(object):
 #================================ ObjectDetector ================================
 class ObjectDetector(object):
     '''This class contains methods for object detection'''
-
-    @staticmethod
-    def OverlayBeliefOnImage(in_img, beliefs, name, path=""):
-        # Copy belief-maps to cpu and convert to numpy-array
-        tensors = beliefs.cpu()
-        bel_imgs = np.squeeze(tensors.data.numpy())
-
-        # Convert images to float-datatype
-        in_img = in_img.astype(float)/255  # in_img = background
-        in_img = in_img.astype(float) #TODO Notwendig?
-
-        # Darken image so dots are more visible
-        black = np.zeros([400,400,3],dtype=np.float64) #todo variable
-        in_img = cv2.addWeighted(in_img, 0.5, black, 0.3, 0) #todo parameter
-
-        for i in range(beliefs.size()[0]): # beliefs in format numMaps x width x heigth (9x50x50) -> for all 9 belief maps
-            # Copy and convert each belief-map to float
-            bel_img = bel_imgs[i].astype(float)
-            
-            # Make image to 3-channel image and rescale to in_img size
-            bel_img = cv2.merge((bel_img,bel_img,bel_img))
-            bel_img = cv2.resize(bel_img, dsize=(400, 400), interpolation=cv2.INTER_CUBIC) #todo variable
-   
-            foreground = np.zeros([400,400,3],dtype=np.uint8) #todo copy
-            foreground.fill(255) # or img[:] = 255
-            alpha = bel_img
-
-            # Convert uint8 to float
-            foreground = foreground.astype(float)
-             
-            # Normalize the alpha mask to keep intensity between 0 and 1
-            alpha = alpha.astype(float)/255 #TODO Notwendig?
-             
-            # Multiply the foreground with the alpha matte and multiply the background with ( 1 - alpha )
-            foreground = cv2.multiply(alpha, foreground)
-            in_img = cv2.multiply(1.0 - alpha, in_img)
-             
-            # Add the masked foreground and background
-            in_img = cv2.add(foreground, in_img) 
-
-        cv2.imwrite("output.jpg", in_img*255)
-        cv2.imshow("test", in_img)
-        cv2.waitKey(1)
-
     @staticmethod
     def detect_object_in_image(net_model, pnp_solver, in_img, config):
         '''Detect objects in a image using a specific trained network model'''
@@ -313,16 +269,11 @@ class ObjectDetector(object):
         # Find objects from network output
         detected_objects = ObjectDetector.find_object_poses(vertex2, aff, pnp_solver, config)
 
-        #in_img = cv2.resize(in_img, dsize=(50, 50), interpolation=cv2.INTER_CUBIC)
-        #in_img_tensor = transform(in_img)
-        #image_torch = Variable(in_img_tensor).cuda().unsqueeze(0)
-        #print(type(in_img))
-        #print(image_torch.shape)
-        #print(in_img.shape)
+        # Copy belief-maps to cpu and convert to numpy-array
+        tensors = vertex2.cpu()
+        bel_imgs = np.squeeze(tensors.data.numpy())
 
-        ObjectDetector.OverlayBeliefOnImage(in_img, vertex2, "output.png")
-
-        return detected_objects, vertex2, image_torch
+        return detected_objects, bel_imgs
 
     @staticmethod
     def find_object_poses(vertex2, aff, pnp_solver, config):

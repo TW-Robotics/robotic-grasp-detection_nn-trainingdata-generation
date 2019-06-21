@@ -1,6 +1,9 @@
 #path_to_images: "/home/mluser/catkin_ws/src/data/single/carrier_empty/testOnTable"
 path_to_images: "/home/mluser/Schreibtisch/dataset_test_small/"  # / at end!
 
+store_belief_maps: True
+show_belief_maps: False
+
 # Cuboid dimension in cm x,y,z
 dimensions: {
     "cracker": [16.403600692749023,21.343700408935547,7.179999828338623],
