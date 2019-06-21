@@ -303,7 +303,7 @@ class eval_dope():
 				# Detect object
 				detection_success_flag = False
 				m = self.model
-				results = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
+				results, beliefMap, img_tensor = ObjectDetector.detect_object_in_image(self.models[m].net, self.pnp_solvers[m], img, self.config_detect)
 
 				# Get pose and overlay cube on image, if results is not empty
 				for i_r, result in enumerate(results):
@@ -372,6 +372,17 @@ class eval_dope():
 					self.DrawCube(points2d_est, self.draw_colors[m])
 					self.copyData(im, pathToFiles, fileName, True)
 					detection_success_flag = True
+
+					# Visualize Belive-Maps
+					#print type(im)
+					#self.OverlayBeliefOnImage(img_tensor, beliefMap, "output.png")
+					
+					'''take as input 
+					img: a tensor image in pytorch normalized at 0.5
+							3xwxh
+					belief: tensor of the same size as the image to overlay over img 
+							nb_beliefxwxh
+					name: str to name the image, e.g., output.png'''
 
 				# If no object could be detected copy file to failed-folder
 				if detection_success_flag == False:
