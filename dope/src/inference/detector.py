@@ -306,6 +306,7 @@ class ObjectDetector(object):
         '''Detects objects given network belief maps and affinities, using heuristic method'''
         v_affs = []
         points_det = []
+        centerIsSet = False
 
         all_peaks = []
         peak_counter = 0
@@ -413,6 +414,7 @@ class ObjectDetector(object):
                     best_angle = 100
                     for i_obj in range(len(objects)):
                         center = [objects[i_obj][0][0], objects[i_obj][0][1]]
+                        centerIsSet = True
 
                         # integer is used to look into the affinity map, 
                         # but the float version is used to run 
@@ -476,5 +478,6 @@ class ObjectDetector(object):
                         objects[i_best][1][i_lists] = ((candidate[0])*8, (candidate[1])*8)
                         objects[i_best][2][i_lists] = (best_angle, best_dist)
 
-        points_det.append(center)
+        if centerIsSet == True:
+            points_det.append(center)
         return objects, all_peaks, v_affs, points_det

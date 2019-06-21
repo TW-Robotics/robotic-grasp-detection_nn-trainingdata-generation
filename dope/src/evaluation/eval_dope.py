@@ -46,6 +46,7 @@ class eval_dope():
 
 		self.show_belief_maps = params["show_belief_maps"]
 		self.store_belief_maps = params["store_belief_maps"]
+		self.store_images = params["store_images"]
 
 		# Initialize parameters
 		# Camera-Matrix for eval-images
@@ -136,15 +137,15 @@ class eval_dope():
 		path_to_store_results = os.path.dirname(os.path.dirname(path_to_images))	# Go one level up so this folder will not be searched
 		
 		self.evalDataFolder = path_to_store_results + "/" + "eval_data_" + net
-		print(self.evalDataFolder)
 		if not os.path.exists(self.evalDataFolder):
 			os.makedirs(self.evalDataFolder)
-		self.evalDataFolderFail = self.evalDataFolder + "/" + "fail_" + net
-		if not os.path.exists(self.evalDataFolderFail):
-			os.makedirs(self.evalDataFolderFail)
-		self.evalDataFolderSuccess = self.evalDataFolder + "/" + "success_" + net
-		if not os.path.exists(self.evalDataFolderSuccess):
-			os.makedirs(self.evalDataFolderSuccess)
+		if self.store_images:
+			self.evalDataFolderFail = self.evalDataFolder + "/" + "fail_" + net
+			if not os.path.exists(self.evalDataFolderFail):
+				os.makedirs(self.evalDataFolderFail)
+			self.evalDataFolderSuccess = self.evalDataFolder + "/" + "success_" + net
+			if not os.path.exists(self.evalDataFolderSuccess):
+				os.makedirs(self.evalDataFolderSuccess)
 		if self.store_belief_maps:
 			self.dataFolderBeliefMaps = self.evalDataFolder + "/" + "beliefmaps_" + net
 			if not os.path.exists(self.dataFolderBeliefMaps):
@@ -279,14 +280,16 @@ class eval_dope():
 
 	def copyData(self, im, pathToFiles, fileName, net, success):
 		# Store image with results overlaid and json-file
-		if success == True:
-			self.filenamesSuccess.append(fileName)
-			cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + "_" + net + ".success.png", np.array(im)[...,::-1])
-			shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderSuccess + "/" + fileName + ".success.json")
-		else:
-			self.filenamesFailure.append(fileName)
-			cv2.imwrite(self.evalDataFolderFail + "/" + fileName + "_" + net + ".failed.png", np.array(im)[...,::-1])
-			shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.json")
+			if success == True:
+				self.filenamesSuccess.append(fileName)
+				if self.store_images:
+					cv2.imwrite(self.evalDataFolderSuccess + "/" + fileName + "_" + net + ".success.png", np.array(im)[...,::-1])
+					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderSuccess + "/" + fileName + ".success.json")
+			else:
+				self.filenamesFailure.append(fileName)
+				if self.store_images:
+					cv2.imwrite(self.evalDataFolderFail + "/" + fileName + "_" + net + ".failed.png", np.array(im)[...,::-1])
+					shutil.copyfile(pathToFiles + fileName + ".json", self.evalDataFolderFail + "/" + fileName + ".failed.json")
 
 	def OverlayBeliefOnImage(self, in_img, beliefs, v_aff, p_det, filename):
 		# Convert images to float-datatype (in_img = background)
@@ -307,6 +310,7 @@ class eval_dope():
 
 		# Calculate values for point/vector drawing
 		numPoints = p_det.shape[0]
+		numVecs = v_aff.shape[0]
 		p_scale = in_img_size/beliefs.shape[1]
 		v_scale = 50
 
@@ -334,8 +338,11 @@ class eval_dope():
 		# Draw circle at estimated point and line for affinity vector
 		for i in range(numPoints):
 			cv2.circle(in_img, (int(p_det[i][0]), int(p_det[i][1])), 1, (255, 0, 0), 3)
+			# Color Cuboid differently
+			if i == numPoints-1:
+				cv2.circle(in_img, (int(p_det[i][0]), int(p_det[i][1])), 1, (250, 250, 250), 3)
 			# Draw line if the point is not the last point (centroid)
-			if i < numPoints-1:
+			if i < numVecs:
 				cv2.line(in_img, (int(p_det[i][0]), int(p_det[i][1])), (int(p_det[i][0]+v_aff[i][0]), int(p_det[i][1] + v_aff[i][1])), (0, 0, 255))
 
 		if self.show_belief_maps:
