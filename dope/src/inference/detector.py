@@ -254,134 +254,47 @@ class ObjectDetector(object):
     '''This class contains methods for object detection'''
 
     @staticmethod
-    def OverlayBeliefOnImage(img, beliefs, name, path="", factor=0.7, grid=3, 
-            norm_belief = True):
-        """ python
-        take as input 
-        img: a tensor image in pytorch normalized at 0.5
-                3xwxh
-        belief: tensor of the same size as the image to overlay over img 
-                nb_beliefxwxh
-        name: str to name the image, e.g., output.png
-        path: where to save, e.g., /where/to/save/
-        factor: float [0,1] how much to keep the original, 1 = fully, 0 black
-        grid: how big the grid, e.g., 3 wide. 
-        norm_belief: bool to normalize the values [0,1]
-        """
+    def OverlayBeliefOnImage(in_img, beliefs, name, path=""):
+        # Copy belief-maps to cpu and convert to numpy-array
+        tensors = beliefs.cpu()
+        bel_imgs = np.squeeze(tensors.data.numpy())
 
-        tensor = beliefs
-        belief_imgs = []
-        #in_img = img
-        #in_img *= factor           
-        '''for j in range(tensor.size()[0]):
-            belief = tensor[j].clone()
-            if norm_belief:
-                belief -= float(torch.min(belief).data.cpu().numpy())
-                belief /= float(torch.max(belief).data.cpu().numpy())
-            belief = torch.clamp(belief,0,1).cpu()
-            belief = torch.cat([
-                        belief.unsqueeze(0) + in_img[0,:,:],
-                        belief.unsqueeze(0) + in_img[1,:,:],
-                        belief.unsqueeze(0) + in_img[2,:,:]
-                        ]).unsqueeze(0)
-            belief = torch.clamp(belief,0,1) 
+        # Convert images to float-datatype
+        in_img = in_img.astype(float)/255  # in_img = background
+        in_img = in_img.astype(float) #TODO Notwendig?
 
-            belief_imgs.append(belief.data.squeeze().numpy())'''
+        # Darken image so dots are more visible
+        black = np.zeros([400,400,3],dtype=np.float64) #todo variable
+        in_img = cv2.addWeighted(in_img, 0.5, black, 0.3, 0) #todo parameter
 
-        # Create the image grid
-        belief_imgs = torch.tensor(np.array(belief_imgs))
-       
-        # geht - aber ohne bild
-        tens = tensor.cpu()
-        bel_img = np.squeeze(tens[0].data.numpy())
-        ori_img = img#np.squeeze(img.data.numpy())
-        
-        #ori_img = np.einsum('dxy->xyd', ori_img)
-        bel_img = cv2.merge((bel_img,bel_img,bel_img))
-        bel_img = cv2.resize(bel_img, dsize=(400, 400), interpolation=cv2.INTER_CUBIC)
-        #bel_img = 255 * bel_img # Now scale by 255
-        #bel_img = bel_img.astype(np.uint8)
-        ori_img = ori_img.astype(float)/255
-        bel_img = bel_img.astype(float)
-        print(bel_img.dtype)
-        print(ori_img.dtype)
-        print(bel_img.shape)
-        print(ori_img.shape)
-        
-        #thr, bel_img = cv2.threshold(bel_img, 0.4, 1, cv2.THRESH_TOZERO)
+        for i in range(beliefs.size()[0]): # beliefs in format numMaps x width x heigth (9x50x50) -> for all 9 belief maps
+            # Copy and convert each belief-map to float
+            bel_img = bel_imgs[i].astype(float)
+            
+            # Make image to 3-channel image and rescale to in_img size
+            bel_img = cv2.merge((bel_img,bel_img,bel_img))
+            bel_img = cv2.resize(bel_img, dsize=(400, 400), interpolation=cv2.INTER_CUBIC) #todo variable
+   
+            foreground = np.zeros([400,400,3],dtype=np.uint8) #todo copy
+            foreground.fill(255) # or img[:] = 255
+            alpha = bel_img
 
-        foreground = np.zeros([400,400,3],dtype=np.uint8)
-        foreground.fill(255) # or img[:] = 255
-        black = np.zeros([400,400,3],dtype=np.float64)
-        background = ori_img
-        alpha = bel_img
+            # Convert uint8 to float
+            foreground = foreground.astype(float)
+             
+            # Normalize the alpha mask to keep intensity between 0 and 1
+            alpha = alpha.astype(float)/255 #TODO Notwendig?
+             
+            # Multiply the foreground with the alpha matte and multiply the background with ( 1 - alpha )
+            foreground = cv2.multiply(alpha, foreground)
+            in_img = cv2.multiply(1.0 - alpha, in_img)
+             
+            # Add the masked foreground and background
+            in_img = cv2.add(foreground, in_img) 
 
-        # Convert uint8 to float
-        foreground = foreground.astype(float)
-        background = background.astype(float)
-
-        # make image darker so dots are visible better
-        background = cv2.addWeighted(background, 0.5, black, 0.3, 0)
-         
-        # Normalize the alpha mask to keep intensity between 0 and 1
-        alpha = alpha.astype(float)/255
-         
-        # Multiply the foreground with the alpha matte
-        foreground = cv2.multiply(alpha, foreground)
-         
-        # Multiply the background with ( 1 - alpha )
-        background = cv2.multiply(1.0 - alpha, background)
-         
-        # Add the masked foreground and background.
-        added_image = cv2.add(foreground, background)
-
-        #added_image = cv2.multiply(bel_img, ori_img)
-        #added_image = cv2.addWeighted(ori_img,0.4,bel_img,0.1,0, dtype=5)
-        cv2.imwrite("output.jpg", added_image*255)
-        cv2.imshow("test", added_image)
+        cv2.imwrite("output.jpg", in_img*255)
+        cv2.imshow("test", in_img)
         cv2.waitKey(1)
-
-        '''print(bel_img.dtype)
-        bel_img = cv2.resize(bel_img, dsize=(400, 400), interpolation=cv2.INTER_CUBIC)
-        thr, bel_img = cv2.threshold(bel_img, 0.4, 1, cv2.THRESH_BINARY)
-        bel_img = 255 * bel_img # Now scale by 255
-        bel_img = bel_img.astype(np.uint8)
-        cv2.imwrite("output.jpg", bel_img)
-        cv2.imshow("test", bel_img)
-        cv2.waitKey(1)
-        print(bel_img.shape)
-        bel_img = cv2.merge((bel_img,bel_img,bel_img))
-        print(bel_img.dtype)
-        print(ori_img.dtype)
-        ori_img = np.einsum('dxy->xyd', ori_img)
-        added_image = cv2.addWeighted(ori_img,0.4,bel_img,0.1,0, dtype=5)
-        print(added_image.dtype)
-        cv2.imshow("test", added_image)
-        cv2.waitKey(1)'''
-
-
-
-
-        #print(tens.shape)
-        '''fig = plt.figure(figsize=(20, 20))
-        for i in range(9):
-            ax = fig.add_subplot(4, 5, i + 1, xticks=[], yticks=[])
-            # grab layer outputs
-            ax.imshow(np.squeeze(tens[i].data.numpy()), cmap='gray')
-            ax.set_title('Output %s' % str(i + 1))
-        plt.savefig("bel.png", format="png")'''
-       # plt.show()
-        
-        # geht - aber zu klein
-        '''belief_imgs = belief_imgs.numpy()[-1,:,:,:]
-        belief_imgs = np.einsum('dxy->xyd', belief_imgs)
-        belief_imgs = cv2.resize(belief_imgs, dsize=(400, 400), interpolation=cv2.INTER_CUBIC)'''
-        #print(belief_imgs.shape)
-        #print(type(belief_imgs))
-        #plt.imshow(belief_imgs)
-        #cv2.imshow("test", added_image)
-        #cv2.waitKey(1)
-        #save_image(belief_imgs, "{}{}".format(path, name), mean=0, std=1, nrow=grid)
 
     @staticmethod
     def detect_object_in_image(net_model, pnp_solver, in_img, config):
