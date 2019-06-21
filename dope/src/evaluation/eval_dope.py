@@ -414,13 +414,16 @@ class eval_dope():
 					# Draw the cube
 					self.DrawCube(points2d_est, self.draw_colors[m])
 					self.copyData(im, pathToFiles, fileName, net, True)
-					if self.store_belief_maps or self.show_belief_maps:
-						self.OverlayBeliefOnImage(img_copy, beliefMaps, fileName + "_" + net)
+					fileName = "s_" + fileName
 					detection_success_flag = True
 
 				# If no object could be detected copy file to failed-folder
 				if detection_success_flag == False:
 					self.copyData(im, pathToFiles, fileName, net, False)
+					fileName = "f_" + fileName
+
+				if self.store_belief_maps or self.show_belief_maps:
+					self.OverlayBeliefOnImage(img_copy, beliefMaps, fileName + "_" + net)
 
 	def writeCSV(self, net):
 		# Write results to file
