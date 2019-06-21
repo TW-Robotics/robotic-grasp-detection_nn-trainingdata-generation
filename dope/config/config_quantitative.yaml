@@ -1,23 +1,5 @@
 #path_to_images: "/home/mluser/catkin_ws/src/data/single/carrier_empty/testOnTable"
-path_to_images: "/home/mluser/Schreibtisch/data/test_real/"  # / at end!
-
-# Comment any of these lines to prevent detection / pose estimation of that object
-weights: {
-    # "cracker":"cracker_60.pth", 
-    # "gelatin":"gelatin_60.pth",
-    # "meat":"meat_20.pth", 
-    # "mustard":"mustard_60.pth", 
-    #"soup":"soup_60.pth",
-    #"sugar":"sugar_60.pth"
-    
-    #"carrier_empty":"0_net_synthOnly_107.pth"
-    #"carrier_empty":"1_net_synth107+real120.pth"
-    #"carrier_empty":"2_net_pretrained+real_120.pth"
-    #"carrier_empty":"3_net_real_2958.pth"
-    #"carrier_empty":"4_net_real_8874.pth"
-    #"carrier_empty":"2_net_pretrained+real_14789_120.pth"
-    "carrier_empty":"6_net_pretrained+real_2958_120.pth"
-}
+path_to_images: "/home/mluser/Schreibtisch/dataset_test_small/"  # / at end!
 
 # Cuboid dimension in cm x,y,z
 dimensions: {
