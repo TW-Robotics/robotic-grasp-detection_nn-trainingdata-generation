@@ -136,6 +136,7 @@ class grasp_process():
 			return False'''
 		self.hasGraspedPub.publish(Bool(True))
 		#rospy.sleep(0.5)
+		self.ur5.attachObjectToEEF()
 		return True
 
 	def move_and_publish(self, jointID, angle):

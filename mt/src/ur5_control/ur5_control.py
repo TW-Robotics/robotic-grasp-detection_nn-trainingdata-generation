@@ -225,6 +225,14 @@ class ur5Controler():
 		rospy.sleep(1)
 		#print self.scene.get_known_object_names()
 
+	def attachObjectToEEF()
+		eef_link = self.group.get_end_effector_link()
+		self.scene.attach_mesh(eef_link, "object")
+
+	def removeAttachedObject():
+		eef_link = self.group.get_end_effector_link()
+		self.scene.remove_attached_object(eef_link, "object")
+
 	# Check if a given goal-pose is reachable
 	def isReachable(self, goalPose):
 		# Change planning-time to make process faster
