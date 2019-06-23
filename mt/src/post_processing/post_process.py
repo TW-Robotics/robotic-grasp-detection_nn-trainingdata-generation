@@ -56,6 +56,7 @@ def post_process(root):
 					write_json(data, jsonFilePath)
 
 					if globArgs.vis_contour:
+						contoursImg = None
 						# Visualisation of contour
 						imgOrig = cv2.imread(pathToFiles + "/" + fileName + ".png")
 						
@@ -67,8 +68,9 @@ def post_process(root):
 						ret, thresh = cv2.threshold(eroded, 127, 255, 0)
 						img, contoursEroded, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-						cv2.drawContours(imgOrig, contoursImg, 1, (255,0,0), 1)
-						cv2.drawContours(imgOrig, contoursEroded, 1, (0,0,255), 1)
+						if len(contoursImg) >= 2 and len(contoursEroded) >= 2:
+							cv2.drawContours(imgOrig, contoursImg, 1, (255,0,0), 1)
+							cv2.drawContours(imgOrig, contoursEroded, 1, (0,0,255), 1)
 
 						eroded = imgOrig
 
