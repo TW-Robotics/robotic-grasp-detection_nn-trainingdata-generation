@@ -1,5 +1,4 @@
-/weights
+*.pth
 *.pyc
-*._
 *.png
 __pycache__
