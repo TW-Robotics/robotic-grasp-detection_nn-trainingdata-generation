@@ -157,8 +157,8 @@ class ur5Controler():
 		#rospy.sleep(0.05)	# Give time for keyboard-interrupt
 		if self.confirmation(goal):
 			self.group.go(wait=True)
-			self.group.clear_pose_targets()
 			self.group.stop()
+			self.group.clear_pose_targets()
 
 	# Move the robot along a specified way (plan)
 	def execute_plan(self, plan):
