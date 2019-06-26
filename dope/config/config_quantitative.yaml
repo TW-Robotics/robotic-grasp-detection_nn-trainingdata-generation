@@ -2,7 +2,7 @@ path_to_images: "/home/mluser/Schreibtisch/data/dataset_test_real/"  # / at end!
 
 store_belief_maps: True
 show_belief_maps: False
-store_images: False
+store_images: True
 
 # Cuboid dimension in cm x,y,z
 dimensions: {
