@@ -6,7 +6,7 @@ Run InstallationsSkript.sh to install all necessary packages.
 - Master-Thesis Git (including mir_robot, universal_robot, ur_modern_driver):
 
   	`git clone https://github.com/JRauer/mt`
-- blender for Linux
+- blender for Linux apt-get install blender
 - websocket (python) for communication with MiR
 - moveit to control UR5
 - socket (python) for communication with Gripper
@@ -60,7 +60,7 @@ After all data is recorded segmentation masks and bounding boxes have to be calc
 	- Got to material settings (9th symbol), klick this symbol in the opening menu where "0 None" is displayed and select *Red*
 	- Save and close the file
 - Render images (3D model in real pose):
-	- `blender -b render_image_OBJECTNAME.blend -P render_image_blender.py -- "PATH_TO_STORED_FILES/"`
+	- `blender -b render_image_OBJECTNAME.blend --background -P render_image_blender.py 1>nul -- "PATH_TO_STORED_FILES/"`
 	- Check if the result is satisfying
 - Calculate and store bounding-boxes and segmentation masks:
 	- `python post_process.py PATH_TO_STORED_FILES/ --kernel INT_VALUE --create_no_masks --delete_render`
