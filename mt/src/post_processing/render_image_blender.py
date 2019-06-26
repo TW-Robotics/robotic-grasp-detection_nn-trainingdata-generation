@@ -34,7 +34,7 @@ def render_images(root):
 		# Make a render for each image in the folder    
 		for imgpath in glob.glob(pathToFiles+"/*.png"):
 			# If there is a png and a json file
-			if os.path.exists(imgpath) and os.path.exists(imgpath.replace("png","json")):
+			if os.path.exists(imgpath) and os.path.exists(imgpath.replace("png","json")) and not os.path.exists(imgpath.replace("png","render.png")):
 				fileName = os.path.splitext(os.path.basename(imgpath))[0]
 				# Open json-file, extract pose and orient object
 				with open(imgpath.replace("png","json")) as json_file:
