@@ -63,6 +63,7 @@ class dataCapture():
 
 		# Parameters for Image-Calculations
 		self.objectName = rospy.get_param("object_name")
+		self.cuboid_dimensions = rospy.get_param(str(self.objectName) + "/dimensions")
 		self.imgOutputSize = rospy.get_param("outputImage_size")
 		self.imgWidth = rospy.get_param("camera_width")
 		self.imgHeight = rospy.get_param("camera_height")
@@ -474,7 +475,7 @@ class dataCapture():
 		# Segmentation-id = 255 since only 'Single'-images are produced (see FAT readme)
 		# Cuboid-Dimensions in cm extracted from dataset-synthesizer json-file
 		fixed_model_transform = self.get_permuted_matrix_from_pose(baseObjPose)
-		exported_objects = {"class": self.objectName, "segmentation_class_id": 255, "segmentation_instance_id": 255, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": [19.8, 9.0, 17.7]}
+		exported_objects = {"class": self.objectName, "segmentation_class_id": 255, "segmentation_instance_id": 255, "fixed_model_transform": fixed_model_transform, "cuboid_dimensions": self.cuboid_dimensions}
 		data = {"exported_object_classes": [self.objectName], "exported_objects": [exported_objects]}
 		self.write_json(data, self.path, "_object_settings.json")
 		if storeFullRes == True:

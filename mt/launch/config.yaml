@@ -36,6 +36,7 @@ PoseRandomization:
   rotate6Max: 65
 
 carrier_empty:
+  dimensions: [19.8,9.0,17.7]
   transformTo:
     object_img_center: [0, 0, 0.05, 0, 0, 0] # from marker - x, y, z, rx, ry, rz [deg] for rxyz
     object: [0, 0, -0.0075, 0, 0, 0]
@@ -51,6 +52,7 @@ carrier_empty:
     c_8: [-0.03, 0, 0.045, 0, 0, 0]
 
 holder_empty:
+  dimensions: [19.8, 6, 16.0125]
   transformTo:
     object_img_center: [0.05806, -0.0305, 0, 0, 0, 0] # from marker - x, y, z, rx, ry, rz [deg] for rxyz
     object: [-0.01915, -0.0305, -0.038, 0, 0, 0]
