@@ -1,10 +1,10 @@
-path_to_images: "/home/mluser/Schreibtisch/data/dataset_test_holder/"  # / at end!
+path_to_images: "/home/mluser/Schreibtisch/data/carrier/datasets/dataset_test_synth/"  # / at end!
 
 store_belief_maps: True
 show_belief_maps: False
 store_images: True
 
-obj_to_eval: "holder_empty"
+obj_to_eval: "carrier_empty"
 
 # Cuboid dimension in cm x,y,z
 dimensions: {

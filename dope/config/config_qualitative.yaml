@@ -3,12 +3,14 @@ topic_publishing: "dope"
 frame_id: "/camera_color_optical_frame"
 
 weights: {
-    "carrier_empty":"2_net_pretrained+real_14789_120.pth",
+    "carrier_empty": "2_net_pretrained+real_14789_120.pth",
+    "holder_empty": "holder_p+ar_13170_120.pth",
 }
 
 # Cuboid dimension in cm x,y,z
 dimensions: {
-    "carrier_empty": [19.8,9.0,17.7],
+    "carrier_empty": [19.8, 9.0, 17.7],
+    "holder_empty":  [19.8, 6.0, 16.0125]
 }
 
 draw_colors: {
@@ -19,6 +21,7 @@ draw_colors: {
     # [255, 101, 0],   # orange
     # [232, 222, 12],  # yellow
     "carrier_empty": [0, 104, 255],
+    "holder_empty": [217, 12, 232]
 }
 
 

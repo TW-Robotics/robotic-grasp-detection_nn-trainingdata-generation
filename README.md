@@ -27,6 +27,7 @@ Run InstallationsSkript.sh to install all necessary packages.
   - object_name
   - path_to_obj_stl (You have to provide a correctly scaled STL-file of your object)
   - path_to_store
+  - cuboid_dimensions
   - transformTo (measured from CAD-Data from origin of STL-file)
 
 TODO image marker-placement, marker type etc.
@@ -98,8 +99,9 @@ In this step, each image from the evaluation dataset is analysed by the neural n
 	- Go to `dope/config` and edit `config_quantitative.yaml`
 		- Change `path_to_images` to the evaluation-dataset folder
 		- Set flags whether or not to store images and belief-maps
-		- Add the object's dimensions and define a color to draw results
+		- Add the object's dimensions and cuboid points and define a color to draw results
 		- Set `camera_settings` according to `_camera_settings.json`
+	- Convert the 3D model to PLY-format and store it in `dope/src/evaluation/OBJECT_NAME.ply`
 	- Go to `dope/src/evaluation` and run `python eval_dope.py NETWORK_NAME`
 		- The network has to be stored at `dope/weigths`
 	- This produces a folder `evaluation_NETWORK_NAME` one level above the evaluation-dataset containing
