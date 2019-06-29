@@ -1,12 +1,36 @@
-path_to_images: "/home/mluser/Schreibtisch/data/dataset_test_real/"  # / at end!
+path_to_images: "/home/mluser/Schreibtisch/data/dataset_test_holder/"  # / at end!
 
 store_belief_maps: True
 show_belief_maps: False
 store_images: True
 
+obj_to_eval: "holder_empty"
+
 # Cuboid dimension in cm x,y,z
 dimensions: {
-    "carrier_empty": [19.8,9.0,17.7]
+    "carrier_empty": [19.8, 9.0, 17.7],
+    "holder_empty":  [19.8, 6.0, 16.0125]
+}
+
+cuboid_points: {
+    "carrier_empty":[[ 9.9,-4.5, 8.85, 1],
+                     [-9.9,-4.5, 8.85, 1],
+                     [-9.9, 4.5, 8.85, 1],
+                     [ 9.9, 4.5, 8.85, 1],
+                     [ 9.9,-4.5,-8.85, 1],
+                     [-9.9,-4.5,-8.85, 1],
+                     [-9.9, 4.5,-8.85, 1],
+                     [ 9.9, 4.5,-8.85, 1],
+                     [ 0. , 0. , 0.  , 1]],
+    "holder_empty": [[ 9.9,-3.0, 8.00625, 1],
+                     [-9.9,-3.0, 8.00625, 1],
+                     [-9.9, 3.0, 8.00625, 1],
+                     [ 9.9, 3.0, 8.00625, 1],
+                     [ 9.9,-3.0,-8.00625, 1],
+                     [-9.9,-3.0,-8.00625, 1],
+                     [-9.9, 3.0,-8.00625, 1],
+                     [ 9.9, 3.0,-8.00625, 1],
+                     [ 0. , 0. , 0.  , 1]],
 }
 
 draw_colors: {
@@ -17,6 +41,7 @@ draw_colors: {
     # [255, 101, 0],   # orange
     # [232, 222, 12],  # yellow
     "carrier_empty": [0, 104, 255],
+    "holder_empty": [217, 12, 232]
 }
 
 # Camera intrinsics

@@ -71,21 +71,10 @@ class eval_dope():
 		self.config_detect.sigma = params['sigma']
 		self.config_detect.thresh_points = params["thresh_points"]
 
-		self.cuboid_points_3d = np.array([[ 9.9,-4.5, 8.85, 1],
-									[-9.9,-4.5, 8.85, 1],
-									[-9.9, 4.5, 8.85, 1],
-									[ 9.9, 4.5, 8.85, 1],
-									[ 9.9,-4.5,-8.85, 1],
-									[-9.9,-4.5,-8.85, 1],
-									[-9.9, 4.5,-8.85, 1],
-									[ 9.9, 4.5,-8.85, 1],
-									[ 0. , 0. , 0.  , 1]])   # Centroid
-		#self.graspPoint_3d = [ 0. , 2.5, 7.527, 1]])
-
 		self.color_gt = tuple([13, 255, 128]) # Green
 
 		# For each object to detect, load network model and create PNP solver
-		self.model = "carrier_empty"
+		self.model = params["obj_to_eval"]
 		self.models[self.model] = ModelData(self.model, "../../weights/" + net)
 		self.models[self.model].load_net_model()
 		
@@ -95,10 +84,11 @@ class eval_dope():
 		# Init pnp-Solver for ground-truth pose calculation
 		self.pnp_solvers["gt"] = CuboidPNPSolver(self.model, self.matrix_camera, Cuboid3d(params['dimensions'][self.model]), dist_coeffs=self.dist_coeffs)
 
+		self.cuboid_points_3d = np.array(params['cuboid_points'][self.model])
 		net = net.replace(".pth","")
 
 		# Load object model ply-file
-		self.obj_model = inout.load_ply('carrier.ply')
+		self.obj_model = inout.load_ply(str(self.model) + '.ply')
 
 		print ("Evaluatinging DOPE...")
 		model_evaling_start_time = time.time()
