@@ -20,14 +20,15 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from ur5_control import ur5_control
 from gripper_control import gripper_control
+from mission_control import mission_control
 
 debug = False
 if rospy.get_param("print_debug") == True:
 	print "Debug-Mode ON"
 	debug = True		# Print Debug-Messages
 
-class grasp_process():
-	def __init__(self, side):
+class transport_process():
+	def __init__(self):
 		# Instantiate CvBridge
 		self.bridge = CvBridge()
 
@@ -37,12 +38,15 @@ class grasp_process():
 
 		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link", False)
 		self.gripper = gripper_control.gripper()
-		self.side = side
 
 		self.graspPose = Pose()
 		self.preGraspPose = Pose()
+		self.putPose = Pose()
+		self.prePutPose = Pose()
+		self.postPutPose = Pose()
 		self.rgb_img = Image()
-		self.poseIsUpdated = False
+		self.poseIsUpdated_carrier = False
+		self.poseIsUpdated_holder = False
 
 		self.publishResized = True
 
@@ -54,15 +58,14 @@ class grasp_process():
 		self.resized_img_horizontalStart = int(round(self.resized_imgWidth/2., 0)) - self.imgOutputSize/2
 
 		# Subscriber to pose update
-		rospy.Subscriber("/dope/pose_update", Bool, self.pose_update_callback)
+		rospy.Subscriber("/dope/pose_update_carrier", Bool, self.pose_update_carrier_callback)
+		rospy.Subscriber("/dope/pose_update_holder", Bool, self.pose_update_holder_callback)
 		rospy.Subscriber("/camera/color/image_raw", Image, self.rgb_image_callback)					# RGB-Image
 		self.rawImgPub = rospy.Publisher("/dope/camera_images", Image, queue_size=10)
-		self.hasGraspedPub = rospy.Publisher("/dope/has_grasped", Bool, queue_size=10)				# Publish Signal so pose is no more published to tf by other program
+		self.hasGraspedPub = rospy.Publisher("/dope/has_grasped", Bool, queue_size=10)		# Publish Signal so pose is no more published to tf by other program
+		self.hasPutPub = rospy.Publisher("/dope/has_put", Bool, queue_size=10)				# Publish Signal so pose is no more published to tf by other program
 
 		rospy.sleep(1)	# Wait to register at tf
-
-	#def rgb_image_callback(self, data):
-	#	self.rgb_img = data
 
 	def rgb_image_callback(self, data):
 		try:
@@ -88,8 +91,12 @@ class grasp_process():
 		#cv2.waitKey(1)
 
 	# Get the last grasp-pose, if a new pose has been sent to tf
-	def pose_update_callback(self, data):
+	def pose_update_carrier_callback(self, data):
 		self.update_grasp_pose()
+
+	# Get the last put-pose, if a new pose has been sent to tf
+	def pose_update_holder_callback(self, data):
+		self.update_put_pose()
 
 	def get_pose(self, fromF, toF):
 		try:
@@ -101,12 +108,20 @@ class grasp_process():
 	# Get transformation between base and grasp-point
 	def update_grasp_pose(self):
 		rospy.sleep(0.1)
-		self.graspPose = self.get_pose('/base_link', 'dope_grasp_point')
-		self.preGraspPose = self.get_pose('/base_link', 'dope_grasp_point_pre')
-		self.poseIsUpdated = True
+		self.graspPose = self.get_pose('/base_link', 'dope_grasp_pose_carrier')
+		self.preGraspPose = self.get_pose('/base_link', 'dope_grasp_pose_carrier_pre')
+		self.poseIsUpdated_carrier = True
+
+	def update_put_pose(self):
+		rospy.sleep(0.1)
+		self.putPose = self.get_pose('/base_link', 'dope_put_pose_holder')
+		self.prePutPose = self.get_pose('/base_link', 'dope_put_pose_holder_pre')
+		self.postPutPose = self.get_pose('/base_link', 'dope_put_pose_holder_post')
+		self.poseIsUpdated_holder = True		
 
 	def publish_image(self):
-		self.poseIsUpdated = False
+		self.poseIsUpdated_carrier = False
+		self.poseIsUpdated_holder = False
 		if self.publishResized == False:
 			self.rawImgPub.publish(self.img_raw)
 		else:
@@ -135,8 +150,19 @@ class grasp_process():
 			print "Error grasping object!"
 			return False'''
 		self.hasGraspedPub.publish(Bool(True))
-		#rospy.sleep(0.5)
 		self.ur5.attachObjectToEEF()
+		return True
+
+	def put_down(self):
+		print "Driving to put-down-position"
+		self.ur5.move_to_pose(self.prePutPose)
+		self.ur5.move_to_pose(self.putPose)
+
+		##### Open the gripper
+		self.gripper.close()
+		rospy.sleep(5)
+		self.hasPutPub.publish(Bool(True))
+		self.ur5.removeAttachedObject()
 		return True
 
 	def move_and_publish(self, jointID, angle):
@@ -144,8 +170,9 @@ class grasp_process():
 		rospy.sleep(0.1)
 		self.publish_image()
 		timeout = time.time() + 1.5
-		# Wait until updated pose arrives or timeout occurs (pose not visible)
-		while self.poseIsUpdated == False:
+		# Wait until updated pose arrives or timeout occurs (pose not visible).
+		# publish_image sets both poseIsUpdated to False. If an object is detected it is set True in the according callback and this function returns True
+		while self.poseIsUpdated_carrier == False and self.poseIsUpdated_holder == False:
 			rospy.sleep(0.05)
 			if time.time() >= timeout:
 				print "Object not detectable"
@@ -191,76 +218,118 @@ def print_debug(dStr):
 
 def main(args):
 	parser = argparse.ArgumentParser(description='Grasp Object')
-	parser.add_argument('Side', metavar='Side', type=str, help='Side to search for object [front, left, right]')
-	side = parser.parse_args().Side
+	parser.add_argument('pickUpGoal', metavar='pickUpGoal', type=str, help='Name of goal to pick up carrier')
+	parser.add_argument('putDownGoal', metavar='putDownGoal', type=str, help='Name of goal to put down carrier')
+	pickUpGoal = parser.parse_args().pickUpGoal
+	putDownGoal = parser.parse_args().putDownGoal
 
 	# Init node
-	rospy.init_node('grasp_object', anonymous=True, disable_signals=True)
+	rospy.init_node('transport_object', anonymous=True, disable_signals=True)
 
-	grasper = grasp_process(side)
+	transporter = transport_process()
 
-	rospy.loginfo("Make sure correct camera intrinsics are set!")
+	rospy.loginfo("Make sure correct camera intrinsics are set in yaml file!")
 
 	while (True):
-		inp = raw_input("p to publish image, g to drive to grasp pose, h for p+g, a for automatic: ")[0]
+		inp = raw_input("p to publish image, c for grasping, h for putting, a for search+grasp, b for search+put: ")[0]
 		if inp == 'p':
-			grasper.publish_image()
-		elif inp == 'g':
-			if grasper.poseIsUpdated == True:
-				if grasper.make_grasp() == True:
-					##### Move the robot up and to transport-pose
-					grasper.ur5.move_xyz(0, 0, 0.2)
-					grasper.ur5.moveToTransportPose()
-			else:
-				print "Pose not updated. Press 'p' first"
+			transporter.publish_image()
 
-		elif inp == 'h':
-			grasper.publish_image()
+		elif inp == 'c':
+			transporter.publish_image()
 			timeout = time.time() + 1.5   # 1.5 seconds from now
 			# Wait until updated pose arrives or timeout occurs (pose not visible)
-			while grasper.poseIsUpdated == False:
+			while transporter.poseIsUpdated_carrier == False:
 				rospy.sleep(0.05)
 				if time.time() >= timeout:
 					print "Error locating object"
 					break
 			else:
 				print "Received pose update"
-				grasper.refine_pose()
-				if grasper.make_grasp() == True:
+				transporter.refine_pose()
+				if transporter.make_grasp() == True:
 					##### Move the robot up and to transport-pose
-					grasper.ur5.move_xyz(0, 0, 0.2)
-					grasper.ur5.moveToTransportPose()
+					transporter.ur5.move_xyz(0, 0, 0.2)
+					transporter.ur5.moveToTransportPose()
 
-		elif inp == 'a':
-			grasper.ur5.moveToSearchPose(grasper.side)
-			rospy.sleep(0.1)	# wait to arrive at position
-			grasper.publish_image()
+		elif inp == 'h':
+			transporter.publish_image()
 			timeout = time.time() + 1.5   # 1.5 seconds from now
 			# Wait until updated pose arrives or timeout occurs (pose not visible)
-			while grasper.poseIsUpdated == False and time.time() <= timeout:
+			while transporter.poseIsUpdated_holder == False:
+				rospy.sleep(0.05)
+				if time.time() >= timeout:
+					print "Error locating object"
+					break
+			else:
+				print "Received pose update"
+				transporter.refine_pose()
+				if transporter.put_down() == True:
+					##### Move the robot up and to transport-pose
+					transporter.ur5.move_to_pose(transporter.postPutPose)
+					transporter.ur5.moveToTransportPose()			
+
+		elif inp == 'a':
+			transporter.ur5.moveToSearchPose(pickUpGoal.orientation)
+			rospy.sleep(0.1)	# wait to arrive at position
+			transporter.publish_image()
+			timeout = time.time() + 1.5   # 1.5 seconds from now
+			# Wait until updated pose arrives or timeout occurs (pose not visible)
+			while transporter.poseIsUpdated_carrier == False and time.time() <= timeout:
 				rospy.sleep(0.05)
 			posID = 0
-			while grasper.poseIsUpdated == False:		# if the object has been found, this is going to be True and outer loop is exited
-				if grasper.ur5.searchObject(posID) == False:
+			while transporter.poseIsUpdated_carrier == False:		# if the object has been found, this is going to be True and outer loop is exited
+				if transporter.ur5.searchObject(posID) == False:
 					print "No object found!"
 					break
 				posID = posID + 1
 				rospy.sleep(0.1) 	# wait to arrive at position
-				grasper.publish_image()
+				transporter.publish_image()
 				timeout = time.time() + 1.5   # 1.5 seconds from now
 				# Wait until updated pose arrives or timeout occurs (pose not visible)
-				while grasper.poseIsUpdated == False:
+				while transporter.poseIsUpdated_carrier == False:
 					rospy.sleep(0.05)
 					if time.time() >= timeout:
 						print "Object not found - moving on..."
 						break
 				else:
 					print "Received pose update"
-					grasper.refine_pose()
-					if grasper.make_grasp() == True:
+					transporter.refine_pose()
+					if transporter.make_grasp() == True:
 						##### Move the robot up and to transport-pose
-						grasper.ur5.move_xyz(0, 0, 0.2)
-						grasper.ur5.moveToTransportPose()
+						transporter.ur5.move_xyz(0, 0, 0.2)
+						transporter.ur5.moveToTransportPose()
+
+		elif inp == 'b':
+			transporter.ur5.moveToSearchPose(putDownGoal.orientation)
+			rospy.sleep(0.1)	# wait to arrive at position
+			transporter.publish_image()
+			timeout = time.time() + 1.5   # 1.5 seconds from now
+			# Wait until updated pose arrives or timeout occurs (pose not visible)
+			while transporter.poseIsUpdated_holder == False and time.time() <= timeout:
+				rospy.sleep(0.05)
+			posID = 0
+			while transporter.poseIsUpdated_holder == False:		# if the object has been found, this is going to be True and outer loop is exited
+				if transporter.ur5.searchObject(posID) == False:
+					print "No object found!"
+					break
+				posID = posID + 1
+				rospy.sleep(0.1) 	# wait to arrive at position
+				transporter.publish_image()
+				timeout = time.time() + 1.5   # 1.5 seconds from now
+				# Wait until updated pose arrives or timeout occurs (pose not visible)
+				while transporter.poseIsUpdated_holder == False:
+					rospy.sleep(0.05)
+					if time.time() >= timeout:
+						print "Object not found - moving on..."
+						break
+				else:
+					print "Received pose update"
+					transporter.refine_pose()
+					if transporter.put_down() == True:
+						##### Move the robot up and to transport-pose
+						transporter.ur5.move_to_pose(transporter.postPutPose)
+						transporter.ur5.moveToTransportPose()
 
 if __name__ == '__main__':
 	main(sys.argv)
