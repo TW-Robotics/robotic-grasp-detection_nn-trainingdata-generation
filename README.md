@@ -79,9 +79,9 @@ The recorded data has equal file-names and all data is located in different fold
 #### Visualizing Data
 ##### Visualize Images
 To display the ground-truth object pose cuboid coordinates overlaid over the captured image go to `nn_tools/data_vis` and run `python vis_data.py PATH_TO_DATAFOLDER`
-	- `--delete` to delete all visualized images
-	- `--boundingBox` to show only bounding boxes
-	- `--coubids` to show only cuboid locations
+- `--delete` to delete all visualized images
+- `--boundingBox` to show only bounding boxes
+- `--coubids` to show only cuboid locations
 ##### Visualize Dataset
 To print plots showing distribution of poses (roll/pitch/yaw/distance from camera) and location of the cuboids in the images go to `nn_tools/dataset_distribution` and run `python dataset_distribution.py PATH_TO_FOLDER`
 
@@ -96,17 +96,17 @@ To train DOPE network go to `dope/src/training` and run `python train.py --data 
 In quantitative evaluation the neural network estimates the pose of objects in images of an evaluation-dataset and this pose is compared to the ground-truth pose to calculate different metrics
 ##### Evaluate the network
 In this step, each image from the evaluation dataset is analysed by the neural network and metrics are calculated
-	- Go to `dope/config` and edit `config_quantitative.yaml`
-		- Change `path_to_images` to the evaluation-dataset folder
-		- Set flags whether or not to store images and belief-maps
-		- Add the object's dimensions and cuboid points and define a color to draw results
-		- Set `camera_settings` according to `_camera_settings.json`
-	- Convert the 3D model to PLY-format and store it in `dope/src/evaluation/OBJECT_NAME.ply`
-	- Go to `dope/src/evaluation` and run `python eval_dope.py NETWORK_NAME`
-		- The network has to be stored at `dope/weigths`
-	- This produces a folder `evaluation_NETWORK_NAME` one level above the evaluation-dataset containing
-		- a folder for all failed/succeeded images and belief-maps
-		- a csv and json file containing the results for each image
+- Go to `dope/config` and edit `config_quantitative.yaml`
+	- Change `path_to_images` to the evaluation-dataset folder
+	- Set flags whether or not to store images and belief-maps
+	- Add the object's dimensions and cuboid points and define a color to draw results
+	- Set `camera_settings` according to `_camera_settings.json`
+- Convert the 3D model to PLY-format and store it in `dope/src/evaluation/OBJECT_NAME.ply`
+- Go to `dope/src/evaluation` and run `python eval_dope.py NETWORK_NAME`
+	- The network has to be stored at `dope/weigths`
+- This produces a folder `evaluation_NETWORK_NAME` one level above the evaluation-dataset containing
+	- a folder for all failed/succeeded images and belief-maps
+	- a csv and json file containing the results for each image
 ##### Analyse the evaluation
 In this step, the evaulation-result as json-file is proceeded to calculate metrics and plot figures for the whole network
 - Go to `dope/src/evaluation` and run `python analyse_evaluation.py PATH_TO_EVALUATION_JSON_FILE`
