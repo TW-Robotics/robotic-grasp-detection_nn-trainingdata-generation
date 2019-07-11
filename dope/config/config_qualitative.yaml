@@ -4,7 +4,7 @@ frame_id: "/camera_color_optical_frame"
 
 weights: {
     "carrier_empty": "2_net_pretrained+real_14789_120.pth",
-    "holder_empty": "holder_p+ar_13170_120.pth",
+    "holder_empty": "h_p+ar_13170_120.pth",
 }
 
 # Cuboid dimension in cm x,y,z
