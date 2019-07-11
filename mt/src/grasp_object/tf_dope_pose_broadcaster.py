@@ -12,23 +12,31 @@ from cv_bridge import CvBridge, CvBridgeError
 
 debug = True
 
-class graspPoint_broadcaster():
+class pose_broadcaster():
 	def __init__(self):
 		self.bridge = CvBridge()
 		self.br = tf.TransformBroadcaster()
 		self.tfListener = tf.TransformListener()
-		self.objectPose = None
-		self.resetPose = False
+		self.objectPoseCarrier = None
+		self.objectPoseHolder = None
+		self.resetPose_carrier = False
+		self.resetPose_holder = False
 		self.thr = 0.1 # Threshold to use pose for calculation of mean pose
 
 		# Init subscriber
-		rospy.Subscriber("/dope/pose_carrier_empty", PoseStamped, self.pose_callback, queue_size=1)				# Pose transform camera to grasp-point
+		rospy.Subscriber("/dope/pose_carrier_empty", PoseStamped, self.carrier_pose_callback, queue_size=1)				# Pose transform camera to carrier-object
+		rospy.Subscriber("/dope/pose_holder_empty", PoseStamped, self.holder_pose_callback, queue_size=1)				# Pose transform camera to holder-object
 		rospy.Subscriber("/dope/rgb_points", Image, self.rgb_image_callback)									# RGB-Image
 		rospy.Subscriber("/dope/has_grasped", Bool, self.has_grasped_callback)
-		self.pose_update_pub = rospy.Publisher("/dope/pose_update", Bool, queue_size=10)
+		rospy.Subscriber("/dope/has_put", Bool, self.has_put_callback)
+		self.carrier_pose_update_pub = rospy.Publisher("/dope/pose_update_carrier", Bool, queue_size=10)
+		self.holder_pose_update_pub = rospy.Publisher("/dope/pose_update_holder", Bool, queue_size=10)
 
 	def has_grasped_callback(self, data):
-			self.resetPose = True
+		self.resetPose_carrier = True
+
+	def has_put_callback(self, data):
+		self.resetPose_holder = True
 
 	def rgb_image_callback(self, data):
 		rgb_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -87,36 +95,57 @@ class graspPoint_broadcaster():
 		print ref, pose
 		return False
 
-	# Broadcast the grasp-point w.r.t camera to tf and then lookup transform grasp-point w.r.t. base_link
-	def pose_callback(self, objectPose):
+	def holder_pose_callback(self, objectPose):
+		newPose = self.send_and_listen(objectPose, "holder")
+		self.objectPoseHolder = self.mean_and_publish(self.objectPoseHolder, newPose)
+		# Inform other nodes that object pose has been updated
+		self.holder_pose_update_pub.publish(Bool(True))
+
+	def carrier_pose_callback(self, objectPose):
+		newPose = self.send_and_listen(objectPose, "carrier")
+		self.objectPoseCarrier = self.mean_and_publish(self.objectPoseCarrier, newPose)
+		# Inform other nodes that object pose has been updated
+		self.carrier_pose_update_pub.publish(Bool(True))
+
+	# Broadcast object-pose w.r.t camera to tf and then lookup transform object-pose w.r.t. base_link
+	def send_and_listen(self, objectPose, objectType):
+		frameName = "dope_object_pose_" + objectType
 		now = rospy.Time.now()
 		# Broadcast camera -> object
 		self.br.sendTransform((objectPose.pose.position.x, objectPose.pose.position.y, objectPose.pose.position.z),
 							 (objectPose.pose.orientation.x, objectPose.pose.orientation.y, objectPose.pose.orientation.z, objectPose.pose.orientation.w),
 							 now,
-							 "dope_object_pose",
+							 frameName,
 							 "camera_color_optical_frame")
 
 		rospy.sleep(0.1)
 		# Lookup and store base -> object
 		try:
-			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/dope_object_pose', now)
-			objectPose_tmp = self.listToPose(trans, rot)
-			if self.objectPose is None:
-				self.objectPose = objectPose_tmp
-			elif self.check_deviation(self.objectPose, objectPose_tmp) == True:
-				poseArray = PoseArray()
-				poseArray.poses.append(self.objectPose)
-				poseArray.poses.append(objectPose_tmp)
-				self.objectPose = self.calc_mean_pose(poseArray) 	# Calculate mean pose of pose up to now and new pose 
-				print "Mean pose calculated."
+			(trans, rot) = self.tfListener.lookupTransform('/base_link', frameName, now)
+			return self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
+			return None
 
-		rospy.sleep(0.1)
+	def mean_and_publish(self, objectPose, newObjectPose):
+		if objectPose is None:
+			objectPose = newObjectPose
+		elif self.check_deviation(objectPose, newObjectPose) == True:
+			poseArray = PoseArray()
+			poseArray.poses.append(objectPose)
+			poseArray.poses.append(newObjectPose)
+			objectPose = self.calc_mean_pose(poseArray) 	# Calculate mean pose of pose up to now and new pose 
+			print "Mean pose calculated."
 
-		# Inform other nodes that object pose has been updated
-		self.pose_update_pub.publish(Bool(True))
+		return objectPose
+
+	# Broadcast mean obejct-pose w.r.t. base (So object does not move if camera moves)
+	def broadcast_pose(self, objectPose, objName):
+		self.br.sendTransform((objectPose.position.x, objectPose.position.y, objectPose.position.z),
+					 (objectPose.orientation.x, objectPose.orientation.y, objectPose.orientation.z, objectPose.orientation.w),
+					 rospy.Time.now(),
+					 "dope_object_pose_" + objName,
+					 "base_link")
 
 # Print debug messages
 def print_debug(dStr):
@@ -128,24 +157,26 @@ def main(args):
 	# Init Node
 	rospy.init_node('tf_dope_pose_broadcaster', disable_signals=True)
 
-	graspPoint_br = graspPoint_broadcaster()
+	pose_br = pose_broadcaster()
 
 	rospy.loginfo("TF-Grasp-Point-Broadcaster sucessfully launched!\nBroadcasting to tf...")
 
 	rate = rospy.Rate(10)
 	while not rospy.is_shutdown():
-		if graspPoint_br.resetPose == True:
-			print "Deleting pose from TF"
-			graspPoint_br.objectPose = None
-			graspPoint_br.resetPose = False
-		if graspPoint_br.objectPose is not None:
-			objectPose = graspPoint_br.objectPose
-			# Broadcast obejct-pose w.r.t. base (So object does not move if camera moves)
-			graspPoint_br.br.sendTransform((objectPose.position.x, objectPose.position.y, objectPose.position.z),
-								 (objectPose.orientation.x, objectPose.orientation.y, objectPose.orientation.z, objectPose.orientation.w),
-								 rospy.Time.now(),
-								 "dope_object_pose",
-								 "base_link")
+		if pose_br.resetPose_carrier == True:
+			print "Deleting carrier-pose from TF"
+			pose_br.objectPoseCarrier = None
+			pose_br.resetPose_carrier = False
+		if pose_br.resetPose_holder == True:
+			print "Deleting holder-pose from TF"
+			pose_br.objectPoseHolder = None
+			pose_br.resetPose_holder = False
+
+		if pose_br.objectPoseCarrier is not None:
+			pose_br.broadcast_pose(pose_br.objectPoseCarrier, "carrier")
+		if pose_br.objectPoseHolder is not None:
+			pose_br.broadcast_pose(pose_br.objectPoseHolder, "holder")
+
 		rate.sleep()
 
 	#rospy.spin()

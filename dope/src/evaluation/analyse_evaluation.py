@@ -111,7 +111,7 @@ class analyse_evaluation():
 		b = []
 		for i in range(numBins):
 			# calculate percentage
-			n[i] = n[i] * 100 / float(self.numSuccess)
+			n[i] = n[i] * 100 / float(self.numSuccess + self.numFail)
 			# calculate x-values (in the center of two bins)
 			b.append((bins[i] + bins[i+1]) / 2)
 		plt.clf() # Clear figure
@@ -200,9 +200,9 @@ class analyse_evaluation():
 
 		# Horizontal and Vertical Line
 		drawLimit = self.calc_sub_metrics([15, 20], b_trans_cum, n_trans_cum)
-		plt.axvline(x=15, color='black', linewidth="1", linestyle='--')
+		plt.axvline(x=15, color='black', linewidth=1, linestyle='--')
 		#plt.axvline(x=20, color='black', linewidth="1", linestyle='--')
-		plt.axhline(y=drawLimit[0], color='black', linewidth="1", linestyle='--')
+		plt.axhline(y=drawLimit[0], color='black', linewidth=1, linestyle='--')
 		plt.text(12, drawLimit[0] + 2, str(round(drawLimit[0],2)) + "%") #rotation=90
 		plt.text(-3.5, 106.7, fileName, size="10")
 		#plt.axhline(y=drawLimit[1], color='black', linewidth="1", linestyle='--') #s_40k_106+r_14789_30, p+r_2958_30

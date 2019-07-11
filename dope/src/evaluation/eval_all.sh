@@ -1,6 +1,6 @@
 #!/bin/bash
-#python eval_dope.py p+r_2958_120.pth
-#python eval_dope.py p+r_5916_120.pth
+python eval_dope.py p+r_2958_120.pth
+python eval_dope.py p+r_5916_120.pth
 python eval_dope.py p+r_8874_120.pth
 python eval_dope.py p+r_11832_120.pth
 python eval_dope.py p+r_14789_120.pth

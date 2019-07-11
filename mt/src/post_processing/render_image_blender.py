@@ -11,7 +11,7 @@ from os.path import exists
 import glob
 import sys
 
-nameOfObject = 'Product'
+nameOfObject = 'Object'
 renderedImages = []
 
 def render_images(root):
@@ -34,7 +34,7 @@ def render_images(root):
 		# Make a render for each image in the folder    
 		for imgpath in glob.glob(pathToFiles+"/*.png"):
 			# If there is a png and a json file
-			if os.path.exists(imgpath) and os.path.exists(imgpath.replace("png","json")):
+			if os.path.exists(imgpath) and os.path.exists(imgpath.replace("png","json")) and not os.path.exists(imgpath.replace("png","render.png")):
 				fileName = os.path.splitext(os.path.basename(imgpath))[0]
 				# Open json-file, extract pose and orient object
 				with open(imgpath.replace("png","json")) as json_file:
@@ -102,29 +102,5 @@ def main(args):
 
 	render_images(path)
 
-	print(renderedImages)
-
 if __name__ == '__main__':
 	main(sys.argv)
-
-
-
-
-
-# Delete standard-object
-# deselect all
-'''try:
-	bpy.ops.object.select_all(action='DESELECT')
-	bpy.data.objects['Cube1'].select = True
-	bpy.ops.object.delete()
-except:
-	print("No cube to delete")'''
-
-# Load product
-#objPath = "/media/johannes/Ultrabay HD/Dokumente/Dropbox/Masterarbeit/CAD-Doks/carrier.obj"
-#bpy.ops.import_scene.obj(filepath=objPath)
-
-'''activeObject = bpy.context.active_object            #Set active object to variable
-mat = bpy.data.materials.new(name="ObjMat")       #set new material to variable
-activeObject.data.materials.append(mat)             #add the material to the object
-bpy.context.object.active_material.diffuse_color = (1, 0, 0) #change color'''

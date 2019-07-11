@@ -19,6 +19,7 @@ from threading import Thread
 
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -251,7 +252,6 @@ class ModelData(object):
 #================================ ObjectDetector ================================
 class ObjectDetector(object):
     '''This class contains methods for object detection'''
-
     @staticmethod
     def detect_object_in_image(net_model, pnp_solver, in_img, config):
         '''Detect objects in a image using a specific trained network model'''
@@ -267,16 +267,20 @@ class ObjectDetector(object):
         aff = seg[-1][0]
 
         # Find objects from network output
-        detected_objects = ObjectDetector.find_object_poses(vertex2, aff, pnp_solver, config)
+        detected_objects, v_aff, points_det = ObjectDetector.find_object_poses(vertex2, aff, pnp_solver, config)
 
-        return detected_objects
+        # Copy belief-maps to cpu and convert to numpy-array
+        tensors = vertex2.cpu()
+        bel_imgs = np.squeeze(tensors.data.numpy())
+
+        return detected_objects, bel_imgs, v_aff, points_det
 
     @staticmethod
     def find_object_poses(vertex2, aff, pnp_solver, config):
         '''Detect objects given network output'''
 
         # Detect objects from belief maps and affinities
-        objects, all_peaks = ObjectDetector.find_objects(vertex2, aff, config)
+        objects, all_peaks, v_aff, points_det = ObjectDetector.find_objects(vertex2, aff, config)
         detected_objects = []
         obj_name = pnp_solver.object_name
 
@@ -295,11 +299,14 @@ class ObjectDetector(object):
                 'projected_points': projected_points,
             })
 
-        return detected_objects
+        return detected_objects, v_aff, points_det
 
     @staticmethod
     def find_objects(vertex2, aff, config, numvertex=8):
         '''Detects objects given network belief maps and affinities, using heuristic method'''
+        v_affs = []
+        points_det = []
+        centerIsSet = False
 
         all_peaks = []
         peak_counter = 0
@@ -307,7 +314,10 @@ class ObjectDetector(object):
             belief = vertex2[j].clone()
             map_ori = belief.cpu().data.numpy()
             
+            #cv2.imwrite("out1.png", belief.cpu().data.numpy()*255)
             map = gaussian_filter(belief.cpu().data.numpy(), sigma=config.sigma)
+            #cv2.imwrite("out2.png", map*255)
+
             p = 1
             map_left = np.zeros(map.shape)
             map_left[p:,:] = map[:-p,:]
@@ -404,6 +414,7 @@ class ObjectDetector(object):
                     best_angle = 100
                     for i_obj in range(len(objects)):
                         center = [objects[i_obj][0][0], objects[i_obj][0][1]]
+                        centerIsSet = True
 
                         # integer is used to look into the affinity map, 
                         # but the float version is used to run 
@@ -429,7 +440,10 @@ class ObjectDetector(object):
                         yvec/=norms
                             
                         v_aff = np.concatenate([[xvec],[yvec]])
-
+                        
+                        v_affs.append(v_aff)
+                        points_det.append(point)
+                        
                         v_center = np.array(center) - np.array(point)
                         xvec = v_center[0]
                         yvec = v_center[1]
@@ -464,4 +478,6 @@ class ObjectDetector(object):
                         objects[i_best][1][i_lists] = ((candidate[0])*8, (candidate[1])*8)
                         objects[i_best][2][i_lists] = (best_angle, best_dist)
 
-        return objects, all_peaks
+        if centerIsSet == True:
+            points_det.append(center)
+        return objects, all_peaks, v_affs, points_det
