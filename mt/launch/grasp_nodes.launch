@@ -4,9 +4,8 @@
 	<node pkg="tf" type="static_transform_publisher" name="grasp_pre_pose_publisher_carrier" args="0. 0. -0.08 0 0 0 1 dope_grasp_pose_carrier dope_grasp_pose_carrier_pre 100" />
 
 	<!-- Static transform object-pose estimated by dope to put-down-pose -->
-																					<!-- TODO WERTE ERMITTELN -->
-	<node pkg="tf" type="static_transform_publisher" name="put_down_pose_holder" args="0. 0.023 0.10527 0.707 0.707 0 0 dope_object_pose_holder dope_put_pose_holder 100" />
-	<node pkg="tf" type="static_transform_publisher" name="put_down_pre_pose_holder" args="0. 0. -0.08 0 0 0 1 dope_put_pose_holder dope_put_pose_holder_pre 100" />
+	<node pkg="tf" type="static_transform_publisher" name="put_down_pose_holder" args="-0.004 0.097 -0.155 0 0 0.707 0.707 dope_object_pose_holder dope_put_pose_holder 100" />
+	<node pkg="tf" type="static_transform_publisher" name="put_down_pre_pose_holder" args="0.1 0. 0. 0 0 0 1 dope_put_pose_holder dope_put_pose_holder_pre 100" />
 	<node pkg="tf" type="static_transform_publisher" name="put_down_post_pose_holder" args="0. 0. -0.08 0 0 0 1 dope_put_pose_holder dope_put_pose_holder_post 100" />
 
 	<node pkg="mt" type="tf_dope_pose_broadcaster.py" name="dope_pose_broadcaster" output="screen" />
