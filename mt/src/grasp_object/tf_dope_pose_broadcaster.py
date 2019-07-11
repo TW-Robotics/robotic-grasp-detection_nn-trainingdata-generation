@@ -40,6 +40,7 @@ class pose_broadcaster():
 
 	def rgb_image_callback(self, data):
 		rgb_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+		
 		# Visualization
 		cv2.imshow("Dope output", rgb_img)
 		cv2.waitKey(1)
@@ -126,6 +127,7 @@ class pose_broadcaster():
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
 			return None
+		rospy.sleep(0.1)
 
 	def mean_and_publish(self, objectPose, newObjectPose):
 		if objectPose is None:

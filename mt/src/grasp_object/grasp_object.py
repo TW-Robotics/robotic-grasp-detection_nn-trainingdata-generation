@@ -39,11 +39,7 @@ class transport_process():
 		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link", False)
 		self.gripper = gripper_control.gripper()
 
-		self.graspPose = Pose()
-		self.preGraspPose = Pose()
-		self.putPose = Pose()
-		self.prePutPose = Pose()
-		self.postPutPose = Pose()
+		self.reset_poses()
 		self.rgb_img = Image()
 		self.poseIsUpdated_carrier = False
 		self.poseIsUpdated_holder = False
@@ -66,6 +62,13 @@ class transport_process():
 		self.hasPutPub = rospy.Publisher("/dope/has_put", Bool, queue_size=10)				# Publish Signal so pose is no more published to tf by other program
 
 		rospy.sleep(1)	# Wait to register at tf
+
+	def reset_poses(self):
+		self.graspPose = Pose()
+		self.preGraspPose = Pose()
+		self.putPose = Pose()
+		self.prePutPose = Pose()
+		self.postPutPose = Pose()
 
 	def rgb_image_callback(self, data):
 		try:
@@ -134,6 +137,14 @@ class transport_process():
 		actJointValues = self.ur5.group.get_current_joint_values()
 		self.ur5.execute_move([actJointValues[0], -90*pi/180, 150*pi/180, actJointValues[3], actJointValues[4], actJointValues[5]])
 
+	def prepare_put(self):
+		actJointValues = self.ur5.group.get_current_joint_values()
+		# Pre-position last joints so robot does not jeopardize environment 
+		#TODO
+		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], -240*pi/180, -85*pi/180, 0*pi/180])
+		actJointValues = self.ur5.group.get_current_joint_values()
+		self.ur5.execute_move([actJointValues[0], -90*pi/180, 150*pi/180, actJointValues[3], actJointValues[4], actJointValues[5]])
+
 	def make_grasp(self):
 		print "Moving joints in grasp-configuration..."
 		self.prepare_grasp()
@@ -150,19 +161,77 @@ class transport_process():
 			print "Error grasping object!"
 			return False
 		self.hasGraspedPub.publish(Bool(True))
-		self.ur5.attachObjectToEEF()
+		#rospy.sleep(0.5)
 		return True
 
-	def put_down(self):
+	def put_down(self, side):
+		print "Moving joints in put-configuration..."
+		if side == "front":
+			r1_angle = 0
+		actJointValues = self.ur5.group.get_current_joint_values()
+		self.ur5.execute_move([r1_angle*pi/180, actJointValues[1], actJointValues[2], actJointValues[3], actJointValues[4], actJointValues[5]])
+
+		#self.prepare_put()
 		print "Driving to put-down-position"
 		self.ur5.move_to_pose(self.prePutPose)
 		self.ur5.move_to_pose(self.putPose)
 
 		##### Open the gripper
-		self.gripper.close()
+		self.gripper.open()
 		rospy.sleep(5)
 		self.hasPutPub.publish(Bool(True))
-		self.ur5.removeAttachedObject()
+		#self.ur5.removeAttachedObject()
+		return True
+
+	def store(self):
+		actJointValues = self.ur5.group.get_current_joint_values()
+		# Einfahren
+		self.ur5.execute_move([actJointValues[0], -71*pi/180, 153*pi/180, -263*pi/180, -90*pi/180, 0*pi/180])
+		# Drehen
+		actJointValues = self.ur5.group.get_current_joint_values()
+		self.ur5.execute_move([90*pi/180, actJointValues[1], actJointValues[2], actJointValues[3], actJointValues[4], actJointValues[5]])
+		# Ausfahren
+		self.ur5.execute_move([90*pi/180, -53*pi/180, 117*pi/180, -244*pi/180, -90*pi/180, 0*pi/180])
+		# Vorletzte Achse drehen
+		actJointValues = self.ur5.group.get_current_joint_values()
+		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], 0*pi/180, actJointValues[5]])
+		# Drive over position
+		self.ur5.execute_move([121*pi/180, -49*pi/180, 106*pi/180, -240*pi/180, 57*pi/180, 0*pi/180])
+		# Drive to put down position
+		self.ur5.execute_move([121*pi/180, -41*pi/180, 106*pi/180, -248*pi/180, 57*pi/180, 0*pi/180])
+
+		##### Open the gripper
+		self.gripper.open()
+		rospy.sleep(5)
+		self.hasPutPub.publish(Bool(True))
+		#self.ur5.removeAttachedObject()
+
+		# Vorletzte Achse drehen
+		self.ur5.execute_move([121*pi/180, -41*pi/180, 106*pi/180, -248*pi/180, 35*pi/180, 0*pi/180])
+
+	def unstore(self):
+		# In Nebenposition bewegen
+		self.ur5.execute_move([121*pi/180, -41*pi/180, 106*pi/180, -248*pi/180, 35*pi/180, 0*pi/180])
+		# Hineinschwenken
+		self.ur5.execute_move([121*pi/180, -41*pi/180, 106*pi/180, -248*pi/180, 57*pi/180, 0*pi/180])
+
+		self.gripper.close()
+		rospy.sleep(5)
+		if self.gripper.hasGripped() == True:
+			print "Successfully grasped object!"
+		else:
+			print "Error grasping object!"
+			return False
+		self.hasGraspedPub.publish(Bool(True))
+		
+		# lift
+		self.ur5.move_xyz(0, 0, 0.05)
+		# turn
+		self.ur5.execute_move([90*pi/180, -53*pi/180, 117*pi/180, -244*pi/180, 0*pi/180, 0*pi/180])
+		# Vorletzte Achse drehen
+		actJointValues = self.ur5.group.get_current_joint_values()
+		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], -90*pi/180, actJointValues[5]])
+
 		return True
 
 	def move_and_publish(self, jointID, angle):
@@ -220,9 +289,9 @@ def main(args):
 	parser = argparse.ArgumentParser(description='Grasp Object')
 	parser.add_argument('pickUpGoal', metavar='pickUpGoal', type=str, help='Name of goal to pick up carrier')
 	parser.add_argument('putDownGoal', metavar='putDownGoal', type=str, help='Name of goal to put down carrier')
-	pickUpGoal = parser.parse_args().pickUpGoal
-	putDownGoal = parser.parse_args().putDownGoal
-
+	pickUpGoal = mission_control.goal(parser.parse_args().pickUpGoal)
+	putDownGoal = mission_control.goal(parser.parse_args().putDownGoal)
+	
 	# Init node
 	rospy.init_node('transport_object', anonymous=True, disable_signals=True)
 
@@ -231,7 +300,15 @@ def main(args):
 	rospy.loginfo("Make sure correct camera intrinsics are set in yaml file!")
 
 	while (True):
+		transporter.reset_poses()
 		inp = raw_input("p to publish image, c for grasping, h for putting, a for search+grasp, b for search+put: ")[0]
+		
+		if inp == 's':
+			transporter.store()
+
+		if inp == 'u':
+			transporter.unstore()
+
 		if inp == 'p':
 			transporter.publish_image()
 
@@ -249,8 +326,8 @@ def main(args):
 				transporter.refine_pose()
 				if transporter.make_grasp() == True:
 					##### Move the robot up and to transport-pose
-					transporter.ur5.move_xyz(0, 0, 0.2)
-					transporter.ur5.moveToTransportPose()
+					transporter.ur5.move_xyz(0, 0, 0.05)
+					#transporter.ur5.moveToTransportPose()
 
 		elif inp == 'h':
 			transporter.publish_image()
@@ -264,10 +341,10 @@ def main(args):
 			else:
 				print "Received pose update"
 				transporter.refine_pose()
-				if transporter.put_down() == True:
+				if transporter.put_down(putDownGoal.orientation) == True:
 					##### Move the robot up and to transport-pose
 					transporter.ur5.move_to_pose(transporter.postPutPose)
-					transporter.ur5.moveToTransportPose()			
+					#transporter.ur5.moveToTransportPose()			
 
 		elif inp == 'a':
 			transporter.ur5.moveToSearchPose(pickUpGoal.orientation)
@@ -297,8 +374,8 @@ def main(args):
 					transporter.refine_pose()
 					if transporter.make_grasp() == True:
 						##### Move the robot up and to transport-pose
-						transporter.ur5.move_xyz(0, 0, 0.2)
-						transporter.ur5.moveToTransportPose()
+						transporter.ur5.move_xyz(0, 0, 0.05)
+						#transporter.ur5.moveToTransportPose()
 
 		elif inp == 'b':
 			transporter.ur5.moveToSearchPose(putDownGoal.orientation)
@@ -326,10 +403,11 @@ def main(args):
 				else:
 					print "Received pose update"
 					transporter.refine_pose()
-					if transporter.put_down() == True:
-						##### Move the robot up and to transport-pose
-						transporter.ur5.move_to_pose(transporter.postPutPose)
-						transporter.ur5.moveToTransportPose()
+					if transporter.unstore() == True:
+						if transporter.put_down(putDownGoal.orientation) == True:
+							##### Move the robot up and to transport-pose
+							transporter.ur5.move_to_pose(transporter.postPutPose)
+							#transporter.ur5.moveToTransportPose()
 
 if __name__ == '__main__':
 	main(sys.argv)
