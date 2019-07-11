@@ -201,13 +201,9 @@ def run_dope_node(params, freq=5):
 
             for m in models:
                 # Detect object
-                results = ObjectDetector.detect_object_in_image(
-                            models[m].net, 
-                            pnp_solvers[m],
-                            g_img,
-                            config_detect
-                            )
-                g_img = None
+                #print(models[m].net, pnp_solvers[m], g_img, config_detect)
+                results, beliefMaps, v_aff, p_det = ObjectDetector.detect_object_in_image(models[m].net, pnp_solvers[m], g_img, config_detect)
+
                 # Publish pose and overlay cube on image
                 for i_r, result in enumerate(results):
                     if result["location"] is None:
@@ -244,6 +240,7 @@ def run_dope_node(params, freq=5):
                     "bgr8"
                 )
             )
+        g_img = None
         rate.sleep()
 
 
