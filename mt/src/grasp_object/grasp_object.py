@@ -129,11 +129,11 @@ class grasp_process():
 		##### Close the gripper to grasp object
 		self.gripper.close()
 		rospy.sleep(5)
-		'''if self.gripper.hasGripped() == True:
+		if self.gripper.hasGripped() == True:
 			print "Successfully grasped object!"
 		else:
 			print "Error grasping object!"
-			return False'''
+			return False
 		self.hasGraspedPub.publish(Bool(True))
 		#rospy.sleep(0.5)
 		return True
