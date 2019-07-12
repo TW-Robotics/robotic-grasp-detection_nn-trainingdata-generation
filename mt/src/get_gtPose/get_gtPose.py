@@ -274,7 +274,7 @@ def main(args):
 
 	pC.broadcast_transformations()
 	rospy.sleep(1)
-	pC.ur5.addMesh(Pose())	# TODO change to be correct
+	pC.ur5.addMesh(Pose(), "/object_origin")	# TODO change to be correct
 
 	rate = rospy.Rate(10.0)
 	while not rospy.is_shutdown():
@@ -363,7 +363,7 @@ def main(args):
 			pC.disp_metrics(minD, maxD)
 			pC.broadcast_transformations()
 			rospy.sleep(1)
-			pC.ur5.addMesh(Pose())	# TODO change to be correct
+			pC.ur5.addMesh(Pose(), "/object_origin")	# TODO change to be correct
 			break
 
 	print "Publishing ground-truth Object-Pose..."
