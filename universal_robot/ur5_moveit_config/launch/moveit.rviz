@@ -79,11 +79,45 @@ Visualization Manager:
           Expand Link Details: false
           Expand Tree: false
           Link Tree Style: Links in Alphabetic Order
+          back_laser_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           base:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          base_footprint:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
           base_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          base_link_ur:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          bl_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          bl_caster_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          br_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          br_caster_wheel_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -108,7 +142,32 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
+          fl_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fl_caster_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           forearm_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fr_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fr_caster_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          front_laser_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -118,11 +177,33 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
+          imu_frame:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+          imu_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+          left_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          right_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           shoulder_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
+          surface:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
           tool0:
             Alpha: 1
             Show Axes: false
@@ -196,11 +277,45 @@ Visualization Manager:
           Expand Link Details: false
           Expand Tree: false
           Link Tree Style: Links in Alphabetic Order
+          back_laser_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           base:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          base_footprint:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
           base_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          base_link_ur:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          bl_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          bl_caster_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          br_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          br_caster_wheel_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -225,7 +340,32 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
+          fl_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fl_caster_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           forearm_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fr_caster_rotation_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fr_caster_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          front_laser_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -235,11 +375,33 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
+          imu_frame:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+          imu_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+          left_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          right_wheel_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           shoulder_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
+          surface:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
           tool0:
             Alpha: 1
             Show Axes: false
@@ -307,27 +469,23 @@ Visualization Manager:
       Frame Timeout: 3
       Frames:
         All Enabled: false
+        back_laser_link:
+          Value: false
         base:
           Value: false
+        base_footprint:
+          Value: true
         base_link:
           Value: false
-        c_0:
+        base_link_ur:
+          Value: true
+        bl_caster_rotation_link:
           Value: false
-        c_1:
+        bl_caster_wheel_link:
           Value: false
-        c_2:
+        br_caster_rotation_link:
           Value: false
-        c_3:
-          Value: false
-        c_4:
-          Value: false
-        c_5:
-          Value: false
-        c_6:
-          Value: false
-        c_7:
-          Value: false
-        c_8:
+        br_caster_wheel_link:
           Value: false
         camera_aligned_depth_to_color_frame:
           Value: false
@@ -355,31 +513,53 @@ Visualization Manager:
           Value: false
         controlbox:
           Value: false
+        dope_grasp_pose_carrier:
+          Value: false
+        dope_grasp_pose_carrier_pre:
+          Value: false
+        dope_object_pose_carrier:
+          Value: true
+        dope_object_pose_holder:
+          Value: true
+        dope_put_pose_holder:
+          Value: false
+        dope_put_pose_holder_post:
+          Value: false
+        dope_put_pose_holder_pre:
+          Value: false
         ee_link:
           Value: false
         eef:
           Value: false
+        fl_caster_rotation_link:
+          Value: false
+        fl_caster_wheel_link:
+          Value: false
         forearm_link:
+          Value: false
+        fr_caster_rotation_link:
+          Value: false
+        fr_caster_wheel_link:
+          Value: false
+        front_laser_link:
           Value: false
         gripper:
           Value: false
-        gt_0:
+        imu_frame:
           Value: false
-        gt_1:
+        imu_link:
           Value: false
-        gt_2:
+        left_wheel_link:
           Value: false
-        gt_3:
-          Value: false
-        mean_marker_pose:
-          Value: false
-        object:
+        map:
           Value: true
-        object_img_center:
-          Value: false
-        object_origin:
+        odom:
+          Value: true
+        right_wheel_link:
           Value: false
         shoulder_link:
+          Value: false
+        surface:
           Value: false
         tool0:
           Value: false
@@ -399,76 +579,84 @@ Visualization Manager:
       Name: TF
       Show Arrows: true
       Show Axes: true
-      Show Names: true
+      Show Names: false
       Tree:
-        world:
+        base_footprint:
           base_link:
-            base:
-              tool0_controller:
-                camera_link:
-                  camera_aligned_depth_to_color_frame:
-                    {}
-                  camera_aligned_depth_to_infra1_frame:
-                    {}
-                  camera_color_frame:
-                    camera_color_optical_frame:
-                      {}
-                  camera_depth_frame:
-                    camera_depth_optical_frame:
-                      {}
-                  camera_infra1_frame:
-                    camera_infra1_optical_frame:
-                      {}
-                  camera_infra2_frame:
-                    camera_infra2_optical_frame:
-                      {}
-            controlbox:
+            back_laser_link:
               {}
-            gt_0:
-              {}
-            gt_1:
-              {}
-            gt_2:
-              {}
-            gt_3:
-              {}
-            mean_marker_pose:
-              object:
-                c_0:
-                  {}
-                c_1:
-                  {}
-                c_2:
-                  {}
-                c_3:
-                  {}
-                c_4:
-                  {}
-                c_5:
-                  {}
-                c_6:
-                  {}
-                c_7:
-                  {}
-                c_8:
-                  {}
-              object_img_center:
+            bl_caster_rotation_link:
+              bl_caster_wheel_link:
                 {}
-              object_origin:
+            br_caster_rotation_link:
+              br_caster_wheel_link:
                 {}
-            shoulder_link:
-              upper_arm_link:
-                forearm_link:
-                  wrist_1_link:
-                    wrist_2_link:
-                      wrist_3_link:
-                        ee_link:
-                          eef:
-                            {}
-                        tool0:
-                          camera_planning_frame:
-                            gripper:
-                              {}
+            fl_caster_rotation_link:
+              fl_caster_wheel_link:
+                {}
+            fr_caster_rotation_link:
+              fr_caster_wheel_link:
+                {}
+            front_laser_link:
+              {}
+            imu_link:
+              imu_frame:
+                {}
+            left_wheel_link:
+              {}
+            right_wheel_link:
+              {}
+            surface:
+              {}
+            world:
+              base_link_ur:
+                base:
+                  tool0_controller:
+                    camera_link:
+                      camera_aligned_depth_to_color_frame:
+                        {}
+                      camera_aligned_depth_to_infra1_frame:
+                        {}
+                      camera_color_frame:
+                        camera_color_optical_frame:
+                          dope_object_pose_carrier:
+                            dope_grasp_pose_carrier:
+                              dope_grasp_pose_carrier_pre:
+                                {}
+                          dope_object_pose_holder:
+                            dope_put_pose_holder:
+                              dope_put_pose_holder_post:
+                                {}
+                              dope_put_pose_holder_pre:
+                                {}
+                      camera_depth_frame:
+                        camera_depth_optical_frame:
+                          {}
+                      camera_infra1_frame:
+                        camera_infra1_optical_frame:
+                          {}
+                      camera_infra2_frame:
+                        camera_infra2_optical_frame:
+                          {}
+                controlbox:
+                  {}
+                shoulder_link:
+                  upper_arm_link:
+                    forearm_link:
+                      wrist_1_link:
+                        wrist_2_link:
+                          wrist_3_link:
+                            ee_link:
+                              eef:
+                                {}
+                            tool0:
+                              camera_planning_frame:
+                                gripper:
+                                  {}
+        map:
+          {}
+        odom:
+          {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -496,25 +684,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.45860457
+      Distance: 3.07573032
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.260538042
-        Y: -0.404996395
-        Z: -0.0971849263
+        X: -0.497407496
+        Y: 0.427072078
+        Z: -0.492787838
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.82520324
+      Pitch: 0.660203278
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.11041307
+      Yaw: 0.417226583
     Saved: ~
 Window Geometry:
   Displays:

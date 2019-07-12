@@ -103,6 +103,16 @@ class ur5Controler():
 
 		self.execute_move(goal_pose)
 
+	# Move to x/y/z-position (incremental)
+	def move_xyz_base_link_ur(self, x_inc, y_inc, z_inc):
+		goal_pose = self.group.get_current_pose().pose
+
+		goal_pose.position.x = goal_pose.position.x + x_inc - 0.153
+		goal_pose.position.y = goal_pose.position.y + y_inc + 0.033
+		goal_pose.position.z = goal_pose.position.z + z_inc - 0.892
+
+		self.execute_move(goal_pose)
+
 	# Move along a cartesian path
 	def move_cartesian_path(self, x_inc, y_inc, z_inc):
 		# Init waypoints and scale

@@ -232,7 +232,7 @@ class transport_process():
 		self.hasGraspedPub.publish(Bool(True))
 		
 		# lift
-		self.ur5.move_xyz(0, 0, 0.05)
+		self.ur5.move_xyz_base_link_ur(0, 0, 0.05)
 		# turn
 		self.ur5.execute_move([90*pi/180, -53*pi/180, 117*pi/180, -244*pi/180, 0*pi/180, 0*pi/180])
 		# Vorletzte Achse drehen
@@ -256,6 +256,7 @@ class transport_process():
 		return True
 
 	def refine_pose(self):
+		return True
 		print "Refining pose..."
 		self.move_and_publish(5, 20)
 		self.move_and_publish(5, -40)
@@ -334,7 +335,7 @@ def main(args):
 				transporter.ur5.addMesh(transporter.showObjPose,"/dope_object_pose_carrier")
 				if transporter.make_grasp() == True:
 					##### Move the robot up and to transport-pose
-					transporter.ur5.move_xyz(0, 0, 0.05)
+					transporter.ur5.move_xyz_base_link_ur(0, 0, 0.05)
 					#transporter.ur5.moveToTransportPose()
 
 		elif inp == 'h':
@@ -353,6 +354,9 @@ def main(args):
 					##### Move the robot up and to transport-pose
 					transporter.ur5.move_to_pose(transporter.postPutPose)
 					#transporter.ur5.moveToTransportPose()			
+
+		elif inp == 't':
+			transporter.ur5.move_xyz_base_link_ur(0, 0, 0.05)
 
 		elif inp == 'a':
 			transporter.hasGraspedPub.publish(Bool(True))
@@ -387,7 +391,7 @@ def main(args):
 				transporter.ur5.addMesh(transporter.showObjPose,"/dope_object_pose_carrier")
 				if transporter.make_grasp() == True:
 					##### Move the robot up and to transport-pose
-					transporter.ur5.move_xyz(0, 0, 0.05)
+					transporter.ur5.move_xyz_base_link_ur(0, 0, 0.05)
 					#transporter.ur5.moveToTransportPose()
 
 		elif inp == 'b':

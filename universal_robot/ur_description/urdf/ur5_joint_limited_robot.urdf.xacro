@@ -29,7 +29,6 @@
   />
 
   <!-- Controlbox -->
-                                                                                  <!-- COMMENT FOR SIMULATION -->
   <xacro:include filename="$(find ur_description)/urdf/controlbox.urdf" />
   
   <!-- EEF -->
@@ -44,7 +43,6 @@
   </joint>
 
   <!-- Connection controlbox to UR -->
-                                                                                  <!-- COMMENT FOR SIMULATION -->
   <joint name="boxJoint" type="fixed">
     <origin xyz="-0.11 0.038 ${-0.54/2}" rpy="0 0 0" />
     <parent link="base_link_ur" />
