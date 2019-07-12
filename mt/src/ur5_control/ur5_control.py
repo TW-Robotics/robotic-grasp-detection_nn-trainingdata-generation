@@ -207,10 +207,10 @@ class ur5Controler():
 		self.scene.add_box(box_name, obj_pose, size=(0.6, 0.4, 0.6))
 		rospy.sleep(1)
 		
-	def addMesh(self, pose):
+	def addMesh(self, pose, frame_id):
 		rospy.sleep(2)
 		obj_pose = PoseStamped()
-		obj_pose.header.frame_id = "/object_origin"
+		obj_pose.header.frame_id = frame_id
 		obj_pose.pose.position.x = pose.position.x
 		obj_pose.pose.position.y = pose.position.y
 		obj_pose.pose.position.z = pose.position.z
@@ -282,6 +282,14 @@ class ur5Controler():
 			return False
 		return True
 
+	def attachObjectToEEF()
+		eef_link = self.group.get_end_effector_link()
+		self.scene.attach_mesh(eef_link, "object")
+
+	def removeAttachedObject():
+		eef_link = self.group.get_end_effector_link()
+		self.scene.remove_attached_object(eef_link, "object")
+	
 def main(args):
 	try:
 		# Initialize ros-node and Class
