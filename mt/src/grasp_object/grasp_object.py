@@ -239,6 +239,7 @@ class transport_process():
 		self.ur5.execute_move([90*pi/180, -53*pi/180, 117*pi/180, -244*pi/180, 0*pi/180, 0*pi/180])
 		# Vorletzte Achse drehen
 		actJointValues = self.ur5.group.get_current_joint_values()
+		self.ur5.execute_move([actJointValues[0], -71*pi/180, 153*pi/180, -263*pi/180, actJointValues[4], 0*pi/180])
 		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], -90*pi/180, actJointValues[5]])
 
 		return True
@@ -313,11 +314,24 @@ def main(args):
 		transporter.reset_poses()
 		inp = raw_input("p to publish image, c for grasping, h for putting, a for search+grasp, b for search+put: ")[0]
 		
+		if inp == 'd':
+			transporter.mir.moveToGoal(pickUpGoal.posx, pickUpGoal.posy, pickUpGoal.rz)
+			while transporter.mir.isAtGoal(0.2, 0.1) == False:
+				print "moving..."
+				rospy.sleep(1)
+
+		if inp == 'e':
+			transporter.mir.moveToGoal(putDownGoal.posx, putDownGoal.posy, putDownGoal.rz)
+			while transporter.mir.isAtGoal(0.2, 0.1) == False:
+				print "moving..."
+				rospy.sleep(1)
+
 		if inp == 'm':
 			s1 = mission_control.goal("stationlf")
 			s2 = mission_control.goal("stationrr")
 			s3 = mission_control.goal("stationll")
-			s4 = mission_control.goal("stationnf")
+			s4 = mission_control.goal("stationrf")
+			s5 = mission_control.goal("stationnf")
 			transporter.mir.moveToGoal(s1.posx, s1.posy, s1.rz)#(pickUp.posx, pickUp.posy, pickUp.rz)
 			while transporter.mir.isAtGoal(0.2, 0.1) == False:
 				print "moving..."
@@ -331,6 +345,10 @@ def main(args):
 				print "moving..."
 				rospy.sleep(1)
 			transporter.mir.moveToGoal(s4.posx, s4.posy, s4.rz)#(pickUp.posx, pickUp.posy, pickUp.rz)
+			while transporter.mir.isAtGoal(0.2, 0.1) == False:
+				print "moving..."
+				rospy.sleep(1)
+			transporter.mir.moveToGoal(s5.posx, s5.posy, s5.rz)#(pickUp.posx, pickUp.posy, pickUp.rz)
 			while transporter.mir.isAtGoal(0.2, 0.1) == False:
 				print "moving..."
 				rospy.sleep(1)

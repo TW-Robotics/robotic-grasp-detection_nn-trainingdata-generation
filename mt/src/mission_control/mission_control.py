@@ -25,32 +25,39 @@ class goal():
 	def createGoal(self, goalName):
 		if goalName == "stationrr":
 			self.name = "Robot station high right"
-			self.posx = 13.9
-			self.posy = 3.55
-			self.rz = 12
+			self.posx = 13.6
+			self.posy = 3.6
+			self.rz = 11
 			self.height = 720
 			self.orientation = "right"
+		if goalName == "stationrf":
+			self.name = "Robot station high right"
+			self.posx = 13.7
+			self.posy = 3.65
+			self.rz = -73
+			self.height = 720
+			self.orientation = "front"
 		elif goalName == "stationlf":
 			self.name = "Robot station high left"
-			self.posx = 16
-			self.posy = 4.85
-			self.rz = -48
+			self.posx = 15.75
+			self.posy = 4.6
+			self.rz = -45
 			self.height = 720
 			self.orientation = "front"
 		elif goalName == "stationll":
 			self.name = "Robot station high left"
 			self.posx = 16.1
-			self.posy = 4.6
-			self.rz = -137
+			self.posy = 4.5
+			self.rz = -138
 			self.height = 720
-			self.orientation = "front"
-		elif goalName == "stationnf":
+			self.orientation = "left"
+		elif goalName == "stationnl":
 			self.name = "Robot station low"
-			self.posx = 15.75
-			self.posy = 10.35
-			self.rz = 100
+			self.posx = 15.65
+			self.posy = 10.5
+			self.rz = 10
 			self.height = 990
-			self.orientation = "front"
+			self.orientation = "left"
 		return self
 
 	# Print information of goal

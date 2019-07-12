@@ -32,15 +32,17 @@ class mirControler():
 
 	# Check if robot is at goal within thresholds
 	def isAtGoal(self, thresholdP, thresholdO):
-		if math.fabs(self.actPose.position.x - self.targetPose.position.x) < thresholdP:
+		'''if math.fabs(self.actPose.position.x - self.targetPose.position.x) < thresholdP:
 			if math.fabs(self.actPose.position.y - self.targetPose.position.y) < thresholdP:
 				if math.fabs(self.actPose.orientation.z - self.targetPose.orientation.z) < thresholdO:
 					return True
-		return False
+		return False'''
+		#print self.isMoving
 		if self.isMoving == True:
-			self.isMoving == False
+			self.isMoving = False
+			#rosyp.sleep(0.5)
 			return False
-		if self.isMoving == False:
+		else:
 			return True
 
 	# Send the MiR to a goal position
@@ -73,6 +75,7 @@ class mirControler():
 		#mirGoalMsg.goal_id.id = '10'									# optional
 		
 		# Publish Message -> Send MiR to goal
+		self.isMoving = True
 		self.pub.publish(mirGoalMsg)
 		print "Sent MiR to goal: x " + str(x) + ", y " + str(y) + ", rz " + str(rz)
 
