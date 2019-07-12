@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<!-- Build the complete robot of common-stuff, mir, ur, controlbox and eef. Loads all components and connects them -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro"
+       name="ur5" >
+
+  <!-- common stuff -->
+  <xacro:include filename="$(find ur_description)/urdf/common.gazebo.xacro" />
+  <xacro:include filename="$(find mir_description)/urdf/include/common.gazebo.xacro" />
+
+  <!-- MiR100 base -->
+  <xacro:include filename="$(find mir_description)/urdf/include/mir_100_v1.urdf.xacro" />
+  <xacro:mir_100 prefix=""/>
+  <xacro:controller_plugin_gazebo robot_namespace=""/>
+
+  <!-- ur5 -->
+  <xacro:include filename="$(find ur_description)/urdf/ur5.urdf.xacro" />
+  <!-- UNCOMMENT FOR NOT LIMITED <xacro:ur5_robot prefix="" joint_limited="false"/>-->
+  <!-- arm for datacollection -->
+  <xacro:ur5_robot prefix="" joint_limited="true"
+    shoulder_pan_lower_limit="${-180/180*pi}" shoulder_pan_upper_limit="${0/180*pi}"
+    shoulder_lift_lower_limit="${-pi}" shoulder_lift_upper_limit="${pi}"
+    elbow_joint_lower_limit="${-150/180*pi}" elbow_joint_upper_limit="${160/180*pi}"
+    wrist_1_lower_limit="${-pi}" wrist_1_upper_limit="${pi}"
+    wrist_2_lower_limit="${-pi}" wrist_2_upper_limit="${pi}"
+    wrist_3_lower_limit="${-3*pi/2}" wrist_3_upper_limit="${3*pi/2}"
+  />
+  <!-- arm for grasping object
+  <xacro:ur5_robot prefix="" joint_limited="true"
+    shoulder_pan_lower_limit="${-pi}" shoulder_pan_upper_limit="${pi}"
+    shoulder_lift_lower_limit="${-pi}" shoulder_lift_upper_limit="${pi}"
+    elbow_joint_lower_limit="${-pi}" elbow_joint_upper_limit="${pi}"
+    wrist_1_lower_limit="${-1.5*pi}" wrist_1_upper_limit="${1.5*pi}"
+    wrist_2_lower_limit="${-pi}" wrist_2_upper_limit="${pi}"
+    wrist_3_lower_limit="${-pi}" wrist_3_upper_limit="${pi}"
+  />-->
+
+  <!-- Controlbox -->
+  <xacro:include filename="$(find ur_description)/urdf/controlbox.urdf" />
+  
+  <!-- EEF -->
+  <xacro:include filename="$(find ur_description)/urdf/eef.urdf" /> 
+
+
+  <!-- Connection UR to planning frame world -->
+  <link name="world" />
+  <joint name="world_joint" type="fixed">
+    <parent link="world" />
+    <child link = "base_link_ur" />
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+  </joint>
+
+  <!-- Connection MiR to planning frame world where UR is connected -->
+  <joint name="compJoint" type="fixed">
+    <origin xyz="0.153 -0.0325 0.892" rpy="0 0 0" /> <!-- Caluculations: from base_footprint to surface 0.153 = 0.038 + 0.115; - ; 0.892 = 0.352 + 0.54-->
+    <!--<origin xyz="0.093 -0.0125 0.892" rpy="0 0 0" />-->
+    <parent link="base_link" />
+    <child link="world" />
+  </joint>
+
+  <!-- Connection controlbox to UR -->
+  <joint name="boxJoint" type="fixed">
+    <origin xyz="-0.11 0.038 ${-0.54/2}" rpy="0 0 0" />
+    <parent link="base_link_ur" />
+    <child link="controlbox" />
+  </joint>
+
+  <!-- Connection UR to EEF -->
+  <joint name="eef_fixed_joint" type="fixed">
+    <parent link="ee_link" />
+    <child link="eef" />
+    <origin xyz="0.088 0.0 0.0" rpy="0.0 0.0 0.0" />
+  </joint>
+
+  <!-- Connection of camera-planning-frame to EEF to set TCP-->
+  <joint name="camera_planning_fixed_joint" type="fixed">
+    <parent link="tool0" />
+    <child link= "camera_planning_frame" />
+    <origin xyz="-0.071 -0.040 0.127" rpy="0.0 0.0 ${-pi/2.0}" /> <!-- rosrun tf tf_echo tool0 camera_color_optical_frame - and add -pi/2Get Transformation gripper-camera and write it down here-->
+  </joint>
+
+  <!-- Connection of gripper-frame to EEF to set TCP - reset by tf_transform but necessary here-->
+  <joint name="gripper_fixed_joint" type="fixed">
+    <parent link="camera_planning_frame" />
+    <child link= "gripper" />
+    <origin xyz="-0.040 0.071 0.105" rpy="0.0 0.0 0.0" /> <!--${pi/2.0}-->
+  </joint>
+
+</robot>

@@ -1,0 +1,4 @@
+<!-- Upload robot descripton to the ROS-Core -->
+<launch>
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find mt)/butler/butler_robot.urdf.xacro'" />
+</launch>

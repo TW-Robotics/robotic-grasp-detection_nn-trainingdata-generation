@@ -15,9 +15,10 @@
   <arg name="max_payload"  default="5.0"/>
   <arg name="prefix" default="" />
   <!-- robot model -->
-  <include file="$(find ur_description)/launch/ur5_upload.launch">
+  <!-- Upload through butler_robot file -->
+  <!--<include file="$(find ur_description)/launch/ur5_upload.launch">
     <arg name="limited" value="$(arg limited)"/>
-  </include>
+  </include>-->
   
   <!-- ur common -->
   <include file="$(find ur_modern_driver)/launch/ur_common.launch">
