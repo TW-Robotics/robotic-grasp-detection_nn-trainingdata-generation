@@ -23,27 +23,34 @@ class goal():
 
 	# Check if goal-name exists and make goal
 	def createGoal(self, goalName):
-		if goalName == "station1":
+		if goalName == "stationrr":
 			self.name = "Robot station high right"
-			self.posx = 5.12
-			self.posy = 4.11
-			self.rz = 87.4
+			self.posx = 13.9
+			self.posy = 3.55
+			self.rz = 12
 			self.height = 720
-			self.orientation = "left"
-		elif goalName == "station2":
+			self.orientation = "right"
+		elif goalName == "stationlf":
 			self.name = "Robot station high left"
-			self.posx = 14.35
-			self.posy = 8.9
-			self.rz = 0
+			self.posx = 16
+			self.posy = 4.85
+			self.rz = -48
 			self.height = 720
 			self.orientation = "front"
-		elif goalName == "station3":
+		elif goalName == "stationll":
+			self.name = "Robot station high left"
+			self.posx = 16.1
+			self.posy = 4.6
+			self.rz = -137
+			self.height = 720
+			self.orientation = "front"
+		elif goalName == "stationnf":
 			self.name = "Robot station low"
-			self.posx = 8.7
-			self.posy = 11.9
+			self.posx = 15.75
+			self.posy = 10.35
 			self.rz = 100
 			self.height = 990
-			self.orientation = "right"
+			self.orientation = "front"
 		return self
 
 	# Print information of goal

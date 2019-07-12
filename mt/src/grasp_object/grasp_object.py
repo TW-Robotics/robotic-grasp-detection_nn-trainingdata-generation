@@ -20,6 +20,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from ur5_control import ur5_control
 from gripper_control import gripper_control
+from mir_control import mir_control
 from mission_control import mission_control
 
 debug = False
@@ -38,6 +39,7 @@ class transport_process():
 
 		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link_ur", False)
 		self.gripper = gripper_control.gripper()
+		self.mir = mir_control.mirControler()
 
 		self.reset_poses()
 		self.rgb_img = Image()
@@ -311,6 +313,28 @@ def main(args):
 		transporter.reset_poses()
 		inp = raw_input("p to publish image, c for grasping, h for putting, a for search+grasp, b for search+put: ")[0]
 		
+		if inp == 'm':
+			s1 = mission_control.goal("stationlf")
+			s2 = mission_control.goal("stationrr")
+			s3 = mission_control.goal("stationll")
+			s4 = mission_control.goal("stationnf")
+			transporter.mir.moveToGoal(s1.posx, s1.posy, s1.rz)#(pickUp.posx, pickUp.posy, pickUp.rz)
+			while transporter.mir.isAtGoal(0.2, 0.1) == False:
+				print "moving..."
+				rospy.sleep(1)
+			transporter.mir.moveToGoal(s2.posx, s2.posy, s2.rz)#(pickUp.posx, pickUp.posy, pickUp.rz)
+			while transporter.mir.isAtGoal(0.2, 0.1) == False:
+				print "moving..."
+				rospy.sleep(1)
+			transporter.mir.moveToGoal(s3.posx, s3.posy, s3.rz)#(pickUp.posx, pickUp.posy, pickUp.rz)
+			while transporter.mir.isAtGoal(0.2, 0.1) == False:
+				print "moving..."
+				rospy.sleep(1)
+			transporter.mir.moveToGoal(s4.posx, s4.posy, s4.rz)#(pickUp.posx, pickUp.posy, pickUp.rz)
+			while transporter.mir.isAtGoal(0.2, 0.1) == False:
+				print "moving..."
+				rospy.sleep(1)
+
 		if inp == 's':
 			transporter.store()
 
