@@ -39,7 +39,8 @@ class ur5Controler():
 		self.speedScalingFactor = 0.05		# For timing of path-planning-points [very small eg 0.01, 1]
 
 		#self.pathToObjectFile = "/home/johannes/catkin_ws/src/mt/cad/product.stl"
-		self.pathToObjectFile = rospy.get_param("path_to_obj_stl")#"/home/mluser/catkin_ws/src/mt/cad/product.stl"
+		objName = rospy.get_param("object_name")
+		self.pathToObjectFile = rospy.get_param("path_to_obj_stl/" + str(objName))#"/home/mluser/catkin_ws/src/mt/cad/product.stl"
 
 		# Set True to make the program ask before the robot moves
 		self.checkBeforeDo = checkBeforeDo
@@ -282,11 +283,11 @@ class ur5Controler():
 			return False
 		return True
 
-	def attachObjectToEEF()
+	def attachObjectToEEF(self):
 		eef_link = self.group.get_end_effector_link()
 		self.scene.attach_mesh(eef_link, "object")
 
-	def removeAttachedObject():
+	def removeAttachedObject(self):
 		eef_link = self.group.get_end_effector_link()
 		self.scene.remove_attached_object(eef_link, "object")
 	

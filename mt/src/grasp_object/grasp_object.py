@@ -43,6 +43,12 @@ class transport_process():
 		self.rgb_img = Image()
 		self.poseIsUpdated_carrier = False
 		self.poseIsUpdated_holder = False
+		
+		self.showObjPose = Pose()
+		self.showObjPose.position.z = -0.03
+		self.showObjPose.position.y = -0.045
+		self.showObjPose.orientation.y = -0.707
+		self.showObjPose.orientation.w = 0.707
 
 		self.publishResized = True
 
@@ -137,7 +143,7 @@ class transport_process():
 		actJointValues = self.ur5.group.get_current_joint_values()
 		self.ur5.execute_move([actJointValues[0], -90*pi/180, 150*pi/180, actJointValues[3], actJointValues[4], actJointValues[5]])
 
-	def prepare_put(self):
+	def prepare_put(self, side):
 		print "Moving joints in put-configuration..."
 		if side == "front":
 			r1_angle = 0
@@ -325,7 +331,7 @@ def main(args):
 			else:
 				print "Received pose update"
 				transporter.refine_pose()
-				transporter.ur5.addMesh(Pose(),"/dope_object_pose_carrier")
+				transporter.ur5.addMesh(transporter.showObjPose,"/dope_object_pose_carrier")
 				if transporter.make_grasp() == True:
 					##### Move the robot up and to transport-pose
 					transporter.ur5.move_xyz(0, 0, 0.05)
@@ -349,6 +355,9 @@ def main(args):
 					#transporter.ur5.moveToTransportPose()			
 
 		elif inp == 'a':
+			transporter.hasGraspedPub.publish(Bool(True))
+			transporter.hasPutPub.publish(Bool(True))
+			transporter.ur5.removeAttachedObject()
 			transporter.ur5.scene.remove_world_object()
 			transporter.ur5.moveToSearchPose(pickUpGoal.orientation)
 			rospy.sleep(0.1)	# wait to arrive at position
@@ -372,16 +381,18 @@ def main(args):
 					if time.time() >= timeout:
 						print "Object not found - moving on..."
 						break
-				else:
-					print "Received pose update"
-					transporter.refine_pose()
-					self.ur5.addMesh(Pose(),"/dope_object_pose_carrier")
-					if transporter.make_grasp() == True:
-						##### Move the robot up and to transport-pose
-						transporter.ur5.move_xyz(0, 0, 0.05)
-						#transporter.ur5.moveToTransportPose()
+			else:
+				print "Received pose update"
+				transporter.refine_pose()
+				transporter.ur5.addMesh(transporter.showObjPose,"/dope_object_pose_carrier")
+				if transporter.make_grasp() == True:
+					##### Move the robot up and to transport-pose
+					transporter.ur5.move_xyz(0, 0, 0.05)
+					#transporter.ur5.moveToTransportPose()
 
 		elif inp == 'b':
+			transporter.hasGraspedPub.publish(Bool(True))
+			transporter.hasPutPub.publish(Bool(True))
 			transporter.ur5.moveToSearchPose(putDownGoal.orientation)
 			rospy.sleep(0.1)	# wait to arrive at position
 			transporter.publish_image()

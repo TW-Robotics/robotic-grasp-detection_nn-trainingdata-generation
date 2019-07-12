@@ -29,7 +29,7 @@ class goal():
 			self.posy = 4.11
 			self.rz = 87.4
 			self.height = 720
-			self.orientation = "right"
+			self.orientation = "left"
 		elif goalName == "station2":
 			self.name = "Robot station high left"
 			self.posx = 14.35
@@ -43,7 +43,7 @@ class goal():
 			self.posy = 11.9
 			self.rz = 100
 			self.height = 990
-			self.orientation = "front" #TODO
+			self.orientation = "right"
 		return self
 
 	# Print information of goal

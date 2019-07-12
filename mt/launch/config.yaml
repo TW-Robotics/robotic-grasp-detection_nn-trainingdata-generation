@@ -10,10 +10,11 @@
 camera_width: 1280
 camera_height: 720
 outputImage_size: 400
-object_name: 'holder_empty'
+object_name: 'carrier_empty'
 
-path_to_obj_stl: '/home/mluser/catkin_ws/src/mt/cad/holder.stl' #product.stl'
-# path_to_obj_stl: '/home/johannes/catkin_ws/src/mt/cad/product.stl'
+path_to_obj_stl:
+  holder_empty: '/home/mluser/catkin_ws/src/mt/cad/holder.stl'
+  carrier_empty: '/home/mluser/catkin_ws/src/mt/cad/carrier.stl'
 path_to_store: '/home/mluser/catkin_ws/src/data/holder/'
 #path_to_store: '/home/johannes/catkin_ws/src/data/'
 
@@ -38,10 +39,10 @@ PoseRandomization:
 carrier_empty:
   dimensions: [19.8,9.0,17.7]
   transformTo:
-    object_img_center: [0, 0, 0.05, 0, 0, 0] # from marker - x, y, z, rx, ry, rz [deg] for rxyz
+    object_img_center: [0, 0, 0.05, 0, 0, 0] # from marker - x, y, z [m], rx, ry, rz [deg] for rxyz
     object: [0, 0, -0.0075, 0, 0, 0]
     object_origin: [0, 0, -0.0075, -90, 0, -180]
-    c_0: [-0.1185, -0.099, 0,    0, 0, 0]
+    c_0: [-0.1185, -0.099, 0,    0, 0, 0]   # from object
     c_1: [-0.1185,  0.099, 0,    0, 0, 0]
     c_2: [-0.1185,  0.099, 0.09, 0, 0, 0]
     c_3: [-0.1185, -0.099, 0.09, 0, 0, 0]
