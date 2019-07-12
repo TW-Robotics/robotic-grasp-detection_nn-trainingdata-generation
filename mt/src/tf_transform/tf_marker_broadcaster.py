@@ -70,8 +70,8 @@ class marker_broadcaster():
 				 "camera_color_optical_frame")
 				try:
 					now = rospy.Time.now()
-					tf.TransformListener().waitForTransform("base_link", "m_det_refined", now, rospy.Duration(4.0))
-					(trans, rot) = tf.TransformListener().lookupTransform("base_link", "m_det_refined", now)
+					tf.TransformListener().waitForTransform("base_link_ur", "m_det_refined", now, rospy.Duration(4.0))
+					(trans, rot) = tf.TransformListener().lookupTransform("base_link_ur", "m_det_refined", now)
 					print "Refinement: " + str(trans) + str(rot)
 				except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 					rospy.logerr(e)
@@ -87,8 +87,8 @@ class marker_broadcaster():
 			rospy.sleep(1)
 			try:
 				now = rospy.Time.now()
-				tf.TransformListener().waitForTransform("base_link", "m_det_notRefined", now, rospy.Duration(4.0))
-				(trans, rot) = tf.TransformListener().lookupTransform("base_link", "m_det_notRefined", now)
+				tf.TransformListener().waitForTransform("base_link_ur", "m_det_notRefined", now, rospy.Duration(4.0))
+				(trans, rot) = tf.TransformListener().lookupTransform("base_link_ur", "m_det_notRefined", now)
 				print "Marker_Det: " + str(trans) + str(rot)
 			except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 				rospy.logerr(e)

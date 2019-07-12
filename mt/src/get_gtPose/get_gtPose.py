@@ -89,8 +89,8 @@ class gtPose():
 		try:
 			now = rospy.Time.now()
 			# Get transformation - which is refined by tf_marker_broadcaster
-			self.tfListener.waitForTransform('/base_link', '/m_det', now, rospy.Duration(4.0))
-			(trans, rot) = self.tfListener.lookupTransform('/base_link', '/m_det', now)
+			self.tfListener.waitForTransform('/base_link_ur', '/m_det', now, rospy.Duration(4.0))
+			(trans, rot) = self.tfListener.lookupTransform('/base_link_ur', '/m_det', now)
 			self.poseBuff.append(self.listToPose(trans, rot))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -220,7 +220,7 @@ class gtPose():
 							 (gtPoses.poses[i].orientation.x, gtPoses.poses[i].orientation.y, gtPoses.poses[i].orientation.z, gtPoses.poses[i].orientation.w),
 							 rospy.Time.now(),
 							 "gt_" + str(i),
-							 "base_link")
+							 "base_link_ur")
 
 	def broadcast_transfrom(self, parentFrame, childFrame):
 		t = self.transformToPoints[childFrame]
@@ -237,7 +237,7 @@ class gtPose():
 						 (self.meanPose.orientation.x, self.meanPose.orientation.y, self.meanPose.orientation.z, self.meanPose.orientation.w),
 						 rospy.Time.now(),
 						 "mean_marker_pose",
-						 "base_link")
+						 "base_link_ur")
 		self.broadcast_transfrom("mean_marker_pose", "object_img_center") 	# calculated pose where camera should point to
 		self.broadcast_transfrom("mean_marker_pose", "object")				# calculated pose where the object base is (z pointing up)
 		self.broadcast_transfrom("mean_marker_pose", "object_origin")		# calculated pose where the object base is (for placement of cad-file)

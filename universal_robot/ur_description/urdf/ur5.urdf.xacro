@@ -84,7 +84,7 @@
     <xacro:property name="wrist_radius" value="0.045" />      <!-- manually measured -->
 
 
-    <link name="${prefix}base_link" >
+    <link name="${prefix}base_link_ur" >
       <visual>
         <geometry>
           <mesh filename="package://ur_description/meshes/ur5/visual/base.dae" />
@@ -104,7 +104,7 @@
     </link>
 
     <joint name="${prefix}shoulder_pan_joint" type="revolute">
-      <parent link="${prefix}base_link" />
+      <parent link="${prefix}base_link_ur" />
       <child link = "${prefix}shoulder_link" />
       <origin xyz="0.0 0.0 ${shoulder_height}" rpy="0.0 0.0 0.0" />
       <axis xyz="0 0 1" />
@@ -327,7 +327,7 @@
                  degrees)
       -->
       <origin xyz="0 0 0" rpy="0 0 ${-pi}"/>
-      <parent link="${prefix}base_link"/>
+      <parent link="${prefix}base_link_ur"/>
       <child link="${prefix}base"/>
     </joint>
 

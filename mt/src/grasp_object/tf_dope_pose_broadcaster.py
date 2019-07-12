@@ -122,7 +122,7 @@ class pose_broadcaster():
 		rospy.sleep(0.1)
 		# Lookup and store base -> object
 		try:
-			(trans, rot) = self.tfListener.lookupTransform('/base_link', frameName, now)
+			(trans, rot) = self.tfListener.lookupTransform('/base_link_ur', frameName, now)
 			return self.listToPose(trans, rot)
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
@@ -147,7 +147,7 @@ class pose_broadcaster():
 					 (objectPose.orientation.x, objectPose.orientation.y, objectPose.orientation.z, objectPose.orientation.w),
 					 rospy.Time.now(),
 					 "dope_object_pose_" + objName,
-					 "base_link")
+					 "base_link_ur")
 
 # Print debug messages
 def print_debug(dStr):

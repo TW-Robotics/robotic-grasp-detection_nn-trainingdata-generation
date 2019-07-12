@@ -47,7 +47,7 @@
                                                                                   <!-- COMMENT FOR SIMULATION -->
   <joint name="boxJoint" type="fixed">
     <origin xyz="-0.11 0.038 ${-0.54/2}" rpy="0 0 0" />
-    <parent link="base_link" />
+    <parent link="base_link_ur" />
     <child link="controlbox" />
   </joint>
 

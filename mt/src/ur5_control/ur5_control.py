@@ -32,7 +32,7 @@ from math import pi
 debug = False
 
 class ur5Controler():
-	def __init__(self, eef_link="gripper", pose_ref_frame="/base_link", checkBeforeDo=True):
+	def __init__(self, eef_link="gripper", pose_ref_frame="/base_link_ur", checkBeforeDo=True):
 		# Set Robot paramters: position over floor, speed and acceloration [0, 1] (only 0.1 steps)
 		self.speed = 0.1
 		self.acceleration = 0.1

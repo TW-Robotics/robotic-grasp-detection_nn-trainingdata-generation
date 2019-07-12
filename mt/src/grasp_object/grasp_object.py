@@ -36,7 +36,7 @@ class transport_process():
 		self.tfListener = tf.TransformListener()
 		self.tfBroadcaster = tf.TransformBroadcaster()
 
-		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link", False)
+		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link_ur", False)
 		self.gripper = gripper_control.gripper()
 
 		self.reset_poses()
@@ -117,15 +117,15 @@ class transport_process():
 	# Get transformation between base and grasp-point
 	def update_grasp_pose(self):
 		rospy.sleep(0.1)
-		self.graspPose = self.get_pose('/base_link', 'dope_grasp_pose_carrier')
-		self.preGraspPose = self.get_pose('/base_link', 'dope_grasp_pose_carrier_pre')
+		self.graspPose = self.get_pose('/base_link_ur', 'dope_grasp_pose_carrier')
+		self.preGraspPose = self.get_pose('/base_link_ur', 'dope_grasp_pose_carrier_pre')
 		self.poseIsUpdated_carrier = True
 
 	def update_put_pose(self):
 		rospy.sleep(0.1)
-		self.putPose = self.get_pose('/base_link', 'dope_put_pose_holder')
-		self.prePutPose = self.get_pose('/base_link', 'dope_put_pose_holder_pre')
-		self.postPutPose = self.get_pose('/base_link', 'dope_put_pose_holder_post')
+		self.putPose = self.get_pose('/base_link_ur', 'dope_put_pose_holder')
+		self.prePutPose = self.get_pose('/base_link_ur', 'dope_put_pose_holder_pre')
+		self.postPutPose = self.get_pose('/base_link_ur', 'dope_put_pose_holder_post')
 		self.poseIsUpdated_holder = True		
 
 	def publish_image(self):

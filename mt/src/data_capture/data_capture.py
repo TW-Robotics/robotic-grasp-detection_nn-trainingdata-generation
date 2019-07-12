@@ -266,7 +266,7 @@ class dataCapture():
 		print cd["location_worldframe"]'''
 
 		# Get necessary transformations
-		baseToCam = self.get_transform('/base_link', '/camera_color_optical_frame')
+		baseToCam = self.get_transform('/base_link_ur', '/camera_color_optical_frame')
 		camToObj = self.get_transform('/camera_color_optical_frame', '/object')
 
 		# Camera Data
@@ -339,11 +339,11 @@ class dataCapture():
 
 	# All transformations
 	def get_transformations(self):
-		baseObjPose = self.get_transform('/base_link', '/object')
-		baseCamPose = self.get_transform('/base_link', '/camera_color_optical_frame')
+		baseObjPose = self.get_transform('/base_link_ur', '/object')
+		baseCamPose = self.get_transform('/base_link_ur', '/camera_color_optical_frame')
 		camObjPose = self.get_transform('/camera_color_optical_frame', '/object')
 		objCamPose = self.get_transform('/object', '/camera_color_optical_frame')
-		baseToolPose = self.get_transform('/base_link', '/tool0_controller')
+		baseToolPose = self.get_transform('/base_link_ur', '/tool0_controller')
 		return baseObjPose, baseCamPose, camObjPose, objCamPose, baseToolPose
 
 	# From camera to cuboid-poses
@@ -469,7 +469,7 @@ class dataCapture():
 
 	# Collect all info for object-setting-file and write it
 	def write_scene_settings(self):
-		baseObjPose = self.get_transform('/base_link', '/object')
+		baseObjPose = self.get_transform('/base_link_ur', '/object')
 
 		# INFO:
 		# Segmentation-id = 255 since only 'Single'-images are produced (see FAT readme)
@@ -546,7 +546,7 @@ class dataCapture():
 
 		# Store all camera-poses
 		if storeFullRes == True:
-			actCamPose = self.poseToList(self.get_transform('/base_link', '/camera_color_optical_frame'))
+			actCamPose = self.poseToList(self.get_transform('/base_link_ur', '/camera_color_optical_frame'))
 			self.camPoses.append(actCamPose)
 			data = self.camPoses
 			self.write_json(data, self.pathFullRes, "_camera_poses.json")

@@ -23,7 +23,7 @@ if __name__ == '__main__':
 		try:
 			#now = rospy.Time.now()
 			#listener.waitForTransform("base_link", "m_det", now, rospy.Duration(4.0))
-			(trans, rot) = listener.lookupTransform("base_link", "m_det", rospy.Time(0))
+			(trans, rot) = listener.lookupTransform("base_link_ur", "m_det", rospy.Time(0))
 			print trans, rot
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
 			rospy.logerr(e)
