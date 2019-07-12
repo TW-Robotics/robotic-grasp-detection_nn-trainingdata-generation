@@ -138,12 +138,15 @@ class transport_process():
 		self.ur5.execute_move([actJointValues[0], -90*pi/180, 150*pi/180, actJointValues[3], actJointValues[4], actJointValues[5]])
 
 	def prepare_put(self):
+		print "Moving joints in put-configuration..."
+		if side == "front":
+			r1_angle = 0
+		elif side == "left":
+			r1_angle = 90
+		elif side == "right":
+			r1_angle = -90
 		actJointValues = self.ur5.group.get_current_joint_values()
-		# Pre-position last joints so robot does not jeopardize environment 
-		#TODO
-		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], -240*pi/180, -85*pi/180, 0*pi/180])
-		actJointValues = self.ur5.group.get_current_joint_values()
-		self.ur5.execute_move([actJointValues[0], -90*pi/180, 150*pi/180, actJointValues[3], actJointValues[4], actJointValues[5]])
+		self.ur5.execute_move([r1_angle*pi/180, actJointValues[1], actJointValues[2], actJointValues[3], actJointValues[4], actJointValues[5]])
 
 	def make_grasp(self):
 		print "Moving joints in grasp-configuration..."
@@ -154,6 +157,7 @@ class transport_process():
 
 		##### Close the gripper to grasp object
 		self.gripper.close()
+		self.ur5.attachObjectToEEF()
 		rospy.sleep(5)
 		if self.gripper.hasGripped() == True:
 			print "Successfully grasped object!"
@@ -165,19 +169,14 @@ class transport_process():
 		return True
 
 	def put_down(self, side):
-		print "Moving joints in put-configuration..."
-		if side == "front":
-			r1_angle = 0
-		actJointValues = self.ur5.group.get_current_joint_values()
-		self.ur5.execute_move([r1_angle*pi/180, actJointValues[1], actJointValues[2], actJointValues[3], actJointValues[4], actJointValues[5]])
-
-		#self.prepare_put()
+		self.prepare_put(side)
 		print "Driving to put-down-position"
 		self.ur5.move_to_pose(self.prePutPose)
 		self.ur5.move_to_pose(self.putPose)
 
 		##### Open the gripper
 		self.gripper.open()
+		self.ur5.removeAttachedObject()
 		rospy.sleep(5)
 		self.hasPutPub.publish(Bool(True))
 		#self.ur5.removeAttachedObject()
@@ -202,6 +201,7 @@ class transport_process():
 
 		##### Open the gripper
 		self.gripper.open()
+		self.ur5.removeAttachedObject()
 		rospy.sleep(5)
 		self.hasPutPub.publish(Bool(True))
 		#self.ur5.removeAttachedObject()
@@ -216,6 +216,7 @@ class transport_process():
 		self.ur5.execute_move([121*pi/180, -41*pi/180, 106*pi/180, -248*pi/180, 57*pi/180, 0*pi/180])
 
 		self.gripper.close()
+		self.ur5.attachObjectToEEF()
 		rospy.sleep(5)
 		if self.gripper.hasGripped() == True:
 			print "Successfully grasped object!"
@@ -324,6 +325,7 @@ def main(args):
 			else:
 				print "Received pose update"
 				transporter.refine_pose()
+				transporter.ur5.addMesh(Pose(),"/dope_object_pose_carrier")
 				if transporter.make_grasp() == True:
 					##### Move the robot up and to transport-pose
 					transporter.ur5.move_xyz(0, 0, 0.05)
@@ -347,6 +349,7 @@ def main(args):
 					#transporter.ur5.moveToTransportPose()			
 
 		elif inp == 'a':
+			transporter.ur5.scene.remove_world_object()
 			transporter.ur5.moveToSearchPose(pickUpGoal.orientation)
 			rospy.sleep(0.1)	# wait to arrive at position
 			transporter.publish_image()
@@ -372,6 +375,7 @@ def main(args):
 				else:
 					print "Received pose update"
 					transporter.refine_pose()
+					self.ur5.addMesh(Pose(),"/dope_object_pose_carrier")
 					if transporter.make_grasp() == True:
 						##### Move the robot up and to transport-pose
 						transporter.ur5.move_xyz(0, 0, 0.05)
