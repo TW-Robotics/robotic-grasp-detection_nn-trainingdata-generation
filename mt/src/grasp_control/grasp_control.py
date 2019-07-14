@@ -43,7 +43,6 @@ class grasp_process():
 
 		self.ur5 = ur5_control.ur5Controler("gripper", "/base_link_ur", False)
 		self.gripper = gripper_control.gripper()
-		self.mir = mir_control.mirControler()
 
 		self.reset_poses()
 		self.rgb_img = Image()

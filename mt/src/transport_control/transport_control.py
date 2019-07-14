@@ -23,8 +23,13 @@ from grasp_control import grasp_control
 
 
 
+# Init node
+rospy.init_node('transport_object', anonymous=True, disable_signals=True)
+rospy.loginfo("Make sure correct camera intrinsics are set in yaml file!")
+
 mir = mir_control.mirControler()
 grasper = grasp_control.grasp_process()
+
 
 
 def drive_and_search(goal, obj):
@@ -89,10 +94,6 @@ def main(args):
 	parser.add_argument('putDownGoal', metavar='putDownGoal', type=str, help='Name of goal to put down carrier')
 	pickUpGoal = mission_control.goal(parser.parse_args().pickUpGoal)
 	putDownGoal = mission_control.goal(parser.parse_args().putDownGoal)
-	
-	# Init node
-	rospy.init_node('transport_object', anonymous=True, disable_signals=True)
-	rospy.loginfo("Make sure correct camera intrinsics are set in yaml file!")
 
 	while (True):
 		grasper.reset_poses()
@@ -102,7 +103,7 @@ def main(args):
 						 c to make complete transport: ")[0]
 		
 		if inp == 'c':
-			if transport(pickupGoal, putDownGoal) == True:
+			if transport(pickUpGoal, putDownGoal) == True:
 				print "Success"
 
 		if inp == 'd':
