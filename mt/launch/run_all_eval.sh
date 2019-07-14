@@ -35,5 +35,5 @@ xterm -hold -e "rosrun dope dope.py" &
 #--------------------#
 echo "----- Finished launching basic nodes! -----"
 echo "Now run the following command"
-echo "    rosrun mt grasp_object.py"
+echo "    rosrun mt transport_control.py"
 wait

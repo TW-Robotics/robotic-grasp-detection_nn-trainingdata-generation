@@ -64,14 +64,20 @@ class ur5Controler():
 	###### GENERAL FUNCTIONS FOR BASIC MOVING TASKS ######
 	######################################################
 
+	# Get actual joint values in degrees
+	def get_joint_values(self):
+		jointValues = self.group.get_current_joint_values()
+		jointValues = [i*pi/180 for i in jointValues]
+		return jointValues
+
 	# Move robot to upright position
 	def go_home(self):
 		goalPose = [0, -1.565, 0, -1.569, 0, 0]
-		self.execute_move(goalPose)
+		self.execute_move_rad(goalPose)
 
 	# Move the robot to a safe position to drive around
 	def moveToDrivingPose(self):
-		jointStates = [0, -180*pi/180, 150*pi/180, -150*pi/180, -90*pi/180, 0]
+		jointStates = [0, -180, 150, -150, -90, 0]
 		self.execute_move(jointStates)
 
 	# Move robot to a specific pose
@@ -143,7 +149,7 @@ class ur5Controler():
 		goal_jointStates[jointNr] = goal_jointStates[jointNr] + angleRad_inc
 
 		# Call function to move robot
-		self.execute_move(goal_jointStates)
+		self.execute_move_rad(goal_jointStates)
 
 	# Move one specific joint to a given goal angle
 	def move_joint_to_target(self, jointNr, angleRad):
@@ -152,7 +158,24 @@ class ur5Controler():
 		goal_jointStates[jointNr] = angleRad
 
 		# Call function to move robot
-		self.execute_move(goal_jointStates)
+		self.execute_move_rad(goal_jointStates)
+
+	# Move the robot to goal pose or orientation
+	def execute_move_rad(self, goal):
+		#self.setSpeed()
+
+		# if the goal is a pose
+		if type(goal) is Pose:
+			self.group.set_pose_target(goal)
+		else:
+			self.group.set_joint_value_target(goal)
+		plan = self.group.plan()	# Show move in rviz
+
+		#rospy.sleep(0.05)	# Give time for keyboard-interrupt
+		if self.confirmation(goal):
+			self.group.go(wait=True)
+			self.group.clear_pose_targets()
+			self.group.stop()
 
 	# Move the robot to goal pose or orientation
 	def execute_move(self, goal):
@@ -259,21 +282,16 @@ class ur5Controler():
 	# Move the robot to the position, where it starts to search for the object
 	def moveToSearchPose(self, orientation):
 		# Drive to position where r = 0.4 and h = 0.6
-		jointStates = [110*pi/180, -100*pi/180, 75*pi/180, -100*pi/180, -90*pi/180, 90*pi/180]
+		jointStates = [110, -100, 75, -100, -90, 90]
 
 		if orientation == "left":
-			jointStates[0] = 65*pi/180
+			jointStates[0] = 65
 		elif orientation == "right":
-			jointStates[0] = -115*pi/180
+			jointStates[0] = -115
 		elif orientation == "front":
-			jointStates[0] = -25*pi/180
+			jointStates[0] = -25
 
 		self.execute_move(jointStates)
-
-
-	def moveToTransportPose(self):
-		jointStates = [0*pi/180, -180*pi/180, 115*pi/180, -115*pi/180, -90*pi/180, 0*pi/180]
-		self.execute_move(jointStates)		
 
 	# Turn the robot around R1 and R4 to search the object
 	def searchObject(self, num):
@@ -336,7 +354,7 @@ def main(args):
 		# Move to joint-orientations
 		print "Moving to joint-orientations"
 		jointStates = [-1.13, -1.56, -0.65, -0.94, 1.81, 0.54] # R1-R6
-		ur5.execute_move(jointStates)
+		ur5.execute_move_rad(jointStates)
 
 		# Move one specific joint one specific angle
 		print "Moving one joint"
