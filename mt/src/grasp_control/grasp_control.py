@@ -142,134 +142,207 @@ class grasp_process():
 		else:
 			self.rawImgPub.publish(self.bridge.cv2_to_imgmsg(self.rgb_img_resized, "bgr8"))
 
+######################################################################
+######################################################################
+######################################################################
+
+	def search(self, goal, obj):
+		# Move ur to search position
+		self.ur5.execute_move(goal.urJoints)
+		# Check if object is detected
+		if self.check_for_object(obj) == False:
+			# If object not detected search environment
+			if self.search_around(obj) == False:
+				print "No object found!"
+				return False
+		print "Object found!"
+		return True
+
+	def search_around(self, obj):
+		vertInc = 10
+		horiInc = 20
+		moves =    [[0, horiInc], 	# right
+					[3, vertInc],	# up
+					[0, -horiInc], 	# left
+					[0, -horiInc],	# left
+					[3, -vertInc],	# down
+					[3, -vertInc],	# down
+					[0, horiInc], 	# right
+					[0, horiInc]]	# right
+
+		return self.move_and_check(moves, obj)
+
+	def move_and_check(self, moves, obj):
+		for i in range(len(moves)):
+			self.ur5.move_joint(moves[i][0], moves[i][1])
+			if self.check_for_object(obj) == True:
+				return True
+		return False
+
+	def check_for_object(self, obj):
+		rospy.sleep(0.1)		# wait to arrive at position
+		self.publish_image()
+		timeout = time.time() + 1.5   # 1.5 seconds from now
+
+		# Wait until updated pose arrives or timeout occurs (pose not visible)
+		while time.time() <= timeout:
+			if obj == "carrier":
+				if self.poseIsUpdated_carrier == True:
+					return True 
+			elif obj == "holder":
+				if self.poseIsUpdated_holder == True:
+					return True
+			rospy.sleep(0.05)
+
+		# If object not detected in image
+		return False
+
+	def refine_pose(self, obj):
+		vert = 20
+		hori = 7
+		moves =    [[5, vert], 		# up
+					[5, -2*vert],	# down
+					[5, vert], 		# up to base
+					[4, hori],		# right
+					[3, -2*hori]]	# left
+
+		self.move_and_check(moves, obj)
+
+######################################################################
+######################################################################
+######################################################################
+
+	def grasp(self):
+		##### Close the gripper to grasp object
+		print "Closing gripper..."
+		self.gripper.close()
+		self.ur5.attachObjectToEEF()
+		rospy.sleep(5)
+		if self.gripper.hasGripped() == True:
+			self.hasGraspedPub.publish(Bool(True))
+			print "Successfully grasped object!"
+		else:
+			print "Error grasping object!"
+			return False
+		return True
+
+	def ungrasp(self):
+		##### Open the gripper
+		print "Opening gripper..."
+		self.gripper.open()
+		self.ur5.removeAttachedObject()
+		rospy.sleep(5)
+		self.hasPutPub.publish(Bool(True))
+
+######################################################################
+######################################################################
+######################################################################
+
 	def prepare_grasp(self):
+		# Pre-position last joints so robot does not jeopardize environment
 		actJointValues = self.ur5.get_joint_values()
-		# Pre-position last joints so robot does not jeopardize environment 
 		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], -240, -85, 0])
+		# Move into pre-grasp position
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([actJointValues[0], -90, 150, actJointValues[3], actJointValues[4], actJointValues[5]])
 
+	def make_grasp(self):
+		print "Moving joints in grasp-configuration..."
+		self.prepare_grasp()
+		print "Driving to object..."
+		self.ur5.move_to_pose(self.preGraspPose)
+		self.ur5.move_to_pose(self.graspPose)
+
+		if self.grasp == True:
+			grasper.ur5.move_xyz_base_link_ur(0, 0, 0.05)
+			return True
+
+		# Open gripper and move to save position
+		self.ungrasp()
+		self.ur5.move_to_pose(self.preGraspPose)
+		return False
+
+######################################################################
+######################################################################
+######################################################################
+
 	def prepare_put(self, side):
-		print "Moving joints in put-configuration..."
 		if side == "front":
 			r1_angle = 0
 		elif side == "left":
 			r1_angle = 90
 		elif side == "right":
 			r1_angle = -90
+		# Move first joint to angle according to side to put object
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([r1_angle, actJointValues[1], actJointValues[2], actJointValues[3], actJointValues[4], actJointValues[5]])
 
-	def make_grasp(self):
-		print "Moving joints in grasp-configuration..."
-		self.prepare_grasp()
-		print "Driving to object"
-		self.ur5.move_to_pose(self.preGraspPose)
-		self.ur5.move_to_pose(self.graspPose)
-
-		##### Close the gripper to grasp object
-		self.gripper.close()
-		self.ur5.attachObjectToEEF()
-		rospy.sleep(5)
-		if self.gripper.hasGripped() == True:
-			print "Successfully grasped object!"
-		else:
-			print "Error grasping object!"
-			return False
-		self.hasGraspedPub.publish(Bool(True))
-		#rospy.sleep(0.5)
-		return True
-
 	def put_down(self, side):
+		print "Moving joints in put-configuration..."
 		self.prepare_put(side)
-		print "Driving to put-down-position"
+		print "Driving to put-down-position..."
 		self.ur5.move_to_pose(self.prePutPose)
 		self.ur5.move_to_pose(self.putPose)
 
-		##### Open the gripper
-		self.gripper.open()
-		self.ur5.removeAttachedObject()
-		rospy.sleep(5)
-		self.hasPutPub.publish(Bool(True))
-		#self.ur5.removeAttachedObject()
-		return True
+		self.ungrasp()
+		grasper.ur5.move_to_pose(grasper.postPutPose)
+
+######################################################################
+######################################################################
+######################################################################
 
 	def store(self):
+		# Move in
 		actJointValues = self.ur5.get_joint_values()
-		# Einfahren
 		self.ur5.execute_move([actJointValues[0], -71, 153, -263, -90, 0])
-		# Drehen
+		# Turn to 90 deg position
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([90, actJointValues[1], actJointValues[2], actJointValues[3], actJointValues[4], actJointValues[5]])
-		# Ausfahren
+		# Move out a little bit
 		self.ur5.execute_move([90, -53, 117, -244, -90, 0])
-		# Vorletzte Achse drehen
+		# Turn second last joint in
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], 0, actJointValues[5]])
-		# Drive over position
+		# Drive over put down position
 		self.ur5.execute_move([121, -49, 106, -240, 57, 0])
 		# Drive to put down position
 		self.ur5.execute_move([121, -41, 106, -248, 57, 0])
 
 		##### Open the gripper
-		self.gripper.open()
-		self.ur5.removeAttachedObject()
-		rospy.sleep(5)
-		self.hasPutPub.publish(Bool(True))
-		#self.ur5.removeAttachedObject()
+		self.ungrasp()
 
-		# Vorletzte Achse drehen
-		self.ur5.execute_move([121, -41, 106, -248, 35, 0])
+		# Turn second last axis out for safe position
+		actJointValues = self.ur5.get_joint_values()
+		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], 35, actJointValues[5]])
 
 	def unstore(self):
-		# In Nebenposition bewegen
+		# Move in position to schwenk in
 		self.ur5.execute_move([121, -41, 106, -248, 35, 0])
-		# Hineinschwenken
-		self.ur5.execute_move([121, -41, 106, -248, 57, 0])
-
-		self.gripper.close()
-		self.ur5.attachObjectToEEF()
-		rospy.sleep(5)
-		if self.gripper.hasGripped() == True:
-			print "Successfully grasped object!"
-		else:
-			print "Error grasping object!"
-			return False
-		self.hasGraspedPub.publish(Bool(True))
-		
-		# lift
-		self.ur5.move_xyz_base_link_ur(0, 0, 0.05)
-		# turn
-		self.ur5.execute_move([90, -53, 117, -244, 0, 0])
-		# Vorletzte Achse drehen
+		# Schwenk in
 		actJointValues = self.ur5.get_joint_values()
-		self.ur5.execute_move([actJointValues[0], -71, 153, -263, actJointValues[4], 0])
+		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], 57, actJointValues[5]])	# TODO Make position better
+
+		if self.grasp() == False:
+			# Move in safe position
+			self.ur5.execute_move([121, -41, 106, -248, 35, 0])		
+			return False
+
+		# Lift object
+		self.ur5.execute_move([121, -49, 106, -240, 57, 0])
+		# Schwenk out
+		self.ur5.execute_move([90, -53, 117, -244, 0, 0])
+		# Turn second last joint out
+		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], -90, actJointValues[5]])
+		# Move in a little bit
+		actJointValues = self.ur5.get_joint_values()
+		self.ur5.execute_move([actJointValues[0], -71, 153, -263, -90, 0])
 
 		return True
 
-	def move_and_publish(self, jointID, angle):
-		self.ur5.move_joint(jointID, angle)
-		rospy.sleep(0.1)
-		self.publish_image()
-		timeout = time.time() + 1.5
-		# Wait until updated pose arrives or timeout occurs (pose not visible).
-		# publish_image sets both poseIsUpdated to False. If an object is detected it is set True in the according callback and this function returns True
-		while self.poseIsUpdated_carrier == False and self.poseIsUpdated_holder == False:
-			rospy.sleep(0.05)
-			if time.time() >= timeout:
-				print "Object not detectable"
-				return False
-		return True
-
-	def refine_pose(self):
-		return True
-		print "Refining pose..."
-		self.move_and_publish(5, 20)
-		self.move_and_publish(5, -40)
-		self.ur5.move_joint(5, 20) 	# move back to base position
-		self.move_and_publish(4, 10)
-		self.move_and_publish(4, -20)
+######################################################################
+######################################################################
+######################################################################
 
 	# Convert lists to pose-obect so a standard pose message can be published
 	def listToPose(self, trans, rot):

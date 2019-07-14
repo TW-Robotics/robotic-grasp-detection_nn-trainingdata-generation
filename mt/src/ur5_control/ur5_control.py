@@ -218,7 +218,8 @@ class ur5Controler():
 					print goal
 			inp = raw_input("Move robot? y/n: ")[0]
 		if (inp == 'y' or self.checkBeforeDo == False):
-			print "Moving robot..."
+			if self.checkBeforeDo == True:
+				print "Moving robot..."
 			return True
 		print "Aborted by user."
 		return False

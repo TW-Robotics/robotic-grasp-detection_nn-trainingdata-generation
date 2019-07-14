@@ -15,6 +15,7 @@ class mirControler():
 		self.actPose = Pose()
 		self.targetPose = Pose()
 		self.isMoving = False
+		self.firstTime = True
 
 		# Init Subscriber and Publisher
 		rospy.Subscriber("/robot_pose", Pose, self.robotPose_callback, queue_size=1)		# get actual pose of robot
@@ -31,19 +32,30 @@ class mirControler():
 		self.isMoving = True
 
 	# Check if robot is at goal within thresholds
-	def isAtGoal(self, thresholdP, thresholdO):
-		'''if math.fabs(self.actPose.position.x - self.targetPose.position.x) < thresholdP:
+	def isAtGoalOld(self, thresholdP, thresholdO):
+		if math.fabs(self.actPose.position.x - self.targetPose.position.x) < thresholdP:
 			if math.fabs(self.actPose.position.y - self.targetPose.position.y) < thresholdP:
 				if math.fabs(self.actPose.orientation.z - self.targetPose.orientation.z) < thresholdO:
 					return True
-		return False'''
-		#print self.isMoving
+		return False
+
+	# Check if robot is at goal within thresholds
+	def isAtGoal(self, thresholdP, thresholdO):
 		if self.isMoving == True:
 			self.isMoving = False
-			#rosyp.sleep(0.5)
 			return False
 		else:
 			return True
+
+	def moveMiR(self, goal):
+		self.moveToGoal(goal.posx, goal.posy, goal.rz)
+		self.firstTime = False
+		while grasper.mir.isAtGoal() == False:
+			if self.firstTime == True:
+				print "Moving MiR..."
+			rospy.sleep(1)
+		print "MiR at goal"
+		self.firstTime = True
 
 	# Send the MiR to a goal position
 	def moveToGoal(self, x, y, rz):
