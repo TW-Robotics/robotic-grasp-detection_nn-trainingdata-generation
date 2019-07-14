@@ -43,6 +43,46 @@ def drive_and_search(goal, obj):
 
 	return True
 
+def transport(pickUpGoal, putDownGoal):
+	### Reset grasper state
+	grasper.hasGraspedPub.publish(Bool(True))
+	grasper.hasPutPub.publish(Bool(True))
+	grasper.ur5.removeAttachedObject()
+	grasper.ur5.scene.remove_world_object()
+
+	# Search for carrier and add it to scene
+	if drive_and_search(pickUpGoal, "carrier") == False:
+		return False
+	grasper.ur5.addMesh(grasper.showObjPose,"/dope_object_pose_carrier")
+
+	### Grasping object
+	if grasper.make_grasp() == False:
+		return False
+		
+	### Storing object and moving to driving pose
+	print "Storing object..."
+	grasper.store()
+	print "Moving to driving pose..."
+	grasper.ur5.moveToDrivePose()
+
+	# Search for holder
+	if drive_and_search(putDownGoal, "holder") == False:
+		return False
+
+	# Pick up object
+	if grasper.unstore() == False:
+		return False
+	
+	# Put it down
+	print "Putting down object..."
+	grasper.put_down(putDownGoal.orientation)
+
+	# Move to driving pose
+	print "Moving to driving pose..."
+	grasper.ur5.moveToDrivePose()
+
+	return True
+
 def main(args):
 	parser = argparse.ArgumentParser(description='Transport Object')
 	parser.add_argument('pickUpGoal', metavar='pickUpGoal', type=str, help='Name of goal to pick up carrier')
@@ -62,42 +102,8 @@ def main(args):
 						 c to make complete transport: ")[0]
 		
 		if inp == 'c':
-			### Reset grasper state
-			grasper.hasGraspedPub.publish(Bool(True))
-			grasper.hasPutPub.publish(Bool(True))
-			grasper.ur5.removeAttachedObject()
-			grasper.ur5.scene.remove_world_object()
-
-			# Search for carrier and add it to scene
-			if drive_and_search(pickUpGoal, "carrier") == False:
-				return False
-			grasper.ur5.addMesh(grasper.showObjPose,"/dope_object_pose_carrier")
-
-			### Grasping object
-			if grasper.make_grasp() == False:
-				return False
-				
-			### Storing object and moving to driving pose
-			print "Storing object..."
-			grasper.store()
-			print "Moving to driving pose..."
-			grasper.ur5.moveToDrivePose()
-
-			# Search for holder
-			if drive_and_search(putDownGoal, "holder") == False:
-				return False
-
-			# Pick up object
-			if grasper.unstore() == False:
-				return False
-			
-			# Put it down
-			print "Putting down object..."
-			grasper.put_down(putDownGoal.orientation)
-
-			# Move to driving pose
-			print "Moving to driving pose..."
-			grasper.ur5.moveToDrivePose()
+			if transport(pickupGoal, putDownGoal) == True:
+				print "Success"
 
 		if inp == 'd':
 			mir.moveMiR(pickUpGoal)
