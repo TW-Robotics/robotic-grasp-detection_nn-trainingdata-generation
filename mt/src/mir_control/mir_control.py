@@ -40,7 +40,7 @@ class mirControler():
 		return False
 
 	# Check if robot is at goal within thresholds
-	def isAtGoal(self, thresholdP, thresholdO):
+	def isAtGoal(self):
 		if self.isMoving == True:
 			self.isMoving = False
 			return False
@@ -50,7 +50,7 @@ class mirControler():
 	def moveMiR(self, goal):
 		self.moveToGoal(goal.posx, goal.posy, goal.rz)
 		self.firstTime = False
-		while grasper.mir.isAtGoal() == False:
+		while self.isAtGoal() == False:
 			if self.firstTime == True:
 				print "Moving MiR..."
 			rospy.sleep(1)

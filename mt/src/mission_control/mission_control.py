@@ -25,7 +25,7 @@ class goal():
 	def createGoal(self, goalName):
 		if goalName == "stationrr":
 			self.name = "Robot station high right"
-			self.posx = 13.6
+			self.posx = 13.5
 			self.posy = 3.6
 			self.rz = 11
 			self.orientation = "right"
@@ -33,8 +33,8 @@ class goal():
 		if goalName == "stationrf":
 			self.name = "Robot station high right"
 			self.posx = 13.7
-			self.posy = 3.65
-			self.rz = -73
+			self.posy = 3.8
+			self.rz = -79
 			self.orientation = "front"
 			self.urJoints = [0, -100, 75, -100, -90, 90]
 		elif goalName == "stationlf":
@@ -46,8 +46,8 @@ class goal():
 			self.urJoints = [0, -100, 75, -100, -90, 90]
 		elif goalName == "stationll":
 			self.name = "Robot station high left"
-			self.posx = 16.1
-			self.posy = 4.5
+			self.posx = 16
+			self.posy = 4.6
 			self.rz = -138
 			self.orientation = "left"
 			self.urJoints = [90, -100, 75, -100, -90, 90]
@@ -57,7 +57,7 @@ class goal():
 			self.posy = 10.5
 			self.rz = 10
 			self.orientation = "left"
-			self.urJoints = [90, -100, 75, -100, -90, 90]
+			self.urJoints = [90, -75, 75, -113, -90, 90]
 		return self
 
 	# Print information of goal

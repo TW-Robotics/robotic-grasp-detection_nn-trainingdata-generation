@@ -16,7 +16,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
 
 # IF IMPORT NOT WORKING:
-sys.path.append('/home/johannes/git/mt/mt/src/')
+sys.path.append('/home/mluser/git/mt/mt/src/')
 from mir_control import mir_control
 from mission_control import mission_control
 from grasp_control import grasp_control
@@ -33,6 +33,8 @@ grasper = grasp_control.grasp_process()
 
 
 def drive_and_search(goal, obj):
+	grasper.ur5.moveToDrivePose()
+
 	### Move MiR
 	print "Sending MiR to goal..."
 	mir.moveMiR(goal)
@@ -119,6 +121,7 @@ def main(args):
 			grasper.unstore()
 
 		if inp == 'p':
+			#while True:
 			grasper.publish_image()
 
 		elif inp == 'a':
@@ -130,12 +133,12 @@ def main(args):
 			obj = "carrier"
 			### Search for object
 			print "Searching for object..."
-			if grasper.search(goal, obj) == False:
+			if grasper.search(pickUpGoal, obj) == False:
 				return False
 
 			### Refining pose
-			print "Refining pose..."
-			grasper.refine_pose(obj)
+			#print "Refining pose..."
+			#grasper.refine_pose(obj)
 
 			grasper.ur5.addMesh(grasper.showObjPose,"/dope_object_pose_carrier")
 
@@ -150,12 +153,12 @@ def main(args):
 			obj = "holder"
 			### Search for object
 			print "Searching for object..."
-			if grasper.search(goal, obj) == False:
+			if grasper.search(putDownGoal, obj) == False:
 				return False
 
 			### Refining pose
-			print "Refining pose..."
-			grasper.refine_pose(obj)
+			#print "Refining pose..."
+			#grasper.refine_pose(obj)
 
 			# Pick up object
 			if grasper.unstore() == False:

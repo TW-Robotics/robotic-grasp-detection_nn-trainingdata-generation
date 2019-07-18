@@ -174,12 +174,13 @@ class grasp_process():
 	def move_and_check(self, moves, obj):
 		for i in range(len(moves)):
 			self.ur5.move_joint(moves[i][0], moves[i][1])
+			self.check_for_object(obj)
 			if self.check_for_object(obj) == True:
 				return True
 		return False
 
 	def check_for_object(self, obj):
-		rospy.sleep(0.1)		# wait to arrive at position
+		rospy.sleep(0.3)		# wait to arrive at position
 		self.publish_image()
 		timeout = time.time() + 1.5   # 1.5 seconds from now
 
@@ -203,9 +204,11 @@ class grasp_process():
 					[5, -2*vert],	# down
 					[5, vert], 		# up to base
 					[4, hori],		# right
-					[3, -2*hori]]	# left
+					[4, -2*hori]]	# left
 
-		self.move_and_check(moves, obj)
+		for i in range(len(moves)):
+			self.ur5.move_joint(moves[i][0], moves[i][1])
+			self.check_for_object(obj)
 
 ######################################################################
 ######################################################################
@@ -252,8 +255,8 @@ class grasp_process():
 		self.ur5.move_to_pose(self.preGraspPose)
 		self.ur5.move_to_pose(self.graspPose)
 
-		if self.grasp == True:
-			grasper.ur5.move_xyz_base_link_ur(0, 0, 0.05)
+		if self.grasp() == True:
+			self.ur5.move_xyz_base_link_ur(0, 0, 0.05)
 			return True
 
 		# Open gripper and move to save position
@@ -284,7 +287,7 @@ class grasp_process():
 		self.ur5.move_to_pose(self.putPose)
 
 		self.ungrasp()
-		grasper.ur5.move_to_pose(grasper.postPutPose)
+		self.ur5.move_to_pose(self.postPutPose)
 
 ######################################################################
 ######################################################################
@@ -303,9 +306,9 @@ class grasp_process():
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], 0, actJointValues[5]])
 		# Drive over put down position
-		self.ur5.execute_move([121, -49, 106, -240, 57, 0])
+		self.ur5.execute_move([121, -49, 106, -240, 58, 0])
 		# Drive to put down position
-		self.ur5.execute_move([121, -41, 106, -248, 57, 0])
+		self.ur5.execute_move([120.66, -41.06, 106.74, -248.56, 57.22, -0.09])
 
 		##### Open the gripper
 		self.ungrasp()
@@ -319,7 +322,7 @@ class grasp_process():
 		self.ur5.execute_move([121, -41, 106, -248, 35, 0])
 		# Schwenk in
 		actJointValues = self.ur5.get_joint_values()
-		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], 57, actJointValues[5]])	# TODO Make position better
+		self.ur5.execute_move([121.25, -40.88, 106.11, -248.28, 57.71, -0.0])
 
 		if self.grasp() == False:
 			# Move in safe position

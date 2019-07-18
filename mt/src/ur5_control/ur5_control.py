@@ -66,8 +66,9 @@ class ur5Controler():
 
 	# Get actual joint values in degrees
 	def get_joint_values(self):
+		rospy.sleep(0.1)
 		jointValues = self.group.get_current_joint_values()
-		jointValues = [i*pi/180 for i in jointValues]
+		jointValues = [i*180/pi for i in jointValues]
 		return jointValues
 
 	# Move robot to upright position
@@ -76,8 +77,8 @@ class ur5Controler():
 		self.execute_move_rad(goalPose)
 
 	# Move the robot to a safe position to drive around
-	def moveToDrivingPose(self):
-		jointStates = [0, -180, 150, -150, -90, 0]
+	def moveToDrivePose(self):
+		jointStates = [0, -170, 160, -175, -90, 0]
 		self.execute_move(jointStates)
 
 	# Move robot to a specific pose
@@ -185,6 +186,7 @@ class ur5Controler():
 		if type(goal) is Pose:
 			self.group.set_pose_target(goal)
 		else:
+			goal = [i*pi/180 for i in goal]
 			self.group.set_joint_value_target(goal)
 		plan = self.group.plan()	# Show move in rviz
 
