@@ -17,6 +17,7 @@ class goal():
 		self.rz = 0 		# degrees
 		self.orientation = "invalid"	# left, right or front
 		self.urJoints = [1000, 1000, 1000, 1000, 1000, 1000]
+		self.height = 100000
 		
 		# Fill goal with useful information
 		self.createGoal(goalName)
@@ -30,13 +31,15 @@ class goal():
 			self.rz = 11
 			self.orientation = "right"
 			self.urJoints = [-90, -100, 75, -100, -90, 90]
-		if goalName == "stationrf":
+			self.height = 1200
+		elif goalName == "stationrf":
 			self.name = "Robot station high right"
 			self.posx = 13.7
 			self.posy = 3.8
 			self.rz = -79
 			self.orientation = "front"
 			self.urJoints = [0, -100, 75, -100, -90, 90]
+			self.height = 1200
 		elif goalName == "stationlf":
 			self.name = "Robot station high left"
 			self.posx = 15.75
@@ -44,6 +47,7 @@ class goal():
 			self.rz = -45
 			self.orientation = "front"
 			self.urJoints = [0, -100, 75, -100, -90, 90]
+			self.height = 1200
 		elif goalName == "stationll":
 			self.name = "Robot station high left"
 			self.posx = 16
@@ -51,13 +55,25 @@ class goal():
 			self.rz = -138
 			self.orientation = "left"
 			self.urJoints = [90, -100, 75, -100, -90, 90]
-		elif goalName == "stationnl":
+			self.height = 1200
+		elif goalName == "stationnl": # GEHT ABER NICHT SO SCHOEN
 			self.name = "Robot station low"
 			self.posx = 15.65
 			self.posy = 10.5
 			self.rz = 10
 			self.orientation = "left"
 			self.urJoints = [90, -75, 75, -113, -90, 90]
+			self.height = 800
+		elif goalName == "stationnf":
+			self.name = "Robot station low"
+			self.posx = 15.85
+			self.posy = 10.3
+			self.rz = 100
+			self.orientation = "front"
+			self.urJoints = [-5, -78, 90, -135, -90, 90]
+			self.height = 800
+		else:
+			print "   XXXXXXXXXXXXX   ATTENTION: INVALID GOAL DETECTED!   XXXXXXXXXXXXX   "
 		return self
 
 	# Print information of goal

@@ -66,7 +66,7 @@ class ur5Controler():
 
 	# Get actual joint values in degrees
 	def get_joint_values(self):
-		rospy.sleep(0.1)
+		rospy.sleep(0.3)
 		jointValues = self.group.get_current_joint_values()
 		jointValues = [i*180/pi for i in jointValues]
 		return jointValues

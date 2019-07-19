@@ -63,7 +63,7 @@ def transport(pickUpGoal, putDownGoal):
 	grasper.ur5.addMesh(grasper.showObjPose,"/dope_object_pose_carrier")
 
 	### Grasping object
-	if grasper.make_grasp() == False:
+	if grasper.make_grasp(pickUpGoal) == False:
 		return False
 		
 	### Storing object and moving to driving pose
@@ -82,7 +82,7 @@ def transport(pickUpGoal, putDownGoal):
 	
 	# Put it down
 	print "Putting down object..."
-	grasper.put_down(putDownGoal.orientation)
+	grasper.put_down(putDownGoal)
 
 	# Move to driving pose
 	print "Moving to driving pose..."
@@ -119,10 +119,19 @@ def main(args):
 
 		if inp == 'u':
 			grasper.unstore()
+			grasper.put_down(putDownGoal)
 
 		if inp == 'p':
+			grasper.hasGraspedPub.publish(Bool(True))
+			grasper.hasPutPub.publish(Bool(True))
+			#grasper.ur5.removeAttachedObject()
+			#grasper.ur5.scene.remove_world_object()
 			#while True:
 			grasper.publish_image()
+
+		if inp == 't':
+			grasper.ur5.execute_move(pickUpGoal.urJoints)
+			grasper.make_grasp(pickUpGoal)
 
 		elif inp == 'a':
 			grasper.hasGraspedPub.publish(Bool(True))
@@ -143,7 +152,7 @@ def main(args):
 			grasper.ur5.addMesh(grasper.showObjPose,"/dope_object_pose_carrier")
 
 			### Grasping object
-			if grasper.make_grasp() == False:
+			if grasper.make_grasp(pickUpGoal) == False:
 				return False
 
 		elif inp == 'b':
@@ -166,7 +175,7 @@ def main(args):
 			
 			# Put it down
 			print "Putting down object..."
-			grasper.put_down(putDownGoal.orientation)
+			grasper.put_down(putDownGoal)
 
 			# Move to driving pose
 			print "Moving to driving pose..."

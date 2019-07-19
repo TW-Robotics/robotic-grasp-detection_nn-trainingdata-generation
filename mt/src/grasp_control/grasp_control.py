@@ -201,10 +201,10 @@ class grasp_process():
 		vert = 20
 		hori = 7
 		moves =    [[5, vert], 		# up
-					[5, -2*vert],	# down
-					[5, vert], 		# up to base
-					[4, hori],		# right
-					[4, -2*hori]]	# left
+					[5, -2*vert]]	# down
+					#[5, vert], 		# up to base
+					#[4, hori],		# right
+					#[4, -2*hori]]	# left
 
 		for i in range(len(moves)):
 			self.ur5.move_joint(moves[i][0], moves[i][1])
@@ -240,23 +240,31 @@ class grasp_process():
 ######################################################################
 ######################################################################
 
-	def prepare_grasp(self):
+	def prepare_grasp(self, goal):
 		# Pre-position last joints so robot does not jeopardize environment
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], -240, -85, 0])
 		# Move into pre-grasp position
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([actJointValues[0], -90, 150, actJointValues[3], actJointValues[4], actJointValues[5]])
+		actJointValues = self.ur5.get_joint_values()
+		self.ur5.execute_move([actJointValues[0], -52, 136, -265, actJointValues[4], actJointValues[5]])
 
-	def make_grasp(self):
+		if goal.height <= 1000:
+			actJointValues = self.ur5.get_joint_values()
+			self.ur5.execute_move([actJointValues[0], -12, 100, -270, -70, 0])
+
+	def make_grasp(self, goal):
 		print "Moving joints in grasp-configuration..."
-		self.prepare_grasp()
+		self.prepare_grasp(goal)
 		print "Driving to object..."
 		self.ur5.move_to_pose(self.preGraspPose)
 		self.ur5.move_to_pose(self.graspPose)
 
 		if self.grasp() == True:
 			self.ur5.move_xyz_base_link_ur(0, 0, 0.05)
+			if goal.height <= 1000:
+				self.ur5.move_xyz_base_link_ur(0, 0, 0.15)
 			return True
 
 		# Open gripper and move to save position
@@ -268,20 +276,27 @@ class grasp_process():
 ######################################################################
 ######################################################################
 
-	def prepare_put(self, side):
-		if side == "front":
+	def prepare_put(self, goal):
+		if goal.orientation == "front":
 			r1_angle = 0
-		elif side == "left":
+		elif goal.orientation == "left":
 			r1_angle = 90
-		elif side == "right":
+		elif goal.orientation == "right":
 			r1_angle = -90
 		# Move first joint to angle according to side to put object
 		actJointValues = self.ur5.get_joint_values()
 		self.ur5.execute_move([r1_angle, actJointValues[1], actJointValues[2], actJointValues[3], actJointValues[4], actJointValues[5]])
+		# Turn second last joint out
+		actJointValues = self.ur5.get_joint_values()
+		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], -90, actJointValues[5]])
 
-	def put_down(self, side):
+		if goal.height <= 1000:
+			actJointValues = self.ur5.get_joint_values()
+			self.ur5.execute_move([actJointValues[0], -40, 117, -256, -70, 0])		
+
+	def put_down(self, goal):
 		print "Moving joints in put-configuration..."
-		self.prepare_put(side)
+		self.prepare_put(goal)
 		print "Driving to put-down-position..."
 		self.ur5.move_to_pose(self.prePutPose)
 		self.ur5.move_to_pose(self.putPose)
@@ -333,12 +348,9 @@ class grasp_process():
 		self.ur5.execute_move([121, -49, 106, -240, 57, 0])
 		# Schwenk out
 		self.ur5.execute_move([90, -53, 117, -244, 0, 0])
-		# Turn second last joint out
-		actJointValues = self.ur5.get_joint_values()
-		self.ur5.execute_move([actJointValues[0], actJointValues[1], actJointValues[2], actJointValues[3], -90, actJointValues[5]])
 		# Move in a little bit
-		actJointValues = self.ur5.get_joint_values()
-		self.ur5.execute_move([actJointValues[0], -71, 153, -263, -90, 0])
+		#actJointValues = self.ur5.get_joint_values()
+		#self.ur5.execute_move([actJointValues[0], -71, 153, -263, -90, 0])
 
 		return True
 
