@@ -30,8 +30,6 @@ Run InstallationsSkript.sh to install all necessary packages.
   - cuboid_dimensions
   - transformTo (measured from CAD-Data from origin of STL-file)
 
-TODO image marker-placement, marker type etc.
-
 #### Capturing Data
 This includes launching the basic nodes, calculating the object pose, calculating capture-poses and capturing data.
 - Start basic nodes by running `bash run_all_dataCollection.sh` in `mt/launch`
@@ -114,10 +112,15 @@ In this step, the evaulation-result as json-file is proceeded to calculate metri
 
 #### Qualitative Evaluation
 The qualitative evaluation takes place on the mobile robot which drives to a position, search for the objects and tries to grasp it
+- **Make sure you are on branch `mir2`!**
 - Open `dope/config/config_qualitative.yaml`:
 	- Specifiy the network to use for evaluation
 	- Add the object's dimensions and define a color to draw results
 	- Set `camera_settings` according to your camera
-- Start basic nodes by running `bash run_all_evaluation.sh` in `mt/launch`
+- To add a new goal: Open `mission_control.py` in `mt/src`:
+	- Add the goal for the MiR (send MiR to goal in Web-Interface and read x/y/rotation)
+	- Add the orientation of the UR to search for the goal (in driving direction)
+	- Copy the angle values `urJoints` from another goal
+- Start basic nodes by running `bash run_all_eval.sh` in `mt/launch`
 	- Wait for the nodes to come up and make sure no errors occur
-- Launch the script to control the robot, search for the object and grasp it by running `rosrun mt grasp_object.py ORIENTATION_TO_SEARCH_OBJECT` and follow program instructions
+- Launch the script to control the robot, search for the object and grasp it by running `rosrun mt transport_control.py PICK_UP_GOAL PUT_DOWN_GOAL` and follow program instructions
