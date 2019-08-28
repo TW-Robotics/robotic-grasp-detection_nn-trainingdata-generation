@@ -1,6 +1,5 @@
-# Master Thesis Repository
-
-Run InstallationsSkript.sh to install all necessary packages.
+# Semi-Automatic Generation of Training Data for Neural Networks for 6D Pose Estimation and Robotic Grasping
+## Master Thesis by Johannes Rauer
 
 ### Requirements and Installation ###
 - Master-Thesis Git (including mir_robot, universal_robot, ur_modern_driver):
