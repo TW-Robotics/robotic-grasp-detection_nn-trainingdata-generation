@@ -1,10 +1,8 @@
 # Semi-Automatic Generation of Training Data for Neural Networks for 6D Pose Estimation and Robotic Grasping
-## Master Thesis by Johannes Rauer
+## Master Thesis by Johannes Rauer at UAS Technikum Wien
 
 ### Requirements and Installation ###
-- Master-Thesis Git (including mir_robot, universal_robot, ur_modern_driver):
-
-  	`git clone https://github.com/JRauer/mt`
+- Master-Thesis Git (including mir_robot, universal_robot, ur_modern_driver)
 - blender for Linux apt-get install blender
 - websocket (python) for communication with MiR
 - moveit to control UR5
@@ -111,7 +109,7 @@ In this step, the evaulation-result as json-file is proceeded to calculate metri
 
 #### Qualitative Evaluation
 The qualitative evaluation takes place on the mobile robot which drives to a position, search for the objects and tries to grasp it
-- **Make sure you are on branch `mir2`!**
+- **Make sure you are on branch `evaluation`!**
 - Open `dope/config/config_qualitative.yaml`:
 	- Specifiy the network to use for evaluation
 	- Add the object's dimensions and define a color to draw results
