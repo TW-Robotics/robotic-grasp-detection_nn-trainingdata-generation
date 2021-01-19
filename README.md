@@ -1,6 +1,8 @@
 # Semi-Automatic Generation of Training Data for Neural Networks for 6D Pose Estimation and Robotic Grasping
 ## Master Thesis by Johannes Rauer at UAS Technikum Wien
 
+### For more information read the file [Masterthesis_Rauer.pdf](Masterthesis_Rauer.pdf) or watch this video: https://www.youtube.com/watch?v=6Z5hqX2kCPM
+
 ### Requirements and Installation ###
 - Master-Thesis Git (including mir_robot, universal_robot, ur_modern_driver)
 - blender for Linux apt-get install blender
