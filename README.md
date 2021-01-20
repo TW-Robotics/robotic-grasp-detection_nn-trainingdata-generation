@@ -3,6 +3,8 @@
 Machine-learning-based approaches for pose estimation are trained using annotated groundtruth data – images showing the object and information of its pose. In this work an approach to semiautomatically generate 6D pose-annotated data, using a movable marker and an articulated robot, is presented. A neural network for pose estimation is trained using datasets varying in size and type. The evaluation shows that small datasets recorded in the target domain and supplemented with augmented images lead to more robust results than larger synthetic datasets. The results demonstrate that a mobile manipulator using the proposed pose-estimation system could be deployed in real-life logistics applications to increase the level of automation.
 ### For more information read the [Thesis](Masterthesis_Rauer.pdf), [Paper](Masterthesis_Rauer_Paper.pdf) or watch this [Video](https://www.youtube.com/watch?v=6Z5hqX2kCPM).
 
+![Demo-image](mt/Demonstration.png)
+
 ### How to cite this work
 Rauer J., Aburaia M., and Wöber W., "Semi-Automatic Generation of Training Data for Neural Networks for 6D Pose Estimation and Robotic Grasping", Proceedings of Joint Austrian Computer Vision and Robotics Workshop 2020
 
